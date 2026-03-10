@@ -316,6 +316,39 @@ Default arguments are commonly used in embedded software for functions that have
 
 They allow APIs to remain flexible while keeping common usage simple.
 
+#### Default argument placement
+In C++, default arguments may only be omitted from right to left. This means that parameters with default values must be placed at the end of the parameter list.
+
+A valid example is shown below:
+
+```cpp
+void printValue(const std::uint32_t value, const bool hex = false) noexcept;
+```
+
+This function can be called in either of the following ways:
+
+```cpp
+printValue(42U);
+printValue(42U, true);
+```
+
+The following is not valid:
+
+```cpp
+void printValue(const std::uint32_t value = 0U, const bool hex) noexcept;
+```
+
+This is not allowed because the second parameter does not have a default value, even though the first one does.
+
+If this were allowed, a call such as this:
+
+```cpp
+printValue(true);
+```
+
+would become unclear and potentially cause errors (`true` can be implicitly converted to `value` 
+as `1`).
+
 ---
 
 ### 7. Structs with Member Functions (methods)
@@ -585,6 +618,7 @@ Consider the following example to set a bit `bit` in a given register `reg`:
 * We check the data type using `std::is_integral<T>` from `<type_traits>`, specifically via its member variable `value`:
   * If `T` is of integral type, `std::is_integral<T>::value` is `true` and the assertion succeeds.
   * If `T` isn't of integral type, `std::is_integral<T>::value` is `false` and the assertion fails.
+  * For more information about type traits, see [Additional information about type traits](#additional-information-about-type-traits).
 * The value `1` is cast to type `T` via a `static_cast`, which is a safer alternative to regular C casts.
 
 ```cpp
@@ -604,8 +638,7 @@ constexpr void set(T& reg, const std::uint8_t bit) noexcept
 {
     static_assert(std::is_integral<T>::value,
         "Failed to set bit in register: T must be of integral type!");
-
-    reg |= (static_cast<T>(1) << bit);
+    reg |= (static_cast<T>(1U) << bit);
 }
 ```
 
@@ -635,8 +668,8 @@ set(reg2, 12U);
 Then the compiler generates two separate versions of the function:
 
 ```cpp
-set(std::uint8_t&, bit)
-set(std::uint32_t&, bit)
+set(std::uint8_t&, std::uint8_t)
+set(std::uint32_t&, std::uint8_t)
 ```
 
 Each version is compiled independently and included in the final binary:
@@ -655,14 +688,14 @@ We can also implement parameter packs so that multiple bits can be set at once:
 #include <type_traits>
 
 template<typename T, typename... Bits>
-constexpr void set(T& reg, const Bits&... bits) noexcept
+constexpr void set(T& reg, const Bits... bits) noexcept
 {
     static_assert(std::is_integral<T>::value,
         "Failed to set bit in register: T must be of integral type!");
 
     for (const auto& bit : {bits...})
     {
-        reg |= (static_cast<T>(1) << bit);
+        reg |= (static_cast<T>(1U) << bit);
     }
 }
 ```
@@ -674,6 +707,118 @@ In the example below, bits 1-5 in an 8-bit register are set by instantiating the
 std::uint8_t reg{};
 set(reg, 1U, 2U, 3U, 4U, 5U);
 ```
+
+The compiler will generate code similar to the following:
+
+```cpp
+reg |= (static_cast<T>(1U) << 1U);
+reg |= (static_cast<T>(1U) << 2U);
+reg |= (static_cast<T>(1U) << 3U);
+reg |= (static_cast<T>(1U) << 4U);
+reg |= (static_cast<T>(1U) << 5U);
+```
+
+##### Fold Expressions (C++17)
+In the implementation above we iterate over the bits using a loop and a so-called **braced initializer list**.  
+This approach is easy to read and resembles how similar logic might be written in C.
+
+Since C++17, we can omit the loop by using a fold expression:
+
+```cpp
+(reg |= (static_cast<T>(1U) << bits), ...);
+```
+
+This expression expands the parameter pack `bits...` and performs the operation once for each element.
+Because of this feature, the `set()` function can be implemented more compactly:
+
+
+```cpp
+template<typename T, typename... Bits>
+constexpr void set(T& reg, const Bits... bits) noexcept
+{
+    static_assert(std::is_integral<T>::value,
+        "Failed to set bit in register: T must be of integral type!");
+    (reg |= (static_cast<T>(1U) << bits), ...);
+}
+```
+
+---
+
+### Additional information about type traits
+Type traits allow programs to inspect and reason about types at compile time.
+
+In the C++ standard library, many type traits are implemented as small structs containing a static constant boolean value (`static` means that the value belongs to the type itself rather than to an instance of the struct).
+
+We can implement a simplified version of a trait that checks whether a type is unsigned:
+
+```cpp
+template<typename T>
+struct isUnsigned
+{
+    static constexpr bool value{false};
+};
+```
+
+**Note**: 
+* The type trait is nothing more than a struct template containing a boolean constant `value`.
+* By default, this boolean value is `false` for all types `T`.
+* We can specialize the template for specific types `T` so that `value` becomes `true`, as shown below, where the types `std::uint8_t`, `std::uint16_t`, `std::uint32_t`, `std::uint64_t`, and `std::size_t` 
+are treated as unsigned types:
+
+```cpp
+template<>
+struct isUnsigned<std::uint8_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint16_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint32_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint64_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::size_t>
+{
+    static constexpr bool value{true};
+};
+```
+
+We can use our own type trait `isUnsigned<T>` to check if a type `T` is unsigned as shown below:
+
+```cpp
+static_assert(isUnsigned<T>::value, "T must be of unsigned type!");
+```
+
+Since C++17, it is common to also provide a variable template ending in `_v` that exposes the boolean value directly:
+
+```cpp
+template<typename T>
+inline constexpr bool isUnsigned_v{isUnsigned<T>::value};
+```
+
+**Note**: `inline` allows the variable template to be defined in a header file and included in multiple translation units without causing multiple definition errors.
+
+This variable template allows us to write:
+
+```cpp
+static_assert(isUnsigned_v<T>, "T must be of unsigned type!");
+```
+
+In this course, the traditional form `isUnsigned<T>::value` will be used for clarity.
 
 ---
 
