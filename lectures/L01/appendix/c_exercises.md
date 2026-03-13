@@ -50,130 +50,136 @@ Tasks:
 4. Implement a delay using nested loops:
     * The outer loop should iterate `ms` times.
     * The inner loop should iterate up to `maxCount`.
-    * To reduce the risk of the compiler optimizing the loop away, add a volatile dummy variable `volatile std::uint32_t dummy` inside the function and increment it inside the inner loop.
+    * To reduce the risk of the compiler optimizing the loop away, add a volatile dummy variable `volatile std::uint32_t dummy{}` inside the function and increment it inside the inner loop.
 5. Use this function to simulate a software delay of `100 ms` between the debug prints in exercise 1.1.
 
 ---
 
-## Exercise Set 2 – Struct Drivers
+## Exercise Set 2 – Struct Driver
 
-### Exercise 2.1 – UART Stub Driver
-In a new program, create a simple UART driver:
+### Exercise 2.1 – Software Timer
+In this exercise you will implement a simple software timer driver `driver::Timer` in a header file `driver/timer.h`.
 
-```cpp
-namespace driver
-{
-struct Uart
-{
-    const std::uint32_t baudrate;
-    bool initialized;
-
-    void init() noexcept;
-    void send(std::uint8_t byte) const noexcept;
-};
-} // namespace driver
-```
-
-Tasks:
-1. Implement the two methods:
-   * `init()` shall set `initialized` to `true`.
-   * `send()` shall print the given byte using `std::printf` from `<cstdio>`:
-     * Only print the byte if the UART is initialized, i.e. if `initialized` is `true`.
-     * Print the byte as an unsigned integer using format specifier `%u`.
-
-2. Create a UART object:
+Add the following lines at the top of the file:
 
 ```cpp
-driver::Uart uart{9600U, false};
+/**
+ * @brief Timer driver implementation.
+ */
+#pragma once
+
+#include <cstdint>
+#include <cstdio>
 ```
 
-3. Try to send a few bytes before initializing the UART.  
-Ensure that nothing is printed in the terminal.
+The driver shall simulate a timer that counts milliseconds and generates a timeout when a configured timeout value is reached.
 
-4. Call `init()` and send a few bytes again.  
-Ensure that the bytes are printed in the terminal.
+The struct shall:
+* Use private member variables with the prefix `my`.
+* Have a constructor.
+* Have a destructor.
+
+Use `std::printf` from `<cstdio>` for terminal prints.
 
 ---
 
-### Exercise 2.2 – Sensor Driver
-In the same program as in Exercise 2.1, create a simple digital sensor stub:
+### a) Private member variables
+Add three private member variables:
+* The first member variable shall:
+  * Store the timeout in milliseconds.
+  * Have the type `const std::uint16_t`.
+  * Be named `myTimeout_ms`.
 
-```cpp
-namespace driver
-{
-struct Sensor
-{
-    std::int16_t value;
-    bool enabled;
+* The second member variable shall:
+  * Store the internal counter in milliseconds.
+  * Have the type `std::uint16_t`.
+  * Be named `myCounter_ms`.
 
-    void enable() noexcept;
-    void disable() noexcept;
-    std::int16_t read() const noexcept;
-};
-} // namespace driver
+* The third member variable shall:
+  * Indicate whether the timer is running.
+  * Have the type `bool`.
+  * Be named `myRunning`.
+
+### b) Constructor
+Add a constructor that:
+* Takes two input arguments:
+  * The timeout in milliseconds.
+  * The initial running state, which shall be set to `false` by default.
+* Initializes:
+  * `myTimeout_ms` with the provided timeout value.
+  * `myCounter_ms` with `0U`.
+  * `myRunning` with `false`.
+* Prints that the timer is being created.
+* Calls the public method `start()` if the initial running state is `true`.
+
+Example:
+
+```text
+Creating timer!
 ```
 
-Tasks:
-1. Implement the three methods:
-    * `enable()` shall set `enabled` to `true`.
-    * `disable()` shall set `enabled` to `false`.
-    * `read()` shall return `value` if `enabled` is `true`, otherwise `0`.
-2. Create a sensor instance:
-    * Name the instance `tempSensor`.
-    * Set the sensor value to `25`.
-    * Set the sensor to disabled at startup.
-3. Create a UART instance from Exercise 2.1 and initialize it so that the temperature can be printed.
-4. Read the value. Ensure that the value is `0`, since the sensor is disabled.
-5. Enable the sensor and read the value again. Ensure that the value is `25`.
+### c) Destructor
+Add a destructor that:
+* Calls the public method `stop()`.
+* Prints that the timer is being destroyed.
 
+Example:
+
+```text
+Destroying timer!
+```
+
+### d) Public methods
+Add the following public methods:
+* `timeout_ms()` shall:
+    * Return `myTimeout_ms`.
+* `isRunning()` shall:
+    * Return `myRunning`.
+* `start()` shall:
+  * Set `myRunning` to `true`.
+  * Print `Starting timer!`.
+* `stop()` shall:
+  * Set `myRunning` to `false`.
+  * Print `Stopping timer!`.
+* `toggle()` shall:
+  * Toggle `myRunning`.
+  * Print that the timer was toggled and whether it is now running or stopped:
+    * `Toggling timer: running!` when enabled.
+    * `Toggling timer: stopped!` when disabled.
+* `tick()` shall:
+  * Increment `myCounter_ms` if `myRunning` is `true`.
+  * Otherwise do nothing.
+* `timeout()` shall:
+  * Return `true` if `myCounter_ms >= myTimeout_ms`, otherwise `false`.
+  * If `myCounter_ms >= myTimeout_ms`:
+    * `myCounter_ms` shall be reset to `0U`.
+
+### e) Create and use a timer instance
+In `main()`:
+* Create a timer instance:
+  * Name the instance `timer`.
+  * Set the timeout to `1000 ms`.
+  * Set the timer to running at startup.
+* Create a loop that runs for `5000` iterations:
+  * Call `tick()` each iteration.
+  * Call `timeout()` to check whether the timer has expired.
+  * Print `Timeout after x ms!`, where `x` is the configured timeout, whenever the timer times out.
+
+Since the timer timeout is `1000 ms` and the loop runs for `5000` iterations, the timer should generate five timeouts.
 
 Example output:
 
 ```text
-Temperature reading 1: 0
-Temperature reading 2: 25
+Creating timer!
+Starting timer!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Stopping timer!
+Destroying timer!
 ```
-
----
-
-### Exercise 2.3 – Software Timer
-Create a simple timer driver:
-
-```cpp
-namespace driver
-{
-struct Timer
-{
-    const std::uint32_t timeout_ms;
-    std::uint32_t counter_ms;
-    bool running;
-
-    void start() noexcept;
-    void stop() noexcept;
-    void toggle() noexcept;
-    void tick() noexcept;
-    bool timeout() noexcept;
-};
-} // namespace driver
-```
-
-Tasks:
-1. Implement the five methods:
-    * `start()` shall set `running` to `true`.
-    * `stop()` shall set `running` to `false`.
-    * `toggle()` shall toggle `running`.
-    * `tick()` shall increment `counter_ms` if `running` is `true`, otherwise do nothing.
-    * `timeout()` shall return `true` if `counter_ms >= timeout_ms`, otherwise `false`:
-        * `counter_ms` shall be reset to `0` if `counter_ms >= timeout_ms`.
-2. Create a timer instance:
-    * Name the instance `timer`.
-    * Set the timeout to `1000 ms`.
-    * Initialize the internal counter to `0`.
-    * Set the timer to running at startup.
-3. Create a loop that runs for 5000 iterations:
-    * Call `tick()` each iteration.
-    * Call `timeout()` to check whether the timer has expired.
-    * Print `Timeout!` using `std::printf` from `<cstdio>` whenever the timer generates a timeout.
 
 ---
 
@@ -198,7 +204,7 @@ std::printf("num = %u\n", static_cast<unsigned>(num));
 
 Expected output:
 
-```cpp
+```text
 num = 255
 ```
 
@@ -263,7 +269,7 @@ Create a function template for toggling one or several bits in a register using 
 
 ```cpp
 template<typename T, typename... Bits>
-void toggle(T& reg, const Bits&... bits) noexcept;
+void toggle(T& reg, const Bits... bits) noexcept;
 ```
 
 Tasks:

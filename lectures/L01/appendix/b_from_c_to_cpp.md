@@ -171,7 +171,7 @@ In embedded systems, namespaces are commonly used to organize drivers, hardware 
 ---
 
 ### 4. `constexpr`
-The keyword `constexpr` indicates that a value or expression (including simple functions) should be evaluated at compile time rather than at runtime. This allows the compiler to compute values in advance, which can improve performance and guarantee that certain values remain constant.
+The keyword `constexpr` indicates that a value or expression (including simple functions) can be evaluated at compile time rather than at runtime. This allows the compiler to compute values in advance, which can improve performance and ensure that such values are usable in constant-expression contexts.
 
 In embedded systems, `constexpr` is particularly useful for defining hardware-related constants such as clock frequencies, register offsets, buffer sizes, and bit masks.
 
@@ -188,7 +188,7 @@ constexpr std::uint32_t baudrate{115200U};
 constexpr std::size_t bufLen{20U};
 ```
 
-**Note**: The universal initializer `{}` is used instead of `=` above:
+**Note**: Brace initialization `{}` is used instead of `=` above:
 * This is advantageous, since `{}` can be used to initialize everything.
 * An exception is when using the `auto` keyword prior to C++17; then `auto` should be used in combination with `=` to avoid creating so called initializer lists.    
 
@@ -219,7 +219,7 @@ constexpr int add(const int x, const int y) { return x + y; }
 The keyword `noexcept` indicates that a function is guaranteed not to throw exceptions.
 
 For reference, an example of throwing an exception is shown below.
-In this example, an exception is thrown if the value of `x` exceeds `100U`:
+In this example, an exception is thrown if the value of `val` exceeds `100U`:
 
 ```cpp
 #include <cstdint>
@@ -227,14 +227,14 @@ In this example, an exception is thrown if the value of `x` exceeds `100U`:
 
 int main()
 {
-    constexpr std::size_t limit{100U};
-    std::uint8_t x{};
+    constexpr std::uint8_t limit{100U};
+    std::uint8_t val{};
     
     while (1)
     {
-        if (x++ >= limit)
+        if (limit < val++)
         {
-            throw std::invalid_argument("This is an exception!");
+            throw std::out_of_range("Value exceeded limit!");
         }
     }
     return 0;
@@ -351,11 +351,11 @@ as `1`).
 
 ---
 
-### 7. Structs with Member Functions (methods)
-In C++, a `struct` can contain not only data members but also member functions, or methods, as they're usually called.  
+### 7. Modern C++ Structs
+In C++, a `struct` can contain not only data members but also member functions, often referred to as methods.  
 This allows related data and operations to be grouped together in a single type.
 
-Consider the following `GPIO` driver, implemented as a stub (for simulation):
+Consider the following `driver::Gpio` driver, implemented as a stub (for simulation):
 
 ```cpp
 #include <cstdint>
@@ -376,13 +376,13 @@ struct Gpio
     /**
      * @brief Set GPIO state.
      * 
-     * @param[in] state GPIO state (true = enabled, false = disable).
+     * @param[in] state GPIO state (true = enabled, false = disabled).
      */
-    void write(const bool state) noexcept
-    {
+    void write(const bool state) noexcept 
+    { 
         // Note: The 'this' keyword is used here to refer to our member variable 'state',
         // since we have an input argument with the same name.
-        this->state = state;
+        this->state = state; 
     }
 
     /**
@@ -404,7 +404,7 @@ The `driver::Gpio` struct contains:
 
 These functions operate on the data stored in the struct.
 
-Instances of the struct can be created as shown below:
+Instances of the struct can be created as follows:
 
 ``` cpp
 // Initialize LED connected to pin 9, state set to false.
@@ -413,6 +413,8 @@ driver::Gpio led{9U, false};
 // Initialize button connected to pin 13, simulate pressdown at startup.
 driver::Gpio button{13U, true};
 ```
+
+Note that unlike in C, the keyword `struct` is not required when creating an instance of a struct and can therefore be omitted.
 
 The functions can then be called using the dot operator, just like the data members:
 
@@ -445,7 +447,7 @@ typedef struct
  * @brief Set GPIO state.
  * 
  * @param[in, out] self Pointer to the GPIO.
- * @param[in] state GPIO state (true = enabled, false = disable).
+ * @param[in] state GPIO state (true = enabled, false = disabled).
  */
 void gpio_write(gpio_t* self, const bool state)
 {
@@ -456,7 +458,7 @@ void gpio_write(gpio_t* self, const bool state)
 /**
  * @brief Get GPIO state.
  *
- * @param[in, out] self Pointer to the GPIO.
+ * @param[in] self Pointer to the GPIO.
  *
  * @return True if the GPIO is enabled, false otherwise.
  */
@@ -470,7 +472,7 @@ Instances of the struct can then be created and used as shown below:
 
 ``` cpp
 // Initialize LED connected to pin 9, state set to false.
-gpio_t led    = {9U, false};
+gpio_t led = {9U, false};
 
 // Initialize button connected to pin 13, simulate pressdown at startup.
 gpio_t button = {13U, true};
@@ -480,15 +482,15 @@ const bool button_pressed = gpio_read(&button);
 gpio_write(&led, button_pressed);
 ```
 
-### Comparison
+#### Comparison
 
-#### C-style approach
+##### C-style approach
 
 ``` c
 gpio_write(&led, true);
 ```
 
-#### C++ approach
+##### C++ approach
 
 ``` cpp
 led.write(true);
@@ -496,14 +498,283 @@ led.write(true);
 
 The C++ syntax improves readability and keeps related functionality together, making the code easier to understand and maintain.
 
-Later in the course we will introduce classes, which extend this concept further by supporting features such as encapsulation, inheritance, and polymorphism.
+#### Constructor and destructor
+It's also possible to add initialization and cleanup methods. These methods are known as:
+* Constructor: 
+    * Has the same name as the struct.
+    * Called automatically when an object is created.
+    * Can be used to automatically initialize an object on creation (for instance pin configuration).
+    * For example, a constructor for the `driver::Gpio` struct above can be implemented as follows:
+
+```cpp
+/**
+ * @brief Constructor.
+ *
+ * @param[in] pin Pin the GPIO is connected to.
+ * @param[in] initialState Initial state (default = disabled).
+ */
+Gpio(const std::uint8_t pin, const bool initialState = false) noexcept
+    : pin{pin}
+    , state{initialState}
+{
+    std::printf("Initializing GPIO at pin %u!\n", pin);
+    // Configure pin here!
+}
+```
+
+* Destructor:
+    * Has the same name as the struct, but with prefix `~`.
+    * Called automatically when an object is destroyed.
+    * For example, this happens when an object goes out of scope or when `delete` is used.
+    * Can be used to automatically release allocated resources or undo hardware-related setup.
+    * Often used to release peripherals, disable interrupts, or restore hardware state in embedded systems.
+
+```cpp
+/**
+ * @brief Destructor.
+ */
+~Gpio() noexcept
+{
+    std::printf("Releasing resources reserved for GPIO at pin %u!\n", pin);
+    // Release allocated resources here.
+}
+```
+
+After adding the constructor and destructor, the struct `driver::Gpio` looks like this:
+
+```cpp
+#include <cstdint>
+#include <cstdio>
+
+namespace driver
+{
+/**
+ * @brief GPIO stub driver.
+ */
+struct Gpio
+{
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t pin;
+
+    /** GPIO state. */
+    bool state;
+
+    /**
+     * @brief Constructor.
+     *
+     * @param[in] pin Pin the GPIO is connected to.
+     * @param[in] initialState Initial state (default = disabled).
+     */
+    Gpio(const std::uint8_t pin, const bool initialState = false) noexcept
+        : pin{pin}
+        , state{initialState}
+    {
+        std::printf("Initializing GPIO at pin %u!\n", pin);
+        // Configure pin here!
+    }
+    
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept
+    {
+        std::printf("Releasing resources reserved for GPIO at pin %u!\n", pin);
+        // Release allocated resources here.
+    }
+
+    /**
+     * @brief Set GPIO state.
+     * 
+     * @param[in] state GPIO state (true = enabled, false = disabled).
+     */
+    void write(const bool state) noexcept
+    {
+        // Note: The 'this' keyword refers to the current object.
+        // It is used here because the parameter name 'state' hides the member variable.
+        this->state = state;
+    }
+
+    /**
+     * @brief Get GPIO state.
+     *
+     * @return True if the GPIO is enabled, false otherwise.
+     *
+     * @note The 'const' keyword is used after the method name to set the GPIO instance to
+     *       read-only in the scope of this method.
+     */
+    bool read() const noexcept { return state; }
+};
+} // namespace driver
+```
+
+Before a constructor is defined, the struct can be initialized using aggregate initialization. After a user-defined constructor is added, the same brace syntax may still be used, but it now calls the constructor instead.
+
+For example, the following initialization:
+
+```cpp
+int main()
+{
+    driver::Gpio led{9U, false};
+    led.write(true);
+}
+```
+
+will generate the following output because the constructor and destructor are called automatically:
+
+```text
+Initializing GPIO at pin 9!
+Releasing resources reserved for GPIO at pin 9!
+```
+
+This illustrates the idea behind **RAII** (*Resource Acquisition Is Initialization*):
+* Initialization is performed during object creation.
+* Cleanup is performed automatically when the object is destroyed.
+
+#### Introduction to encapsulation
+In C++, parts of a struct can be made private using the `private` keyword, as shown below for the `driver::Gpio` struct:
+* The `public` keyword has been added for clarity; in a C++ struct, everything is public by default.
+* The `private` keyword has been added to create a private segment.
+* The member variables and methods have been removed for simplicity.
+
+```cpp
+namespace driver
+{
+struct Gpio
+{
+public:
+    // Public segment - accessible outside the struct.
+private:
+    // Private segment - inaccessible outside the struct.
+};
+} // namespace driver
+```
+
+Using the `private` keyword has an important advantage:
+* Symbols (member variables, constants, and methods) declared in the private segment are inaccessible outside the struct.
+* This allows us to hide implementation details and data that should not be accessed directly by other parts of the program.
+* In many designs, member variables are declared private. This ensures that the internal state of the object can only be modified through its member functions.
+
+For instance, the member variables of the `driver::Gpio` struct are typically made private, which is shown below: 
+* The private segment is typically placed at the bottom of the struct, while the public interface (constructors and methods) is placed first. This makes it easier to see how the struct should be used.
+* Here we add the `my` prefix to make it clear that these are member variables and to reduce the need to use the `this` keyword (`this->state = state` was used earlier).
+
+```cpp
+namespace driver
+{
+struct Gpio
+{
+private:
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t myPin;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver
+```
+
+**Note:** The snippet above only shows the private segment of `driver::Gpio`.
+
+Then we update the struct:
+* Member variables `pin` and `state` are replaced with `myPin` and `myState`.
+* The `pin()` method is added so that users still can read the pin number.
+
+```cpp
+#include <cstdint>
+#include <cstdio>
+
+namespace driver
+{
+/**
+ * @brief GPIO stub driver.
+ */
+struct Gpio
+{
+    /**
+     * @brief Constructor.
+     *
+     * @param[in] pin Pin the GPIO is connected to.
+     * @param[in] initialState Initial state (default = disabled).
+     */
+    Gpio(const std::uint8_t pin, const bool initialState = false) noexcept
+        : myPin{pin}
+        , myState{initialState}
+    {
+        std::printf("Initializing GPIO at pin %u!\n", myPin);
+        // Configure pin here!
+    }
+    
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept
+    {
+        std::printf("Releasing resources reserved for GPIO at pin %u!\n", myPin);
+        // Release allocated resources here.
+    }
+
+    /**
+     * @brief Get GPIO pin number.
+     *
+     * @return Pin the GPIO is connected to.
+     */
+    std::uint8_t pin() const noexcept { return myPin; }
+
+    /**
+     * @brief Set GPIO state.
+     * 
+     * @param[in] state GPIO state (true = enabled, false = disabled).
+     */
+    void write(const bool state) noexcept { myState = state; }
+
+    /**
+     * @brief Get GPIO state.
+     *
+     * @return True if the GPIO is enabled, false otherwise.
+     */
+    bool read() const noexcept { return myState; }
+
+private:
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t myPin;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver
+```
+
+After making the member variables private, the compiler will generate an error if we try to access them directly:
+
+```cpp
+int main()
+{
+    driver::Gpio led{9U};
+
+    // Allowed: pin() provides controlled read access to the pin number.
+    std::printf("The LED is connected to pin %u!\n", led.pin());
+
+    // Allowed: write() is part of the public interface.
+    led.write(true);
+
+    // Not allowed: myPin is private.
+    // std::printf("Pin: %u!\n", led.myPin);
+
+    // Not allowed: myState is private.
+    // led.myState = true;
+}
+```
+
+Later in the course we will introduce classes:
+* In C++, structs and classes support almost the same language features, but classes use private as the default access level, while structs use public. 
+* Structs are often used for simple data-oriented types, while classes are commonly used for more complex objects that may involve inheritance, polymorphism, or custom copy and move semantics.
 
 ---
 
 ### 8. References
 References provide an alternative way to pass variables to functions.
 
-A reference acts as an alias for another variable. This means that operations performed on the reference directly affect the original variable. References behave similarly to pointers, but can be used with normal variable syntax.
+A reference acts as an alias for another variable. This means that operations performed on the reference directly affect the original variable. References behave similarly to pointers but can be used with normal variable syntax.
 
 References are declared using the `&` symbol.
 
@@ -559,7 +830,7 @@ While pointers are still used in C++, references are often preferred because the
 * Do not require dereferencing (`*`) to read the value a pointer is pointing at.
 * Provide clearer syntax.
 
-As a result, references are commonly used in modern C++ when a function needs to modify an existing variable. However, a reference can only point at one instance; pointers are still used when we need to be able to change the address we point at, for instance when implementing dynamic arrays (vectors).
+As a result, references are commonly used in modern C++ when a function needs to modify an existing variable. However, a reference cannot be reseated to refer to another object after initialization; pointers are still used when we need to change the address we refer to, for instance when implementing dynamic arrays.
 
 ---
 
@@ -828,7 +1099,7 @@ This appendix introduced the following modern C++ features commonly used in embe
 * `constexpr` and compile-time constants.
 * `noexcept` and exception handling in embedded systems.
 * Default arguments.
-* Structs with member functions (methods).
+* Structs with member functions, constructors/destructors, and encapsulation.
 * References.
 * Function templates.
 
