@@ -46,6 +46,6 @@
 5. Why is `std::unique_ptr` suitable in the factory pattern?
 
 ## Next lecture
-* Class templates.
+* Templates – Generic programming for embedded systems without runtime overhead.
 
 ---
