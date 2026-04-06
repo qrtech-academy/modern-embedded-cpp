@@ -16,7 +16,7 @@ Topics include:
 * Encapsulation and object-oriented design in embedded systems.
 * Interfaces and polymorphism.
 * Factory patterns and dependency management.
-* Class templates and generic programming.
+* Templates and generic programming.
 * Copy and move semantics in embedded C++.
 * Template utilities for low-level programming.
 * Threading and synchronization primitives.
@@ -51,7 +51,7 @@ After completing the course, participants should be able to:
 * Design simple hardware drivers using structs and classes.
 * Use interfaces to decouple system logic from hardware implementations.
 * Apply factory patterns to construct embedded components.
-* Use class templates to build reusable embedded utilities.
+* Use templates to build reusable embedded utilities.
 * Apply object-oriented design without sacrificing performance or determinism.
 * Understand how C++ abstractions translate to machine code in embedded environments.
 

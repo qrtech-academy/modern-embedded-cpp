@@ -10,10 +10,10 @@ Erik Pihl ([erik.axel.pihl@gmail.com](mailto:erik.axel.pihl@gmail.com))
 | Week | Lecture | Topic |
 |------|---------|------|
 | 12 | L01 | Modern Embedded C++ concepts |
-| 14 | L02 | Classes in C++ |
+| 14 | L02 | Classes |
 | 16 | L03 | Inheritance and interfaces |
 | 18 | L04 | Factory pattern |
-| 20 | L05 | Class templates |
+| 20 | L05 | Templates |
 | 22 | L06 | Multithreading and synchronization |
 
 ---
@@ -34,7 +34,7 @@ Topics include:
 
 ---
 
-### L02 – Classes in C++
+### L02 – Classes
 Introduction to writing classes in modern C++.
 
 Topics include:
@@ -72,15 +72,17 @@ Topics include:
 
 ---
 
-### L05 – Class Templates
+### L05 – Templates
 Generic programming for embedded systems.
 
 Topics include:
 * Template fundamentals
+* Function templates
 * Class templates
-* Template instantiation
-* Code size considerations
-* Compile-time programming techniques
+* Template instantiation (how the compiler generates code)
+* Code size considerations (impact in embedded systems)
+* Type traits (compile-time type checks)
+* Parameter packs (advanced)
 
 ---
 
