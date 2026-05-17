@@ -1,11 +1,9 @@
 # L04 - Factory pattern
 
 ## Agenda
-* Motivation for the factory pattern.
-* Implementing factories using:
-  * Raw pointers.
-  * Smart pointers.
-* How the system logic uses factories to create drivers.
+* The motivation behind the Factory Pattern, specifically the Abstract Factory Pattern.
+* Implementing factories using raw and smart pointers.
+* How system logic uses factories to create drivers.
 
 ---
 
