@@ -27,7 +27,7 @@ classes can implement in different ways.
 
 ### After the Lecture
 * Complete the exercises in [Appendix C](./appendix/c_exercises.md).
-* Exercise solutions will be uploaded a few days after the session.
+* Exercise solutions can be found [here](./appendix/solutions/README.md).
 
 ---
 
