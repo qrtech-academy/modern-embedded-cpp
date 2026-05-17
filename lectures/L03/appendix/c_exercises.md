@@ -29,9 +29,9 @@ source/
 In this exercise you will design an interface `driver::serial::Interface` representing a generic serial communication driver.
 
 ### Tasks
-Design a class named `driver::serial::Interface` that represents a generic serial driver.
+In `driver/serial/interface.h`, design a class named `driver::serial::Interface` that represents a generic serial driver.
 
-All methods except the destructor shall be pure virtual (`= 0`).
+All methods except the destructor shall be purely virtual (`= 0`).
 
 ---
 
@@ -72,7 +72,7 @@ Add a pure virtual method `read()` that:
 # Exercise Set 2 – Stub implementation
 
 ## Exercise 2.1 – Serial stub
-In this exercise you will implement a stub driver `driver::serial::Stub` for the serial interface.
+In `driver/serial/stub.h`, implement a stub driver `driver::serial::Stub` for the serial interface.
 
 A stub driver simulates hardware behaviour and is useful for testing without real hardware.
 
@@ -80,18 +80,20 @@ The class shall:
 * Inherit from `driver::serial::Interface`.
 * Be marked `final`.
 
+Method definitions shall be placed in `driver/serial/stub.cpp`.
+
 ---
 
 ### a) Member variables
 Add three private member variables:
 * The first member variable shall:
-    * Indicate whether the driver is initialized.
-    * Have the type `bool`.
-    * Be named `myInitialized`.
-* The second member variable shall:
     * Store the most recently transmitted byte.
     * Have the type `std::uint8_t`.
     * Be named `myLastByte`.
+* The second member variable shall:
+    * Indicate whether the driver is initialized.
+    * Have the type `bool`.
+    * Be named `myInitialized`.
 * The third member variable shall:
     * Indicate whether a byte is available to read.
     * Have the type `bool`.
@@ -102,7 +104,14 @@ Add a default constructor that:
 * Sets the driver as initialized.
 * Indicates that no data is available to read.
 
-### c) Implement interface methods
+### c) Disable copy and move semantics
+Delete the following functions (in the public section of the class):
+* Copy constructor.
+* Move constructor.
+* Copy assignment operator.
+* Move assignment operator.
+
+### d) Implement interface methods
 Implement all methods required by the interface:
 * The method `isInitialized()` shall:
     * Return the value stored in `myInitialized`.
@@ -118,20 +127,20 @@ Implement all methods required by the interface:
         * Set `myHasData` to `false`.
         * Return `true`.
 
-### d) Data injection method
-Add an additional public method `inject()` that is not part of the interface.
+### e) Initialization method
+Add an additional public method `setInitialized()` that is not part of the interface.
 
 This method shall:
-* Simulate incoming serial data if `myInitialized` is `true`.
-* Take a byte as input.
-* Store the byte so that it can later be read.
+* Be used to simulate the initialization state.
+* Take the initialization state as input.
+* Not return a value.
 
 ---
 
 # Exercise Set 3 – Singleton driver
 
 ## Exercise 3.1 – Console serial driver
-Create a real driver implementation `driver::serial::Console` that writes transmitted bytes to the system console.
+In `driver/serial/console.h`, create a real driver implementation `driver::serial::Console` that writes transmitted bytes to the system console.
 
 This driver shall follow the so-called singleton pattern, i.e. there is only one instance of the class.
 
@@ -141,11 +150,13 @@ This class shall:
 * Inherit from `driver::serial::Interface`.
 * Be marked `final`.
 
+Method definitions shall be placed in `driver/serial/console.cpp`.
+
 ### a) Private constructor
 Add a private default constructor that prevents users from directly creating objects of the class.
 
-### b) Public destructor
-Add a public destructor, mark it `noexcept` and `default`.
+### b) Private destructor
+Add a private destructor, mark it `noexcept` and `default`.
 
 ### c) Prevent multiple instances
 Ensure that only one instance of the class can exist.
@@ -172,7 +183,7 @@ Implement all methods required by the interface:
 * The method `isInitialized()` shall:
     * Always return `true`, since the console driver is always available.
 * The method `write()` shall:
-    * Print the given byte to the console using `std::printf()` from `<cstdio>`.
+    * Cast the given byte to a character and print it to the console using `std::printf()` from `<cstdio>`.
 * The method `read()` shall:
     * Always return `false`, since the console does not support reading.
 
@@ -181,18 +192,14 @@ Implement all methods required by the interface:
 # Exercise Set 4 – Using the interface
 
 ## Exercise 4.1 – Sending a message
-**a)** Create a function `sendMessage()` that sends a message using the serial interface.
+**a)** In `source/main.cpp`, create a function `sendMessage()` that sends a message using the serial interface.
 
 The function shall:
 * Take a reference to `driver::serial::Interface`.
-* Transmit the string `"Transmitting data with a serial driver!\n"`.
+* Transmit the string `"Transmitting data with a serial driver!"`.
 * Send the message one byte at a time.
 
-**b)** In `main.cpp`, test the stub driver:
-* Create an instance of the stub driver and pass it to the function `sendMessage()`.
-* Verify that the transmitted byte can later be read using the `read()` method.
-
-**c)** In `main.cpp`, test the console driver:
+**b)** In function `main`, test the console driver:
 * Obtain the singleton instance of the console driver.
 * Pass it to the `sendMessage()` function.
 * Verify that the program prints the following:
@@ -201,13 +208,8 @@ The function shall:
 Transmitting data with a serial driver!
 ```
 
----
-
-# Exercise Set 5 – Reflection questions
-**a)** Why does the function `sendMessage()` take a reference to `driver::serial::Interface` instead
-of a specific driver class?  
-**b)** What advantages does the stub driver provide during testing?  
-**c)** Why can the console driver reasonably be implemented as a singleton?  
-**d)** What disadvantages can the singleton pattern have?  
+**c)** In function `main()`, test the stub driver:
+* Create an instance of the stub driver and pass it to the function `sendMessage()`.
+* Verify that the last transmitted byte `!` can later be read using the `read()` method.
 
 ---
