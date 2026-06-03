@@ -9,6 +9,9 @@ Create the following directory structure:
 ```text
 Makefile
 include/
+    app/
+        logic/
+            logic.h
     driver/
         factory/
             esp32s3.h
@@ -18,9 +21,6 @@ include/
             esp32s3.h
             interface.h
             stub.h
-    system/
-        logic/
-            logic.h
 source/
     main.cpp
 ```
@@ -85,13 +85,13 @@ The class shall:
 ### a) Member variables  
 Add three private member variables:
 * The first member variable shall:
-    * Indicate whether the driver is initialized.
-    * Have the type `bool`.
-    * Be named `myInitialized`.
-* The second member variable shall:
     * Store the most recently transmitted byte.
     * Have the type `std::uint8_t`.
     * Be named `myLastByte`.
+* The second member variable shall:
+    * Indicate whether the driver is initialized.
+    * Have the type `bool`.
+    * Be named `myInitialized`.
 * The third member variable shall:
     * Indicate whether a byte is available to read.
     * Have the type `bool`.
@@ -125,13 +125,12 @@ Implement all methods required by the interface:
         * Set `myHasData` to `false`.
         * Return `true`.
 
-### e) Data injection method  
-Add an additional public method `inject()` that is not part of the interface.
-
-This method shall:
-* Simulate incoming serial data if `myInitialized` is `true`.
-* Take a byte as input.
-* Store the byte so that it can later be read.
+### e) Disable copy and move semantics
+Delete the following functions (in the public section of the class):
+* Copy constructor.
+* Move constructor.
+* Copy assignment operator.
+* Move assignment operator.
 
 ---
 
@@ -148,7 +147,7 @@ The class shall:
 Add two private member variables:
 * The first shall store the transmit pin number.
 * The second shall store the receive pin number.
-* Both shall have the type `std::uint8_t`.
+* Both shall have the type `std::uint8_t` and be marked `const`.
 * They shall be named `myTxPin` and `myRxPin`.
 
 ### b) Constructor  
@@ -169,8 +168,16 @@ Declare and implement the required interface methods.
 
 For this exercise, it is sufficient to use placeholder implementations:
 * `isInitialized()` may always return `true`.
-* `write()` may ignore the transmitted byte.
+* `write()` shall print the transmitted byte in hexadecimal format. For example, transmitting byte `0xFF` on TX pin `17` shall print `Transmitting byte FF via TX pin 17`.
 * `read()` may always return `false`.
+
+### e) Disable copy and move semantics
+Delete the following functions (in the public section of the class):
+* Default constructor.
+* Copy constructor.
+* Move constructor.
+* Copy assignment operator.
+* Move assignment operator.
 
 ---
 
@@ -179,7 +186,7 @@ For this exercise, it is sufficient to use placeholder implementations:
 ## Exercise 2.1 – Factory interface
 In this exercise you will design a factory interface `driver::factory::Interface`.
 
-The purpose of this factory is to create serial drivers without exposing the concrete driver type to the system logic.
+The purpose of this factory is to create serial drivers without exposing the concrete driver type to the application logic.
 
 ### Tasks
 Design a class named `driver::factory::Interface`.
@@ -226,6 +233,13 @@ Implement the method `serial()` so that it:
 
 Use the operator `new`.
 
+### c) Disable copy and move semantics
+Delete the following functions (in the public section of the class):
+* Copy constructor.
+* Move constructor.
+* Copy assignment operator.
+* Move assignment operator.
+
 ---
 
 ## Exercise 2.3 – Stub factory
@@ -251,24 +265,27 @@ Implement the method `serial()` so that it:
 
 Use the operator `new`.
 
+### c) Disable copy and move semantics
+Delete the following functions (in the public section of the class):
+* Copy constructor.
+* Move constructor.
+* Copy assignment operator.
+* Move assignment operator.
+
 ---
 
-# Exercise Set 3 – System logic with raw pointers
+# Exercise Set 3 – Application logic with raw pointers
 
 ## Exercise 3.1 – Logic class using a factory
-In this exercise you will implement a logic class `system::logic::Logic` that uses a factory to create its serial driver.
+In this exercise you will implement a logic class `app::logic::Logic` that uses a factory to create its serial driver.
 
-The system logic shall:
+The application logic shall:
 * Own one serial driver.
 * Periodically transmit a message.
 * Attempt to read one received byte.
 
 ### a) Member variable  
-Add one private member variable:
-* `mySerial`
-
-It shall:
-* Have the type `driver::serial::Interface*`.
+Add a private member variable `mySerial` of type `driver::serial::Interface*`.
 
 ### b) Constructor  
 Add a constructor that:
@@ -289,21 +306,43 @@ Add a destructor that:
 Add a method `run()` that:
 * Is marked `noexcept`.
 * Runs continuously.
-* Sends the character `'A'`.
-* Attempts to read one byte into a local variable.
+* Sends an incrementing byte value (`0–255`). After reaching `255`, the value wraps around to `0`.
+* Attempts to read one byte into a local variable and prints it if received.
 * Repeats forever.
+* Delays execution by `100 ms` at the end of each loop iteration:
 
-Use a local variable of type `std::uint8_t` for the received byte.
+```cpp
+#include <chrono>
+#include <thread>
+
+constexpr std::uint8_t sleep_ms{100U};
+
+std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+```
+
+Use local variables of type `std::uint8_t` to store the transmitted and received bytes:
+
+```cpp
+std::uint8_t txByte{}, rxByte{};
+```
+
+### e) Disable copy and move semantics
+Delete the following functions (in the public section of the class):
+* Default constructor.
+* Copy constructor.
+* Move constructor.
+* Copy assignment operator.
+* Move assignment operator.
 
 ---
 
 ## Exercise 3.2 – Using the raw-pointer factory in `main`
-In this exercise you will test your system using both factories.
+In this exercise you will test your application using both factories.
 
 ### a) ESP32-S3 factory  
 In `main.cpp`:
 * Create an instance of `driver::factory::Esp32s3`.
-* Create an instance of `system::logic::Logic` using that factory.
+* Create an instance of `app::logic::Logic` using that factory.
 * Pass suitable pin numbers, for example `17U` and `18U`.
 * Call `run()`.
 
@@ -352,7 +391,7 @@ Modify `driver::factory::Stub` so that:
 ---
 
 ## Exercise 4.3 – Updating the logic class
-In this exercise you will update `system::logic::Logic` to use smart pointers.
+In this exercise you will update `app::logic::Logic` to use smart pointers.
 
 ### a) Member variable  
 Replace the raw pointer member `mySerial` with a `std::unique_ptr<driver::serial::Interface>`.
