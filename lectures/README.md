@@ -6,5 +6,6 @@ The following material is covered in the lectures:
 * [L03](./L03/README.md): Inheritance and interfaces.
 * [L04](./L04/README.md): Factory pattern.
 * [L05](./L05/README.md): Templates and generic programming.
+* [L06](./L06/README.md): Multithreading and synchronization mechanisms.
 
 ---
