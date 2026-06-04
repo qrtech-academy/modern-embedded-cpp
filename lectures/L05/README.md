@@ -1,4 +1,4 @@
-# L05 – Templates
+# L05 – Templates and Generic Programming
 
 ## Agenda
 * Motivation for templates in embedded systems.
