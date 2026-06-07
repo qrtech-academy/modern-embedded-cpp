@@ -6,8 +6,7 @@
 * Template instantiation (compile-time code generation).
 * Class templates.
 * Code size considerations in embedded systems.
-* Introduction to type traits.
-* If time allows: Introduction to parameter packs.
+* Introduction to type traits and parameter packs.
 
 ---
 
