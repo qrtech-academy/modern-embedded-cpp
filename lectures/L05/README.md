@@ -41,7 +41,7 @@
 
 ### After the Lecture
 * Complete the exercises in [Appendix D](./appendix/d_exercises.md).
-* Exercise solutions will be uploaded a few days after the session.
+* Exercise solutions can be found [here](./appendix/solutions/README.md).
 
 ---
 
