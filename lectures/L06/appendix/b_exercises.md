@@ -3,70 +3,35 @@
 ## Exercises
 These exercises reinforce the concepts from [Appendix A](./a_threads_mutex_atomic.md).
 
-The purpose is to practice:
-* Creating and joining threads using `std::thread`.
-* Protecting shared data using `std::mutex` and `std::lock_guard`.
-* Using `std::atomic` for simple thread-safe stop flags and counters.
-* Understanding when a mutex is required instead of an atomic variable.
-
-Create the following directory structure:
-
-```text
-Makefile
-include/
-    app/
-        logic/
-            logic.h
-    driver/
-        counter/
-            interface.h
-            stub.h
-source/
-    app/
-        logic/
-            logic.cpp
-    driver/
-        counter/
-            stub.cpp
-    main.cpp
-```
-
 ---
 
 # Exercise Set 1 – Threads and atomic stop flag
+Create a file named `exercise1.cpp` to work in for this exercise set.
 
 ## Exercise 1.1 – Creating a worker thread
 In this exercise you will create a simple worker function that runs in a separate thread.
 
 ### Tasks
-Create a function named `workerThread()`.
+In `exercise1.cpp`, create a function named `workerThread()`.
 
 The function shall:
-* Take no parameters.
+* Take a `std::uint8_t` named `printCount`: The number of times to print.
+* Take a `std::uint16_t` named `printSpeed_ms`: The delay in milliseconds between each print.
 * Return `void`.
-* Print `"Worker thread running"` five times.
-* Sleep for `500 ms` between each print.
-
-Use:
-
-```cpp
-#include <chrono>
-#include <thread>
-
-std::this_thread::sleep_for(std::chrono::milliseconds(500U));
-```
+* Print `"Worker thread running!"` `printCount` times.
+* Sleep for `printSpeed_ms` milliseconds between each print using `std::this_thread::sleep_for()` with `std::chrono::milliseconds`.
 
 ---
 
 ## Exercise 1.2 – Starting and joining the thread
-In `main.cpp`:
-* Create a `std::thread` that runs `workerThread()`.
-* Print `"Main thread running"` from `main()`.
+In `exercise1.cpp`:
+* Create a `std::thread` that runs `workerThread()`, passing `5U` as `printCount` and `500U` as `printSpeed_ms`.
+* Print `"Main thread running!"` from `main()`.
 * Call `join()` on the worker thread before returning from `main()`.
 
 ### Reflection
 * What happens if `join()` is not called?
-* Which thread prints first?
+* Which thread prints first, the main thread or the worker thread?
 * Is the print order guaranteed?
 
 ---
@@ -78,18 +43,18 @@ In this exercise you will modify the worker thread so that it runs until a stop 
 Create an atomic boolean variable in `main()`:
 
 ```cpp
-std::atomic<bool> stopFlag{false};
+std::atomic<bool> stop{false};
 ```
 
 Modify `workerThread()` so that it:
-* Takes a `const std::atomic<bool>&` named `stopFlag`.
-* Runs as long as `stopFlag.load()` is `false`.
-* Prints `"Worker thread running"` once every `500 ms`.
+* Replaces the `printCount` parameter with a `const std::atomic<bool>&` named `stop`, placed after `printSpeed_ms`.
+* Runs as long as `stop.load()` is `false`.
+* Prints `"Worker thread running"` once every `printSpeed_ms` milliseconds.
 
 In `main()`:
 * Start the worker thread.
 * Let the main thread sleep for `3000 ms`.
-* Set the stop flag using `stopFlag.store(true)`.
+* Set the stop flag using `stop.store(true)`.
 * Join the worker thread.
 
 ### Reflection
@@ -101,9 +66,9 @@ In `main()`:
 ---
 
 # Exercise Set 2 – Shared counter with data race
+Create a file named `exercise2.cpp` to work in for this exercise set.
 
 ## Exercise 2.1 – Shared counter without synchronization
-
 In this exercise you will intentionally create a data race.
 
 ### Tasks
@@ -116,14 +81,9 @@ std::uint32_t counter{};
 Create a function named `incrementCounter()`.
 The function shall:
 * Take a reference to the counter.
-* Take a number of iterations.
+* Take a number of iterations (`std::uint32_t`).
 * Increment the counter once per iteration.
-
-Example function signature:
-
-```cpp
-void incrementCounter(std::uint32_t& counter, std::uint32_t iterations) noexcept;
-```
+* Be marked `noexcept`.
 
 In `main()`:
 * Create two threads that both call `incrementCounter()`.
@@ -155,21 +115,6 @@ Modify `incrementCounter()` so that it:
 * Uses `std::lock_guard<std::mutex>`.
 * Unlocks automatically when the lock guard goes out of scope.
 
-Example function signature:
-
-```cpp
-void incrementCounter(std::uint32_t& counter,
-                      std::mutex& mutex,
-                      std::uint32_t iterations) noexcept;
-```
-
-Inside the loop:
-
-```cpp
-std::lock_guard<std::mutex> lock{mutex};
-++counter;
-```
-
 ### Reflection
 * What final counter value do you get now?
 * Why does the mutex solve the problem?
@@ -191,18 +136,6 @@ Modify `incrementCounter()` so that it:
 * Takes a reference to the atomic counter.
 * Increments it once per iteration.
 
-Example function signature:
-
-```cpp
-void incrementCounter(std::atomic<std::uint32_t>& counter, std::uint32_t iterations) noexcept;
-```
-
-Inside the loop:
-
-```cpp
-++counter;
-```
-
 ### Reflection
 * What final counter value do you get?
 * Why is `std::atomic<std::uint32_t>` sufficient in this exercise?
@@ -211,77 +144,56 @@ Inside the loop:
 ---
 
 # Exercise Set 3 – Shared data protected by mutex
+Create a file named `exercise3.cpp` to work in for this exercise set.
 
 ## Exercise 3.1 – Shared memory structure
 In this exercise you will create shared data that must be protected by a mutex.
 
 ### Tasks
-Create a structure named `SharedMem`:
-
-```cpp
-struct SharedMem
-{
-    std::uint16_t data{};
-    bool newData{false};
-};
-```
+In `exercise3.cpp`, create a structure named `SharedMem` with the following members:
+* `data`: A 16-bit unsigned value.
+* `newData`: True if new data is available, false otherwise.
 
 The structure represents data shared between a transmitter thread and a receiver thread.
 
 ---
 
 ## Exercise 3.2 – Transmitter thread
-Create a function named `txThread()`.
+In `exercise3.cpp`, create a function named `txThread()`.
 
 The function shall:
 * Take a reference to `SharedMem`.
 * Take a reference to `std::mutex`.
-* Take a reference to `const std::atomic<bool>` named `stopFlag`.
+* Take a reference to `const std::atomic<bool>` named `stop`.
 * Run until the stop flag is set.
 * Produce an incrementing `std::uint16_t` value.
 * Store the value in `shared.data`.
 * Set `shared.newData` to `true`.
 * Sleep for `1000 ms` between transmissions.
 
-Example function signature:
-
-```cpp
-void txThread(SharedMem& shared, std::mutex& mutex, const std::atomic<bool>& stopFlag) noexcept;
-```
-
-The update of `shared.data` and `shared.newData` shall be protected using:
-
-```cpp
-std::lock_guard<std::mutex> lock{mutex};
-```
+The update of `shared.data` and `shared.newData` shall be protected using a lock guard.
 
 ---
 
 ## Exercise 3.3 – Receiver thread
-Create a function named `rxThread()`.
+In `exercise3.cpp`, create a function named `rxThread()`.
 
 The function shall:
 * Take a reference to `SharedMem`.
 * Take a reference to `std::mutex`.
-* Take a reference to `const std::atomic<bool>` named `stopFlag`.
+* Take a reference to `const std::atomic<bool>` named `stop`.
 * Run until the stop flag is set.
 * Check whether new data is available.
 * Print the received data if `shared.newData` is `true`.
 * Set `shared.newData` to `false` after consuming the data.
 * Sleep for `100 ms` between receive attempts.
 
-Example function signature:
-
-```cpp
-void rxThread(SharedMem& shared, std::mutex& mutex, const std::atomic<bool>& stopFlag) noexcept;
-```
-
 The check and update of `shared.data` and `shared.newData` shall be protected by the same mutex.
 
 ---
 
 ## Exercise 3.4 – Running TX and RX threads
-In `main.cpp`:
+In `exercise3.cpp`:
 * Create one `SharedMem` object.
 * Create one `std::mutex`.
 * Create one atomic stop flag.
@@ -296,10 +208,23 @@ In `main.cpp`:
 * Why is `newData` not atomic in this design?
 * What could happen if TX updated `data` and `newData` without locking the mutex?
 * Why is the stop flag atomic instead of mutex-protected?
+* Could `std::atomic<SharedMem>` be used instead of a mutex? Why or why not?
 
 ---
 
 # Exercise Set 4 – Thread-safe stub driver
+Create the following directory structure to work in for this exercise set:
+
+```text
+Makefile
+include/
+    driver/
+        counter/
+            interface.h
+            stub.h
+source/
+    main.cpp
+```
 
 ## Exercise 4.1 – Counter driver interface
 In this exercise you will design an interface named `driver::counter::Interface`.
@@ -321,11 +246,11 @@ Add a destructor that is:
 
 ---
 
-### b) Incrementing the counter
-Add a pure virtual method `increment()` that:
-* Increments the counter by one.
-* Does not return a value.
-* Cannot throw exceptions.
+### b) Checking initialization state
+Add a pure virtual method `isInitialized()` that:
+* Returns `true` if the driver is initialized, `false` otherwise.
+* Does not modify the object.
+* Is marked `noexcept`.
 
 ---
 
@@ -333,15 +258,23 @@ Add a pure virtual method `increment()` that:
 Add a pure virtual method `value()` that:
 * Returns the current counter value as `std::uint32_t`.
 * Does not modify the object.
-* Cannot throw exceptions.
+* Is marked `noexcept`.
 
 ---
 
-### d) Resetting the counter
+### d) Incrementing the counter
+Add a pure virtual method `increment()` that:
+* Increments the counter by one.
+* Does not return a value.
+* Is marked `noexcept`.
+
+---
+
+### e) Resetting the counter
 Add a pure virtual method `reset()` that:
 * Resets the counter to zero.
 * Does not return a value.
-* Cannot throw exceptions.
+* Is marked `noexcept`.
 
 ---
 
@@ -351,18 +284,17 @@ In this exercise you will implement `driver::counter::Stub`.
 The class shall:
 * Inherit from `driver::counter::Interface`.
 * Be marked `final`.
-* Be safe to use from multiple threads.
+* Be safe to use from multiple threads (via a mutex).
 
 ### a) Member variables
 Add two private member variables:
+* `myMutex`:
+    * Type: `std::mutex`.
+    * Protects access to `myValue` below.
+    * Must be marked `mutable` because `value()` is a `const` method but still needs to lock the mutex.
 * `myValue`:
     * Type: `std::uint32_t`.
     * Stores the counter value.
-* `myMutex`:
-    * Type: `mutable std::mutex`.
-    * Protects access to `myValue`.
-
-The mutex must be marked `mutable` because `value()` is a `const` method but still needs to lock the mutex.
 
 ---
 
@@ -384,12 +316,14 @@ Add a destructor that is:
 
 ### d) Implement interface methods
 Implement all methods required by the interface:
-* `increment()` shall:
-    * Lock the mutex using `std::lock_guard<std::mutex>`.
-    * Increment `myValue`.
+* `isInitialized()` shall:
+    * Return `true`.
 * `value()` shall:
     * Lock the mutex using `std::lock_guard<std::mutex>`.
     * Return `myValue`.
+* `increment()` shall:
+    * Lock the mutex using `std::lock_guard<std::mutex>`.
+    * Increment `myValue`.
 * `reset()` shall:
     * Lock the mutex using `std::lock_guard<std::mutex>`.
     * Set `myValue` to zero.
@@ -406,10 +340,16 @@ Delete the following functions in the public section of the class:
 ---
 
 ## Exercise 4.3 – Testing the thread-safe stub
+Create a function named `counterThread()`.
+
+The function shall:
+* Take a reference to `driver::counter::Interface`.
+* Take a `std::uint32_t` named `iterations`, which is the number of times to call `increment()`.
+* Be marked `noexcept`.
+
 In `main.cpp`:
 * Create one `driver::counter::Stub`.
-* Start two threads.
-* Let both threads call `increment()` many times.
+* Start two threads, both running `counterThread()` — the first with `100U` iterations, the second with `200U`.
 * Join both threads.
 * Print the final counter value using `value()`.
 
@@ -439,16 +379,14 @@ Initialize it to `true` in the constructor.
 ---
 
 ## Exercise 5.2 – Initialization methods
-Add two public methods:
+Add a public method `setInitialized()` specific to the stub. The method shall:
+* Take a `bool` named `initialized`.
+* Write to `myInitialized` using `store()`.
+* Be marked `noexcept`.
 
-```cpp
-void setInitialized(bool initialized) noexcept;
-bool isInitialized() const noexcept;
-```
-
-The methods shall:
-* Use `store()` when writing the initialization state.
-* Use `load()` when reading the initialization state.
+Override `isInitialized()` from the interface so that it:
+* Reads `myInitialized` using `load()`.
+* Returns the current initialization state instead of always returning `true`.
 
 ---
 
@@ -465,5 +403,82 @@ The counter value itself shall still be protected by the mutex.
 * Why is `myValue` still protected by a mutex?
 * Would it be safe to make both variables atomic if future requirements added more related state?
 * What is the main design difference between a thread-safe flag and thread-safe shared data?
+* What could happen if `setInitialized(false)` is called between the initialization check and the mutex lock in `increment()`? How would you fix this?
+
+---
+
+# Exercise Set 6 – Condition variable
+Create a file named `exercise6.cpp` by copying `exercise3.cpp`. All modifications in this exercise set are made to that file.
+
+## Exercise 6.1 – Replacing polling with a condition variable
+In Exercise 3.3 the receiver thread checks for new data by polling in a loop with a `100 ms` sleep. In this exercise you will replace that pattern with a `std::condition_variable` so the receiver wakes up immediately when data is available.
+
+### Tasks
+Add a `std::condition_variable` named `cv` alongside the existing mutex.
+
+Create a helper function named `hasNewData()` to use as the wake-up predicate. The function shall:
+* Take a `const SharedMem&`.
+* Take a `const std::atomic<bool>&` named `stop`.
+* Return `true` if `shared.newData` is `true` or the stop flag is set, `false` otherwise.
+
+Modify `txThread()` so that it calls `cv.notify_one()` after releasing the lock guard that protects the data update.
+
+Modify `rxThread()` so that instead of sleeping it:
+* Acquires a `std::unique_lock<std::mutex>`.
+* Calls `cv.wait()` with the lock and a predicate that calls `hasNewData()`.
+
+> **Note:** The predicate is passed as a lambda; the `[&]` syntax captures `shared` and `stop` by reference so the predicate can access both. Lambdas are covered in the associated appendix.
+
+In `main()`, after setting the stop flag, call `cv.notify_all()` to wake the receiver thread so it can exit cleanly.
+
+### Reflection
+* Why is `std::unique_lock` required here instead of `std::lock_guard`?
+* What is a spurious wake-up, and how does the predicate protect against it?
+* Why must the stop flag also be checked inside the predicate?
+* How does this design differ from the polling approach in Exercise 3.3?
+* What would happen if `notify_all()` was not called after setting the stop flag?
+* Why is `notify_all()` used here instead of `notify_one()`?
+
+---
+
+# Exercise Set 7 – std::async and std::future
+Create a new `main.cpp` to work in for this exercise set.
+
+## Exercise 7.1 – Offloading a computation
+In this exercise you will use `std::async` to run a validation in the background while the
+main thread continues working.
+
+### Tasks
+Create a function named `validateFirmware()`. The function shall:
+* Take a `const std::uint8_t*` named `buf` and a `std::uint16_t` named `bufLen`.
+* Return `false` if `buf` is `nullptr` or `bufLen` is `0`.
+* Sleep for `2000 ms` to simulate a slow flash read before validating.
+* Iterate over all bytes in `buf`.
+* Return `false` if any byte has the value `0xFFU` (unprogrammed flash).
+* Return `true` if the image is valid.
+* Be marked `noexcept`.
+
+In `main()`:
+* Create a buffer with some test data.
+* Launch `validateFirmware()` asynchronously using `std::async` with `std::launch::async`, storing the result in a `std::future<bool>`.
+* Print `"Booting system while validating firmware..."` while validation is running.
+* Retrieve the result using `future.get()` and print whether the firmware is valid or not.
+
+### Reflection
+* What does `std::launch::async` guarantee compared to omitting the launch policy?
+* At what point does the main thread block?
+* What would happen if `future.get()` was called immediately after `std::async`?
+
+---
+
+## Exercise 7.2 – Checking whether the result is ready
+Modify `main()` so that instead of calling `future.get()` directly, it polls in a loop:
+* Each iteration shall call `future.wait_for()` with `std::chrono::milliseconds(200U)` and compare the result against `std::future_status::ready`. 
+* As long as the result is not ready, print `"Still waiting for firmware validation..."`. 
+* Once the loop exits, retrieve the result using `future.get()`.
+
+### Reflection
+* How does `wait_for()` differ from `get()`?
+* Is it safe to call `get()` after `wait_for()` returns `std::future_status::ready`?
 
 ---

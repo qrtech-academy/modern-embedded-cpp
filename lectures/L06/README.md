@@ -2,17 +2,27 @@
 
 ## Agenda
 * Introduction to multithreading in C++ (`std::thread`).
+* Concurrency vs. true parallelism — single-core vs. multi-core.
+* Scheduling: time-slicing vs. cooperative.
 * Data races and why they are dangerous.
 * Critical sections using `std::mutex` and `std::lock_guard`.
 * The difference between `std::mutex` and `std::atomic`.
+* Signalling between threads using `std::condition_variable`.
+* Launching background tasks with `std::future` and `std::async`.
+* Priority inversion — a common pitfall in embedded systems.
 
 ---
 
 ## Lecture Objectives
 * Explain what a thread is and how it is created using `std::thread`.
+* Explain the difference between concurrency and parallelism.
+* Explain preemptive and cooperative scheduling.
 * Explain what a data race is and why it leads to *undefined behavior*.
 * Use `std::mutex` and `std::lock_guard` correctly.
 * Explain when `std::atomic` is sufficient and when `std::mutex` is required.
+* Use `std::condition_variable` to signal between threads without busy-waiting.
+* Launch asynchronous tasks using `std::async` and retrieve results via `std::future`.
+* Explain what priority inversion is and why `std::mutex` does not solve it on an RTOS.
 
 ---
 
@@ -25,7 +35,7 @@
 ## Instructions
 
 ### Preparation
-* Read [Appendix A](./appendix/a_threads_mutex_atomic.md), which covers multithreading and synchronization mechanisms in C++.
+* Read [Appendix A](./appendix/a_multithreading_synchronization.md), which covers multithreading and synchronization mechanisms in C++.
 
 ### During the Lecture
 * Participate in the lecture (live coding session).
@@ -39,6 +49,9 @@
 ## Evaluation
 * What is the difference between a `mutex` and an `atomic`?
 * What is a data race?
+* What is the difference between concurrency and parallelism?
+* When would you use a `condition_variable` instead of polling in a loop?
+* What is priority inversion, and why should you be careful with `std::mutex` on an RTOS?
 
 ---
 
