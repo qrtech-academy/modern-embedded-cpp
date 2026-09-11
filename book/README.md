@@ -1,7 +1,7 @@
 # The Book
 
-The course typeset as a book with LuaLaTeX: six chapters, one per lecture, then the solutions to
-the exercises and the two self-assessment papers as appendices.
+The course typeset as a book with LuaLaTeX: six chapters, one per lecture, then the two
+self-assessment papers as appendices. The solutions to the exercises stay in the repository.
 
 ---
 
@@ -47,8 +47,7 @@ cppbook.lua             How \code{...} typesets inline C++ (#, \n and line break
 front/                  Title pages and preface.
 chapters/NN/            Chapter NN: chapter.tex (the opener), one file per appendix of lecture
                         LNN, summary.tex (the review) and exercises.tex.
-back/solutions/         Appendix A, one file per chapter.
-back/exam/              Appendices B to F: the papers and their model answers.
+back/exam/              Appendices A to E: the papers and their model answers.
 figures/                Figures drawn in TikZ, and png.tex, which renders one as the lecture's PNG.
 ```
 
@@ -66,9 +65,9 @@ example:
 The course material is the source of truth, and the book follows it. **Two kinds of content behave
 differently:**
 
-* **Code in the solutions and examples updates itself.** Appendix A and §3.3 do not contain code;
-  they include the files under `lectures/` directly (`\cppfile{lectures/...}`), so a change to a
-  solution is in the book on the next build, with nothing to edit here.
+* **The example program in §3.3 updates itself.** The book does not contain its code; it includes
+  the files under `lectures/L03/examples` directly (`\cppfile{lectures/...}`), so a change to one is
+  in the book on the next build, with nothing to edit here.
 * **Prose and the code snippets in the text do not.** A chapter's text is a typeset copy of its
   lecture's markdown. When you change a lecture appendix, make the same change in the `.tex` file
   whose header names it. The same holds for `exam/*.md` and `back/exam/`.
@@ -86,7 +85,11 @@ A few conventions, so an edit reads like the rest of the book:
 * Exercises: `\exerciseset{Title}` for an exercise set, `\exercise{Title}{Code}` or
   `\exercise[fillaccent2]{Title}{Reflection}` for one exercise, `\task{a) ...}` for a titled part.
 * A new lecture appendix is a new file in `chapters/NN/`, `\input` from that chapter's
-  `chapter.tex`; a new solution file is one more `\cppfile` line in `back/solutions/NN.tex`.
+  `chapter.tex`.
+
+The solutions to the exercises are not in the book. Each chapter's exercises say where they are in
+the repository (`lectures/LNN/appendix/solutions`), so moving or renaming a solution directory means
+updating that chapter's `exercises.tex`.
 
 The priority-inversion figure in Chapter 6 is also the course's PNG. Edit
 `figures/priority_inversion.tex`, then run `make -C book png` to redraw

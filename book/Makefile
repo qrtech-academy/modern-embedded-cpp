@@ -5,8 +5,8 @@
 #   make png               redraw the lecture's copy of the priority-inversion figure from figures/
 #   make clean             remove everything the build writes
 #
-# The solutions and the examples are typeset straight from their files under lectures/, so a
-# change to one of those is a change to the book on the next build.
+# The example program in §3.3 is typeset straight from its files under lectures/, so a change to
+# one of those is a change to the book on the next build.
 
 ROOT    := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 BOOK    := $(ROOT)/book
