@@ -101,7 +101,7 @@ drawing.
 ## License
 
 The book, its text and figures and the PDF built from them, is licensed under
-[CC BY 4.0](../LICENSE-CONTENT), like the course material it is typeset from. This directory's build
+[CC BY-NC-SA 4.0](../LICENSE-CONTENT), like the course material it is typeset from. This directory's build
 files (`cppbook.sty`, `cppbook.lua`, `Makefile`) are released under the repository's
 [MIT License](../LICENSE), like all the code in the course, and so may the code examples printed in
 the book be used.

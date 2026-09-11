@@ -128,9 +128,10 @@ The source code is released under the [MIT License](./LICENSE): the example prog
 exercise solutions, the test suites and their support code, the build and CI scripts, and the
 book's build files.
 
-The course material is licensed under [CC BY 4.0](./LICENSE-CONTENT): the lectures, exercises and
-exam papers, the other Markdown documents, the figures, and the book typeset from them. You may
-share and adapt it for any purpose, as long as you give credit. The code examples printed in the
+The course material is licensed under [CC BY-NC-SA 4.0](./LICENSE-CONTENT): the lectures,
+exercises and exam papers, the other Markdown documents, the figures, and the book typeset from
+them. You may share and adapt it for any non-commercial purpose, with credit, as long as what you
+share carries the same license. The code examples printed in the
 lectures and in the book may also be used under the MIT License. The submodule `libs/test` carries
 its own license.
 
