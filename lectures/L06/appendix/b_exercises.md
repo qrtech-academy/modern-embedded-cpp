@@ -453,7 +453,7 @@ In `main()`, set the stop flag while holding the mutex (in a scope of its own wi
 ---
 
 # Exercise Set 7 – std::async and std::future
-Create a new `main.cpp` to work in for this exercise set.
+Create a file named `exercise7.cpp` to work in for this exercise set.
 
 ## Exercise 7.1 – Offloading a computation
 In this exercise you will use `std::async` to run a validation in the background while the

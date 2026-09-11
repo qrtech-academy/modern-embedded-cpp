@@ -124,7 +124,8 @@ private:
 
 **b)** Add a constructor that:
 * Takes a pin number (`std::uint8_t`).
-* Uses an initialization list to initialize the member variables.
+* Uses an initialization list to initialize the member variables, with the button released (not
+  pressed).
 * Is marked `explicit` and `noexcept`.
 
 **c)** Add a destructor and mark it `noexcept` and `default`.
@@ -346,7 +347,7 @@ Releasing resources allocated for buzzer at pin 8!
 ## Exercise 4.1 - Timer
 In this exercise, you will create a class `Timer` in the namespace `driver`.
 
-The class should be split across multiple files. Therefore, create the following files in the same project as the previous exercise:
+The class should be split across multiple files. Therefore, create a new project with the same layout as the previous exercise, containing the following files:
 
 ```text
 include/driver/timer.hpp

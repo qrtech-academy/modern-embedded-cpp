@@ -158,7 +158,8 @@ private:
   \item Add a constructor that:
   \begin{itemize}
     \item Takes a pin number (\code{std::uint8_t}).
-    \item Uses an initialization list to initialize the member variables.
+    \item Uses an initialization list to initialize the member variables, with the button
+      released (not pressed).
     \item Is marked \code{explicit} and \code{noexcept}.
   \end{itemize}
   \item Add a destructor and mark it \code{noexcept} and \code{default}.
@@ -411,8 +412,8 @@ Releasing resources allocated for buzzer at pin 8!
 \label{c2:ex:4.1}
 In this exercise, you will create a class \code{Timer} in the namespace \code{driver}.
 
-The class should be split across multiple files. Therefore, create the following files in the same
-project as the previous exercise:
+The class should be split across multiple files. Therefore, create a new project with the same
+layout as the previous exercise, containing the following files:
 
 \begin{console}
 include/driver/timer.hpp
