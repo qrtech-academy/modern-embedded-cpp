@@ -3,6 +3,13 @@
 ## Exercises
 These exercises reinforce the concepts from [Appendix A](./a_inheritance.md) and [Appendix B](./b_interfaces.md).
 
+> **How to check your work.** All four exercise sets build one program: write it in
+> [`lectures/L03/exercises`](../exercises/README.md), in the directory structure below, and run
+> `make test` from the repository root. Each set's tests switch on as soon as its files exist, so
+> the interface can be checked before any driver is written, and a set you have not started is
+> reported as `SKIP`. The tests compare what the program prints with the output below, character
+> for character.
+
 Create the following directory structure:
 
 ```text

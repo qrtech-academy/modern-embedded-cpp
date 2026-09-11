@@ -31,3 +31,19 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Check formatting
         run: make format-check
+
+  # Run every lecture's test suite twice: against the reference solutions, where every test must
+  # pass, and against the empty workspace a fresh clone has, where every exercise set must be
+  # reported as SKIP and the always-on tests must still pass.
+  test:
+    name: Run the test suites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Test the reference solutions
+        run: make test SOLUTIONS=1
+      - name: Test an empty workspace
+        run: make test

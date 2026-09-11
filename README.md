@@ -76,6 +76,30 @@ through examines material nobody has taught you yet.
 
 ---
 
+## Checking Your Work
+
+Every lecture has a test suite for its exercises. Clone the repository together with its test
+framework, which is a submodule:
+
+```bash
+git clone --recursive https://github.com/qrtech-academy/modern-embedded-cpp.git
+```
+
+(In a clone made without `--recursive`, run `git submodule update --init` once.) Write your
+solutions in `lectures/LNN/exercises`, where each lecture's README says which file goes where, and
+run:
+
+```bash
+make test               # Every lecture's tests, against your code.
+make test SOLUTIONS=1   # The same tests, against the reference solutions.
+```
+
+An exercise set you have not started is reported as `SKIP`, with the file its tests are waiting
+for; once that file exists, its tests run. Where an exercise gives example output, the tests
+compare your program's output with it, character for character.
+
+---
+
 ## The Book
 
 The whole course is also available as a book:
@@ -88,9 +112,10 @@ It is built from the sources in [`book/`](./book/README.md), which also say how 
 ## Structure
 
 ```text
-ci/          CI scripts (build and format checks)
+ci/          CI scripts (build, test and format checks)
 info/        Course info
-lectures/    Lecture plans, examples, and exercises
+lectures/    Lecture plans, examples, exercises, and each lecture's test suite
+libs/        The test framework (a submodule) and the course's test support
 exam/        Two written papers and their solutions. Optional, and marked by nobody here.
 book/        The course typeset as a book with LuaLaTeX; `make -C book` builds the PDF.
 ```

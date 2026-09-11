@@ -7,8 +7,15 @@
 \textbf{How to work these.} These exercises reinforce the concepts from \secref{c2:sec:classes1} and
 \secref{c2:sec:classes2}. Build each program with a Makefile like the one in
 \secref{c1:sec:makefile}; for a class split across header and source files, use the
-\file{include}/\file{source} layout and Makefile from \secref{c1:sec:tips}. Check your output against
-the example output each exercise gives.
+\file{include}/\file{source} layout and Makefile from \secref{c1:sec:tips}. Write each set in its
+own directory under \file{lectures/L02/exercises} in the companion repository, with the file names
+its README gives.
+
+\textbf{How to check your work.} Run \code{make test} from the repository root. A set's tests
+switch on as soon as its files exist, check the declarations each exercise asks for
+(\code{explicit}, \code{noexcept}, \code{final}, deleted operations) as well as the behaviour, and
+compare your program's output with the example output each exercise gives, character for
+character; a set you have not started is reported as \code{SKIP}.
 
 The solutions are published in the companion repository, one program per set under
 \file{lectures/L02/appendix/solutions}, each with its Makefile. Try each exercise yourself before

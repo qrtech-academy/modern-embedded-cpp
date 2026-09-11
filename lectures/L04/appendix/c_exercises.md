@@ -4,6 +4,14 @@
 These exercises reinforce the concepts from [Appendix A](./a_factory_raw_pointers.md) and 
 [Appendix B](./b_factory_smart_pointers.md).
 
+> **How to check your work.** Write Exercise Sets 1 to 3 in `raw_factory` and Exercise Set 4 in
+> `smart_factory`, both under [`lectures/L04/exercises`](../exercises/README.md), each with the
+> layout below, and run `make test` from the repository root. A set's tests switch on as soon as its
+> files exist, and a set you have not started is reported as `SKIP`. The tests check the names,
+> signatures and deleted operations below exactly, compare the ESP32-S3 driver's output with the
+> example in Exercise 1.3 character for character, and count what your logic class creates and
+> deletes.
+
 Create the following directory structure:
 
 ```text

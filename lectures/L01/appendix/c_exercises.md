@@ -1,8 +1,13 @@
-
 # Appendix C
 
 ## Exercises
 These exercises practice concepts from [Appendix B](./b_from_c_to_cpp.md).
+
+> **How to check your work.** Write each exercise set in its own directory under
+> [`lectures/L01/exercises`](../exercises/README.md), with the file names given there, and run
+> `make test` from the repository root. A set's tests switch on as soon as its files exist, and a
+> set you have not started is reported as `SKIP`. The tests compare your program's output with the
+> example output below, character for character, so print exactly what the exercise shows.
 
 ---
 

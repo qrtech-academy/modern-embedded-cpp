@@ -49,3 +49,11 @@
 
 # Keep CMakeLists.txt, which the *.txt rule above would otherwise ignore.
 !CMakeLists.txt
+
+# Ignore your own exercise solutions, keeping each lecture's workspace README and test suite.
+# Your work sits in lectures/LNN/exercises/, where `make test` finds it; ignoring it keeps
+# `git status` quiet and a `git pull` of new course material clear of it. `git add -f` overrides
+# this for a file you do want to commit.
+lectures/*/exercises/*
+!lectures/*/exercises/README.md
+!lectures/*/exercises/test/

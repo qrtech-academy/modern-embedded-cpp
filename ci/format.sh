@@ -34,7 +34,11 @@ check_clang_format() {
 ################################################################################
 select_files() {
     local -n out=$1
-    mapfile -t out < <(find * \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cpp" \) -print)
+    # The test framework is a submodule with a style of its own, and your exercise workspaces
+    # (lectures/LNN/exercises, apart from their test suites) are yours to format as you like.
+    mapfile -t out < <(find * \( -path libs/test -o \( -path 'lectures/*/exercises/*' \
+        ! -path 'lectures/*/exercises/test*' \) \) -prune -o \
+        \( -name "*.h" -o -name "*.hpp" -o -name "*.c" -o -name "*.cpp" \) -print)
 }
 
 ################################################################################

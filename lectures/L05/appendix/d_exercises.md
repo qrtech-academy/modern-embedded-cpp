@@ -2,6 +2,14 @@
 
 ## Exercises
 
+> **How to check your work.** Write each exercise set in its own directory under
+> [`lectures/L05/exercises`](../exercises/README.md), with the file names given there, and run
+> `make test` from the repository root. A set's tests switch on as soon as its files exist, and a
+> set you have not started is reported as `SKIP`. The tests compare your program's output with the
+> expected output below, character for character, so print exactly what the exercise shows.
+
+---
+
 ## Exercise Set 1 – Function Templates
 
 ### Exercise 1.1 – Clear Bit

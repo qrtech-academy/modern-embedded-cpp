@@ -91,8 +91,8 @@ one, and each exercise in a set adds a piece of it. Every exercise is labelled w
 \begin{booktable}{@{}p{7.4em}L@{}}
   \thead{Kind} & \thead{What it asks of you} \\
   \midrule
-  \kindtag{Code} & Write C++, compile it, and check its output against the one the exercise
-    gives. \\
+  \kindtag{Code} & Write C++, compile it, and check it with \code{make test}, which also compares
+    its output with the one the exercise gives. \\
   \kindtag[fillaccent2]{Reflection} & Answer in prose: explain what your code does, or why one
     design is better than another. \\
 \end{booktable}
@@ -128,15 +128,24 @@ need three things:
     \url{https://code.visualstudio.com/download}.
 \end{itemize}
 \Secref{c1:sec:compilation} walks through installing WSL, Ubuntu and the compiler, and writing the
-Makefile every program in the book is built with. Then clone the companion repository:
+Makefile every program in the book is built with. Then clone the companion repository, together
+with the test framework it keeps as a submodule:
 
 \begin{shell}
-git clone https://github.com/qrtech-academy/modern-embedded-cpp.git
+git clone --recursive https://github.com/qrtech-academy/modern-embedded-cpp.git
 \end{shell}
 
-\noindent Two commands at its root cover everything the book asks of it:
+\noindent Three commands at its root cover everything the book asks of it:
 
 \begin{shell}
 make build               # Build every demo and solution that has a Makefile.
+make test                # Test your exercise solutions.
 make format-check        # Check the formatting of every C++ file.
 \end{shell}
+
+\noindent You write your exercise solutions in the repository, in \file{lectures/LNN/exercises},
+where each lecture's README says which file goes where. \code{make test} then runs every
+lecture's tests against them: a set you have not started is reported as \code{SKIP}, with the file
+its tests are waiting for, and a set you have written is tested, including its output, which is
+compared with the example output in the exercise character for character. \code{make test
+SOLUTIONS=1} runs the same tests against the reference solutions.

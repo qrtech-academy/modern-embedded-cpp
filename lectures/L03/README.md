@@ -27,6 +27,8 @@ classes can implement in different ways.
 
 ### After the Lecture
 * Complete the exercises in [Appendix C](./appendix/c_exercises.md).
+* Write them in [`exercises/`](./exercises/README.md) and check them with `make test` from the
+  repository root.
 * Exercise solutions can be found [here](./appendix/solutions/README.md).
 
 ---

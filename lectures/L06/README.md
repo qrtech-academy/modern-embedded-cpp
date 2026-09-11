@@ -42,6 +42,8 @@
 
 ### After the Lecture
 * Complete the exercises in [Appendix B](./appendix/b_exercises.md).
+* Write them in [`exercises/`](./exercises/README.md) and check them with `make test` from the
+  repository root.
 * Exercise solutions can be found [here](./appendix/solutions/README.md).
 
 ---

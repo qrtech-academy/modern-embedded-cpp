@@ -5,8 +5,14 @@
 
 \begin{aside}
 \textbf{How to work these.} These exercises practice the concepts from \secref{c1:sec:cpp}. Each set
-is one program: create a directory for it with the Makefile from \secref{c1:sec:makefile}, and build
-and run it with \code{make}. Check your output against the example output each exercise gives.
+is one program: write it in its own directory under \file{lectures/L01/exercises} in the companion
+repository, with the file names its README gives, and build and run it with the Makefile from
+\secref{c1:sec:makefile}.
+
+\textbf{How to check your work.} Run \code{make test} from the repository root. A set's tests
+switch on as soon as its files exist, and compare your program's output with the example output
+each exercise gives, character for character; a set you have not started is reported as
+\code{SKIP}.
 
 The solutions are published in the companion repository, one program per set under
 \file{lectures/L01/appendix/solutions}, each with its Makefile. Try each exercise yourself before

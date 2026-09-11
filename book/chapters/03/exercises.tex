@@ -7,8 +7,15 @@
 \textbf{How to work these.} These exercises reinforce the concepts from
 \secref{c3:sec:inheritance} and \secref{c3:sec:interfaces}. Unlike the earlier chapters, all four
 sets build \emph{one} program: an interface, two drivers implementing it, and a \code{main()} that
-uses both through the interface. Build it with the Makefile from \secref{c1:sec:tips}, listing the
-three source files and adding \code{-Iinclude} to the compiler flags.
+uses both through the interface. Write it in \file{lectures/L03/exercises} in the companion
+repository, in the directory structure below, and build it with the Makefile from
+\secref{c1:sec:tips}, listing the three source files and adding \code{-Iinclude} to the compiler
+flags.
+
+\textbf{How to check your work.} Run \code{make test} from the repository root. Each set's tests
+switch on as soon as its files exist, so the interface can be checked before any driver is written,
+and they compare what the program prints with the output below, character for character; a set you
+have not started is reported as \code{SKIP}.
 
 The solution is published in the companion repository, as one program in
 \file{lectures/L03/appendix/solutions}. Try each exercise yourself before looking at it.

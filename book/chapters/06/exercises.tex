@@ -5,11 +5,18 @@
 
 \begin{aside}
 \textbf{How to work these.} These exercises reinforce the concepts from \secref{c6:sec:threads}.
-Each set names the file or directory to work in; build it with the Makefile from
-\secref{c1:sec:makefile}, and add \code{-pthread} to the compiler flags
-(\code{CXX_FLAGS := -Wall -Werror -std=c++17 -pthread}). GCC requires it for programs that use
-\code{std::thread}; without it, the program may fail to link, or fail at runtime, on systems with a
-C library older than glibc 2.34.
+Each set names the file or directory to work in: write it in its own directory under
+\file{lectures/L06/exercises} in the companion repository, with the file names its README gives.
+Build it with the Makefile from \secref{c1:sec:makefile}, and add \code{-pthread} to the compiler
+flags (\code{CXX_FLAGS := -Wall -Werror -std=c++17 -pthread}). GCC requires it for programs that
+use \code{std::thread}; without it, the program may fail to link, or fail at runtime, on systems
+with a C library older than glibc 2.34.
+
+\textbf{How to check your work.} Run \code{make test} from the repository root. A set's tests
+switch on as soon as its files exist; a set you have not started is reported as \code{SKIP}. Each
+file grows through its set, and the tests check where it ends up. Threads run in whatever order the
+scheduler picks, so the tests check what a correct program guarantees, such as exact counts and
+threads that stop when asked, rather than the order of its output.
 
 The solutions are published in the companion repository, one program per set under
 \file{lectures/L06/appendix/solutions} (Sets~4 and~5 share one), with the answers to the reflection

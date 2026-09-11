@@ -3,6 +3,13 @@
 ## Exercises
 These exercises reinforce the concepts from [Appendix A](a_classes1.md) and [Appendix B](./b_classes2.md).
 
+> **How to check your work.** Write each exercise set in its own directory under
+> [`lectures/L02/exercises`](../exercises/README.md), with the file names given there, and run
+> `make test` from the repository root. A set's tests switch on as soon as its files exist, and a
+> set you have not started is reported as `SKIP`. The tests check the declarations each exercise
+> asks for (`explicit`, `noexcept`, `final`, deleted operations) as well as the behaviour, and
+> compare your program's output with the example output below, character for character.
+
 ---
 
 # Exercise Set 1 - First class

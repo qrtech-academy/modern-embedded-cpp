@@ -3,6 +3,14 @@
 ## Exercises
 These exercises reinforce the concepts from [Appendix A](./a_multithreading_synchronization.md).
 
+> **How to check your work.** Write each exercise set in its own directory under
+> [`lectures/L06/exercises`](../exercises/README.md), with the file names given there, and run
+> `make test` from the repository root. A set's tests switch on as soon as its files exist, and a
+> set you have not started is reported as `SKIP`. Each file grows through its set, and the tests
+> check where it ends up. Threads run in whatever order the scheduler picks, so the tests check
+> what a correct program guarantees, such as exact counts and threads that stop when asked, rather
+> than the order of its output.
+
 **Note:** Add `-pthread` to the compiler flags in your Makefile (`CXX_FLAGS := -Wall -Werror -std=c++17 -pthread`).
 GCC requires it for programs that use `std::thread`; without it, the program may fail to link, or fail
 at runtime, on systems with a C library older than glibc 2.34.
