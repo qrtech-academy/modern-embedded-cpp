@@ -27,13 +27,13 @@ Assume that we have implemented the following drivers as classes:
         * `driver::gpio::Esp32s3`: GPIO driver for the ESP32-S3 microcontroller.
         * `driver::gpio::Stub`: GPIO stub driver.
 
-Assume that we have created the following class `system::logic::Logic` to handle the system logic:
+Assume that we have created the following class `app::logic::Logic` to handle the system logic:
 * The system logic uses an LED and a button, where the LED is toggled on the rising edge of the push button.
 * Interfaces are used so that the hardware used can be selected generically, i.e. the concrete types are chosen by the user.
 * The method `run()` is used to execute the system logic continuously.
 
 ```cpp
-namespace system::logic
+namespace app::logic
 {
 class Logic final
 {
@@ -74,7 +74,7 @@ private:
     driver::gpio::Interface& myLed;
     driver::gpio::Interface& myButton;
 };
-} // namespace system::logic
+} // namespace app::logic
 ```
 
 The example above can be implemented by creating drivers of any concrete types before the system logic is created, as shown below:
@@ -90,7 +90,7 @@ int main()
     driver::gpio::Esp32s3 button{buttonPin};
 
     // Create and run system logic.
-    system::logic::Logic logic{led, button};
+    app::logic::Logic logic{led, button};
     logic.run();
 }
 ```
@@ -105,7 +105,7 @@ Assume that the following factories have been implemented:
     * `driver::factory::Esp32s3`: Creates ESP32-S3 instances.
     * `driver::factory::Stub`: Creates stub instances.
 
-Assume that the constructor for `system::logic::Logic` had taken a reference to an arbitrary factory:
+Assume that the constructor for `app::logic::Logic` had taken a reference to an arbitrary factory:
 
 ```cpp
 explicit Logic(driver::factory::Interface& factory, 
@@ -141,7 +141,7 @@ As an example, `Esp32s3` instances could be created by passing a `driver::factor
     driver::factory::Esp32s3 factory{};
 
     // Create and run system logic.
-    system::logic::Logic logic{factory, ledPin, buttonPin};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
     logic.run();
 ```
 
@@ -226,7 +226,7 @@ This is called *dependency injection via factory*.
 Assume that we have an embedded system where the software is divided into four layers:
 
 ```text
-system::logic::Logic
+app::logic::Logic
         |
         v
 driver::factory::Interface
@@ -466,7 +466,7 @@ public:
 ---
 
 #### Step 7: System logic using a factory
-We then create a logic class that uses a given factory to create instances, in a file `system/logic/logic.hpp`:
+We then create a logic class that uses a given factory to create instances, in a file `app/logic/logic.hpp`:
 * In the constructor we allocate memory for the GPIO instances `myLed` and `myButton` via the factory.
 * In the destructor we free the allocated resources, i.e. the GPIO instances — since we have allocated memory using raw pointers we are responsible for doing this ourselves.
 * In the method `run()`, `myLed` is toggled on the rising edge of the push button.
@@ -485,7 +485,7 @@ In this example, the system logic owns the driver objects. The pointers returned
 #include "driver/factory/interface.hpp"
 #include "driver/gpio/interface.hpp"
 
-namespace system::logic
+namespace app::logic
 {
 class Logic final
 {
@@ -533,7 +533,7 @@ private:
     driver::gpio::Interface* myLed;
     driver::gpio::Interface* myButton;
 };
-} // namespace system::logic
+} // namespace app::logic
 ```
 
 ---
@@ -547,7 +547,7 @@ Below is an example of how a factory could be used to run the system logic on an
 #include <cstdint>
 
 #include "driver/factory/esp32s3.hpp"
-#include "system/logic/logic.hpp"
+#include "app/logic/logic.hpp"
 
 int main()
 {
@@ -556,7 +556,7 @@ int main()
 
     // Create system logic and initialize the system.
     driver::factory::Esp32s3 factory{};
-    system::logic::Logic logic{factory, ledPin, buttonPin};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
 
     // Run the system continuously.
     logic.run();
@@ -570,7 +570,7 @@ To run with stub drivers, it is sufficient to switch to the stub factory `driver
 #include <cstdint>
 
 #include "driver/factory/stub.hpp"
-#include "system/logic/logic.hpp"
+#include "app/logic/logic.hpp"
 
 int main()
 {
@@ -579,7 +579,7 @@ int main()
 
     // Create system logic and initialize the system.
     driver::factory::Stub factory{};
-    system::logic::Logic logic{factory, ledPin, buttonPin};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
 
     // Run the system continuously.
     logic.run();

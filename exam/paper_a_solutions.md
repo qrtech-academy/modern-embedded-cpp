@@ -516,7 +516,7 @@ mechanism the C version in the linked example builds by hand out of a struct of 
 that uses them. It plays the role a HAL or BSP plays in a C project.
 *(1.5 marks)*
 
-**What "depends only on interfaces" means.** `system::logic::Logic` names
+**What "depends only on interfaces" means.** `app::logic::Logic` names
 `driver::gpio::Interface` and `driver::factory::Interface` and never names `Esp32s3` or `Stub`. It
 does not include their headers, does not know how a pin is configured on any particular chip, and
 does not change or need recompiling when a platform is added. It knows it will be given something
@@ -525,7 +525,7 @@ that can `read`, `write` and `toggle`; it does not know what.
 
 **What has to change to move to stubs.** One line in `main` — `driver::factory::Esp32s3 factory{};`
 becomes `driver::factory::Stub factory{};` — and the corresponding `#include`. Nothing under
-`system::logic` changes at all.
+`app::logic` changes at all.
 *(1 mark)*
 
 ### (b) 5 marks
@@ -554,7 +554,7 @@ enforces it.*
 **Defect 2: `Logic` is copyable and owns raw pointers.** *(2.5 marks)*
 
 ```cpp
-system::logic::Logic backup{logic};
+app::logic::Logic backup{logic};
 ```
 
 `Logic` declares a destructor that deletes both drivers, but declares neither a copy constructor nor
@@ -598,7 +598,7 @@ write and therefore no destructor left to write. The code that could be forgotte
 
 **Defect 2 becomes a compile error.** `std::unique_ptr` represents exclusive ownership and its copy
 constructor is deleted. A class whose member cannot be copied cannot have an implicit copy
-constructor, so `Logic`'s is defined as deleted, and `system::logic::Logic backup{logic};` no longer
+constructor, so `Logic`'s is defined as deleted, and `app::logic::Logic backup{logic};` no longer
 compiles. The double delete has been moved from run time to build time, and nobody had to remember
 to write the four `= delete` lines: the member's own semantics propagated to the class that holds
 it.

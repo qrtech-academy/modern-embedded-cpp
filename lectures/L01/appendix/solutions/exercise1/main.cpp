@@ -18,7 +18,7 @@ void log(const char* message, const std::uint8_t level = 0U) noexcept
 }
 } // namespace debug
 
-namespace system
+namespace app
 {
 /**
  * @brief Generate a software delay.
@@ -38,7 +38,7 @@ void delay_ms(const std::uint32_t ms = 1U) noexcept
         }
     }
 }
-} // namespace system
+} // namespace app
 
 /**
  * @brief Print two debug logs with a short delay in between.
@@ -51,7 +51,7 @@ int main()
     constexpr std::uint8_t errorLog{2U};
 
     debug::log("System started");
-    system::delay_ms(delay_ms);
+    app::delay_ms(delay_ms);
     debug::log("Sensor failure", errorLog);
     return 0;
 }

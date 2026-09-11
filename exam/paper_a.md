@@ -344,8 +344,8 @@ int main()
     // Spare status LED on pin 4.
     factory.gpio(4U);
 
-    system::logic::Logic logic{factory, 2U, 3U};
-    system::logic::Logic backup{logic};
+    app::logic::Logic logic{factory, 2U, 3U};
+    app::logic::Logic backup{logic};
 
     logic.run();
     return 0;

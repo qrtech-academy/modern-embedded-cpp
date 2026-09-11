@@ -44,7 +44,7 @@ void delay_ms(const std::uint32_t ms = 1U);
 ```
 
 Tasks:
-1. Place the function inside namespace `system`.   
+1. Place the function inside namespace `app`.   
 2. Mark the function `noexcept`.  
 3. Inside the function, define a `constexpr` constant named `maxCount` and assign it the value `10000000UL`.  
 4. Implement a delay using nested loops:

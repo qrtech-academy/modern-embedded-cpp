@@ -519,7 +519,7 @@ query methods — here, `isInitialized()` alone.
 An arrow reads "depends on", that is, includes the header of:
 
 ```text
-system::logic::Logic       --> driver::factory::Interface, driver::gpio::Interface
+app::logic::Logic          --> driver::factory::Interface, driver::gpio::Interface
 driver::factory::Interface --> driver::gpio::Interface     (returned by gpio())
 driver::factory::Esp32s3   --> driver::factory::Interface  (implements)
                            --> driver::gpio::Esp32s3       (creates)
@@ -628,7 +628,7 @@ or static storage, and pass references into the logic class.
 ```cpp
 driver::gpio::Esp32s3 led{ledPin};
 driver::gpio::Esp32s3 button{buttonPin};
-system::logic::Logic logic{led, button};
+app::logic::Logic logic{led, button};
 ```
 
 with `Logic` holding `driver::gpio::Interface&` members. No heap is involved at all, everything is

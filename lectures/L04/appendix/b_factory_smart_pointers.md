@@ -209,7 +209,7 @@ public:
 #include "driver/factory/interface.hpp"
 #include "driver/gpio/interface.hpp"
 
-namespace system::logic
+namespace app::logic
 {
 class Logic final
 {
@@ -250,7 +250,7 @@ private:
     std::unique_ptr<driver::gpio::Interface> myLed;
     std::unique_ptr<driver::gpio::Interface> myButton;
 };
-} // namespace system::logic
+} // namespace app::logic
 ```
 
 Note:
@@ -270,7 +270,7 @@ passing an instance of `driver::factory::Esp32s3` to the system logic and then c
 #include <cstdint>
 
 #include "driver/factory/esp32s3.hpp"
-#include "system/logic/logic.hpp"
+#include "app/logic/logic.hpp"
 
 int main()
 {
@@ -279,7 +279,7 @@ int main()
 
     // Create system logic and initialize the system.
     driver::factory::Esp32s3 factory{};
-    system::logic::Logic logic{factory, ledPin, buttonPin};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
 
     // Run the system continuously.
     logic.run();
@@ -293,7 +293,7 @@ As shown in the example factory with raw pointers, it is sufficient to switch to
 #include <cstdint>
 
 #include "driver/factory/stub.hpp"
-#include "system/logic/logic.hpp"
+#include "app/logic/logic.hpp"
 
 int main()
 {
@@ -302,7 +302,7 @@ int main()
 
     // Create system logic and initialize the system.
     driver::factory::Stub factory{};
-    system::logic::Logic logic{factory, ledPin, buttonPin};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
 
     // Run the system continuously.
     logic.run();
