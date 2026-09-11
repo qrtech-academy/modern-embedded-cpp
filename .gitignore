@@ -31,3 +31,16 @@
 
 # Ignore debug folder.
 *Debug/
+
+# Ignore compiler output that has an extension.
+*.o
+*.d
+*.out
+*.exe
+
+# Ignore metadata that Windows (through WSL) and macOS leave beside copied files.
+*:Zone.Identifier
+.DS_Store
+
+# Keep CMakeLists.txt, which the *.txt rule above would otherwise ignore.
+!CMakeLists.txt
