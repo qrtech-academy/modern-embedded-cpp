@@ -92,3 +92,12 @@ The priority-inversion figure in Chapter 6 is also the course's PNG. Edit
 `figures/priority_inversion.tex`, then run `make -C book png` to redraw
 `lectures/L06/appendix/images/priority_inversion.png`, so the lecture and the book stay the same
 drawing.
+
+---
+
+## License
+
+The book, its text and figures and the PDF built from them, is licensed under
+[CC BY 4.0](./LICENSE). The code in it, and this directory's build files (`cppbook.sty`,
+`cppbook.lua`, `Makefile`), are released under the repository's [MIT License](../LICENSE), like
+all the code in the course.

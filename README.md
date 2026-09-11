@@ -96,3 +96,14 @@ book/        The course typeset as a book with LuaLaTeX; `make -C book` builds t
 ```
 
 ---
+
+## License
+
+* **The book** — its text and figures (the `.tex` files under [`book/`](./book/)) and the PDF built
+  from them — is licensed under
+  [Creative Commons Attribution 4.0 International (CC BY 4.0)](./book/LICENSE).
+* **Everything else** is released under the [MIT License](./LICENSE): the code, Makefiles and
+  scripts, the lecture and exam material, the book's build files (`cppbook.sty`, `cppbook.lua`,
+  `Makefile`), and the code listings printed in the book.
+
+---
