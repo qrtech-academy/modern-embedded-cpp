@@ -76,6 +76,15 @@ through examines material nobody has taught you yet.
 
 ---
 
+## The Book
+
+The whole course is also available as a book:
+**[download the latest PDF](https://github.com/qrtech-academy/modern-embedded-cpp/releases/latest/download/modern-embedded-cpp.pdf)**.
+It is built from the sources in [`book/`](./book/README.md), which also say how to build it yourself
+(`make -C book`) and how a new edition is released.
+
+---
+
 ## Structure
 
 ```text

@@ -10,14 +10,31 @@ the exercises and the two self-assessment papers as appendices.
 ```bash
 sudo apt -y install make texlive-luatex texlive-latex-extra fonts-texgyre fonts-texgyre-math \
                     fonts-dejavu-core poppler-utils
-make -C book            # Writes book/modern-embedded-cpp.pdf.
-make -C book png        # Redraws the lecture's priority-inversion PNG from the book's figure.
-make -C book clean      # Removes book/build/ and the PDF.
+make -C book                   # Writes book/modern-embedded-cpp.pdf, dated today.
+make -C book VERSION=book-v2   # The same, with the version on the title page.
+make -C book png               # Redraws the lecture's priority-inversion PNG from the figure.
+make -C book clean             # Removes book/build/ and the PDF.
 ```
 
-The build runs LuaLaTeX twice, so the contents and the cross-references settle, and then prints any
-overfull or underfull lines and LaTeX warnings it found. A clean build prints nothing after the two
-`lualatex` lines except a handful of mildly underfull ones.
+The build runs LuaLaTeX twice, so the contents and the cross-references settle, then prints any
+overfull or underfull lines and LaTeX warnings it found, and fails if a reference is left undefined.
+A clean build prints nothing after the two `lualatex` lines except a handful of mildly underfull
+ones.
+
+---
+
+## Releasing a new edition
+
+The PDF is not committed; it is published as a GitHub release. Push a tag named `book-v*`:
+
+```bash
+git tag book-v2
+git push origin book-v2
+```
+
+The [Book workflow](../.github/workflows/book.yml) then builds the PDF with the tag on its title
+page and attaches it to a release of the same name. The README's download link always points at
+the newest release, so it never needs updating.
 
 ---
 
