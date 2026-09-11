@@ -10,6 +10,11 @@
 # Don't ignore license files.
 !LICENSE
 
+# Nor the test framework submodule. A submodule is a gitlink rather than a directory as far as the
+# index is concerned, and the path has no extension, so the `*` above would ignore it and
+# `git submodule add` would refuse it.
+!libs/test
+
 # Ignore .txt files.
 *.txt
 
