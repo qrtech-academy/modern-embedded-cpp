@@ -1,5 +1,4 @@
 # The Book
-
 The course typeset as a book with LuaLaTeX: six chapters, one per lecture, then the two
 self-assessment papers as appendices. The solutions to the exercises stay in the repository.
 
@@ -24,8 +23,10 @@ ones.
 ---
 
 ## Releasing a new edition
-
-The PDF is not committed; it is published as a GitHub release. Push a tag named `book-v*`:
+The PDF is committed, as `book/modern-embedded-cpp.pdf`, so the repository always holds a readable
+copy; rebuild it with `make -C book` and commit it along with any change to the book. Each edition
+is also published as a GitHub release, with its version on the title page. Push a tag named
+`book-v*`:
 
 ```bash
 git tag book-v2
@@ -61,10 +62,8 @@ example:
 ---
 
 ## Updating the content
-
 The course material is the source of truth, and the book follows it. **Two kinds of content behave
 differently:**
-
 * **The example program in §3.3 updates itself.** The book does not contain its code; it includes
   the files under `lectures/L03/examples` directly (`\cppfile{lectures/...}`), so a change to one is
   in the book on the next build, with nothing to edit here.
@@ -73,7 +72,6 @@ differently:**
   whose header names it. The same holds for `exam/*.md` and `back/exam/`.
 
 A few conventions, so an edit reads like the rest of the book:
-
 * Code blocks: `cppcode` (C++), `ccode` (C), `shell`, `makecode` (Makefiles; recipe lines keep their
   tab), and `console` (program output, directory trees, plain text).
 * Inline code: `\code{...}`, written exactly as in the source. Inside it, write `\%` for `%`,
@@ -99,7 +97,6 @@ drawing.
 ---
 
 ## License
-
 The book, its text and figures and the PDF built from them, is licensed under
 [CC BY-NC-SA 4.0](../LICENSE-CONTENT), like the course material it is typeset from. This directory's build
 files (`cppbook.sty`, `cppbook.lua`, `Makefile`) are released under the repository's

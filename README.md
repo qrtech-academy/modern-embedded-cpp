@@ -58,7 +58,6 @@ After completing the course, participants should be able to:
 ---
 
 ## Two Written Papers, and What They Are Not
-
 Nothing in this course is marked. Assessment is the exercise set after every lecture, each with a
 published solution, and the Evaluation questions that close every lecture README.
 
@@ -77,7 +76,6 @@ through examines material nobody has taught you yet.
 ---
 
 ## Checking Your Work
-
 Every lecture has a test suite for its exercises. Clone the repository together with its test
 framework, which is a submodule:
 
@@ -101,11 +99,7 @@ compare your program's output with it, character for character.
 ---
 
 ## The Book
-
-The whole course is also available as a book:
-**[download the latest PDF](https://github.com/qrtech-academy/modern-embedded-cpp/releases/latest/download/modern-embedded-cpp.pdf)**.
-It is built from the sources in [`book/`](./book/README.md), which also say how to build it yourself
-(`make -C book`) and how a new edition is released.
+The whole course is also available as a book: [Modern Embedded C++](./book/modern-embedded-cpp.pdf). It is built from the sources in [`book/`](./book/README.md), which also say how to build it yourself (`make -C book`) and how a new edition is released.
 
 ---
 
@@ -123,7 +117,6 @@ book/        The course typeset as a book with LuaLaTeX; `make -C book` builds t
 ---
 
 ## License
-
 The source code is released under the [MIT License](./LICENSE): the example programs and the
 exercise solutions, the test suites and their support code, the build and CI scripts, and the
 book's build files.
