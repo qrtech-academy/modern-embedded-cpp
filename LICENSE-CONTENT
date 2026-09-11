@@ -1,3 +1,22 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Copyright (c) 2026 QRTECH Academy
+
+This license applies to the written course material in this repository: the lectures, their
+appendices and exercises, the READMEs of the exercise solutions, the exam papers and their model
+answers, the READMEs and other Markdown documents, and the figures, meaning the PNG images and the
+drawings they depict. It applies equally to the book in book/, typeset from that material: its
+LaTeX text and figures, and the PDF built from them.
+
+The source code in this repository is licensed separately, under the MIT License in LICENSE: the
+example programs and the exercise solutions, the test suites and their support code, the build and
+CI scripts, and the book's build files (cppbook.sty, cppbook.lua and its Makefile). The code
+examples printed in the lectures and in the book may also be used under the MIT License. The
+submodule libs/test carries its own license.
+
+The license text below is also published at
+https://creativecommons.org/licenses/by/4.0/legalcode
+
 Attribution 4.0 International
 
 =======================================================================
