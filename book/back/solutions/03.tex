@@ -1,0 +1,41 @@
+% Solutions to Chapter 3, from lectures/L03/appendix/solutions: its README, and every source file
+% typeset straight from the repository.
+
+\section{Chapter 3: Inheritance and Interfaces}
+\label{sol:sec:c3}
+The four exercise sets of \secref{c3:sec:exercises} build a single program, so there is one
+solution for all of them, in \file{lectures/L03/appendix/solutions}. Each set below shows the files
+it adds. Build and run the whole program with \code{make} in that directory; it prints:
+
+\begin{console}
+Transmitting data with a serial driver!
+Last received character from stub driver: !
+\end{console}
+
+\subsection{Exercise Set 1: Serial Interface}
+\label{sol:set:c3.1}
+Exercise~\ref{c3:ex:1.1}: the serial driver interface.
+
+\cppfile{lectures/L03/appendix/solutions/include/driver/serial/interface.hpp}
+
+\subsection{Exercise Set 2: Stub Implementation}
+\label{sol:set:c3.2}
+Exercise~\ref{c3:ex:2.1}: the serial driver stub.
+
+\cppfile{lectures/L03/appendix/solutions/include/driver/serial/stub.hpp}
+\cppfile{lectures/L03/appendix/solutions/source/driver/serial/stub.cpp}
+
+\subsection{Exercise Set 3: Singleton Driver}
+\label{sol:set:c3.3}
+Exercise~\ref{c3:ex:3.1}: the serial console driver, a singleton.
+
+\cppfile{lectures/L03/appendix/solutions/include/driver/serial/console.hpp}
+\cppfile{lectures/L03/appendix/solutions/source/driver/serial/console.cpp}
+
+\subsection{Exercise Set 4: Using the Interface}
+\label{sol:set:c3.4}
+Exercise~\ref{c3:ex:4.1}: the test of both serial drivers through the interface, and the Makefile
+that builds the program.
+
+\cppfile{lectures/L03/appendix/solutions/source/main.cpp}
+\makefile{lectures/L03/appendix/solutions/Makefile}

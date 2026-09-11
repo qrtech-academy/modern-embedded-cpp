@@ -1,0 +1,478 @@
+% Appendix: Paper A, from exam/paper_a.md. The questions only; the model answers are a separate
+% appendix, as they are a separate file, so the paper can be sat without them in view.
+
+\chapter{Self-Assessment Paper A}
+\label{exa:ch:paper}
+
+\noindent\textbf{Time:} 3 hours. \textbf{Closed book.} No compiler and no reference material.
+\textbf{Total: 100 marks.}
+
+This paper exists to test your own skills and knowledge. It is not a qualification and it gates
+nothing. It draws on all six chapters, so \textbf{it is meant to be taken once you have finished
+the book}. The model answers are in Appendix~\ref{ansa:ch:answers}.
+
+\section*{Rubric}
+\textbf{C++17} is assumed throughout. Standard headers may be assumed included unless a question asks
+you to name them.
+
+\textbf{Code is marked on semantics, not on syntax.} A missing semicolon, a forgotten
+\code{#include} or a brace in the wrong column costs nothing. A missing \code{virtual} on a
+destructor costs everything.
+
+\textbf{Where a question says ``in the course's style''}, it means the conventions used in the
+chapters:
+\begin{itemize}
+  \item \code{camelCase} for functions and methods, type names with a leading capital.
+  \item Private member variables prefixed \code{my}, private static members prefixed \code{our}.
+  \item \code{static constexpr} members named with a leading capital, e.g.\ \code{MaxInstances}.
+  \item Brace initialization, \code{noexcept} on driver methods, \code{[[nodiscard]]} on queries and
+    repeated on overriding methods.
+  \item Copy and move operations deleted on a class that represents a unique hardware resource.
+\end{itemize}
+
+\textbf{Where a question says ``state the consequence''}, naming the defect earns half the marks and
+saying what it does to the running program earns the other half. ``This is wrong'' scores nothing.
+
+\textbf{Where a question asks you to find defects}, the number of defects is stated. Listing more
+than the stated number is not penalised, but only the stated number is marked, so put your
+strongest answers first.
+
+\subsection*{Marks}
+
+\begin{narrowtable}{@{}lcccccccc@{}}
+  \thead{Question} & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+  \midrule
+  \thead{Marks} & 12 & 12 & 12 & 13 & 13 & 13 & 12 & 13 \\
+\end{narrowtable}
+
+% ------------------------------------------------------------------------------------------
+\question{Crossing the line between C and C++}{12}
+\label{exa:q:1}
+
+\qpart{a} A silicon vendor ships a header \file{hal_gpio.h} and a precompiled library, both built
+with a C compiler. Your application is C++ and calls \code{halGpioInit()}. The code compiles, and
+the linker then reports:
+
+\begin{console}
+undefined reference to `halGpioInit()'
+\end{console}
+
+\noindent Explain the mechanism that produces this error. Write the minimal change to the vendor's
+header that fixes it while keeping the header usable from C, and state why that change has to be
+guarded. \worth{4}
+
+\qpart{b} State three concrete advantages of \code{constexpr} over \code{#define} for a constant
+such as a clock frequency, and give one thing a \code{constexpr} value can be used for that a
+runtime \code{const} variable cannot. \worth{3}
+
+\qpart{c} State what \code{noexcept} guarantees, what happens at runtime if a \code{noexcept}
+function throws anyway, and give two reasons why exceptions are commonly disabled entirely in an
+embedded build. \worth{3}
+
+\qpart{d} Chapter~1 states that a function which may allocate dynamically should \textbf{not} be
+marked \code{noexcept}. The factory interface in Chapter~4 returns \code{std::make_unique<...>} and
+\textbf{is} marked \code{noexcept}. Reconcile the two, and state exactly which runtime behavior the
+Chapter~4 choice selects. \worth{2}
+
+% ------------------------------------------------------------------------------------------
+\question{Object lifetime, and a driver that nearly works}{12}
+\label{exa:q:2}
+
+\qpart{a} Consider the program below.
+
+\begin{cppcode}
+#include <cstdint>
+#include <cstdio>
+
+namespace driver
+{
+struct Gpio
+{
+    explicit Gpio(const std::uint8_t pin) noexcept
+        : myPin{pin}
+    {
+        std::printf("Init %u\n", myPin);
+    }
+
+    ~Gpio() noexcept { std::printf("Release %u\n", myPin); }
+
+private:
+    const std::uint8_t myPin;
+};
+} // namespace driver
+
+int main()
+{
+    driver::Gpio led{9U};
+    {
+        driver::Gpio button{13U};
+        driver::Gpio buzzer{7U};
+        std::printf("Inner\n");
+    }
+    std::printf("Outer\n");
+    return 0;
+}
+\end{cppcode}
+
+\noindent Write the exact output, in order. Then state the two rules about destructors that your
+answer depends on. \worth{4}
+
+\qpart{b} The software timer below compiles and passes a smoke test. It contains \textbf{four}
+defects against the course's own rules. Identify each one, state the consequence, and give the
+corrected line. \worth{6}
+
+\begin{cppcode}
+namespace driver
+{
+struct Timer
+{
+    Timer(const std::uint16_t timeout_ms) noexcept
+        : myCounter_ms{0U}
+        , myTimeout_ms{timeout_ms}
+        , myRunning{false}
+    {}
+
+    ~Timer() noexcept = default;
+
+    void start() noexcept { myRunning = true; }
+    void stop() noexcept { myRunning = false; }
+
+    std::uint16_t timeout_ms() noexcept { return myTimeout_ms; }
+
+    [[nodiscard]] bool elapsed() noexcept
+    {
+        if (!myRunning) { return false; }
+        if (++myCounter_ms < myTimeout_ms) { return false; }
+        myCounter_ms = 0U;
+        return true;
+    }
+
+private:
+    const std::uint16_t myTimeout_ms;
+    std::uint16_t myCounter_ms;
+    bool myRunning;
+};
+} // namespace driver
+\end{cppcode}
+
+\qpart{c} State what RAII means, and give one embedded-specific example of hardware state that a
+destructor should undo. \worth{2}
+
+% ------------------------------------------------------------------------------------------
+\question{Classes, and what belongs to the type}{12}
+\label{exa:q:3}
+
+\qpart{a} State the only formal difference between a \code{struct} and a \code{class} in C++. Then
+state the convention this book uses to decide which of the two to reach for. \worth{2}
+
+\qpart{b} Consider the following, which compiles and runs:
+
+\begin{cppcode}
+class Buzzer final
+{
+public:
+    Buzzer(const std::uint16_t frequency_hz) noexcept
+        : myFrequency_hz{frequency_hz}
+    {}
+
+    [[nodiscard]] std::uint16_t frequency_hz() const noexcept { return myFrequency_hz; }
+
+private:
+    const std::uint16_t myFrequency_hz;
+};
+
+void playAlarm(const Buzzer buzzer) noexcept
+{
+    std::printf("Alarm at %u Hz\n", buzzer.frequency_hz());
+}
+
+int main()
+{
+    playAlarm(4000U);
+    return 0;
+}
+\end{cppcode}
+
+\noindent State what the compiler does at the call to \code{playAlarm}, why this is a hazard rather
+than a convenience, and the one-word change that makes the call a compile error. \worth{3}
+
+\qpart{c} A \code{Gpio} class is to gain two shared values: the maximum number of GPIO instances the
+MCU supports, and a count of how many \code{Gpio} objects currently exist.
+
+Declare both in the course's style, state where each is defined and why the two differ on that
+point, and state what a \code{static} method cannot access and why. \worth{4}
+
+\qpart{d} State what \code{final} does when applied to a class. Give one reason a driver class
+should normally have it, and one concrete reason you might deliberately leave it off. \worth{3}
+
+% ------------------------------------------------------------------------------------------
+\question{The class that owns something}{13}
+\label{exa:q:4}
+
+The class below is used to hold a receive buffer.
+
+\begin{cppcode}
+namespace util
+{
+class Buffer final
+{
+public:
+    explicit Buffer(const std::size_t size) noexcept
+        : myData{new std::uint8_t[size]{}}
+        , mySize{size}
+    {}
+
+    ~Buffer() noexcept { delete[] myData; }
+
+    Buffer(const Buffer& other) noexcept
+        : myData{other.myData}
+        , mySize{other.mySize}
+    {}
+
+    Buffer& operator=(Buffer&& other) noexcept
+    {
+        myData = other.myData;
+        mySize = other.mySize;
+        return *this;
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept { return mySize; }
+
+private:
+    std::uint8_t* myData;
+    std::size_t mySize;
+};
+} // namespace util
+\end{cppcode}
+
+\qpart{a} Name the four special member functions concerned with copying and moving, and write the
+signature of each for \code{Buffer}. \worth{3}
+
+\qpart{b} The copy constructor and the move assignment operator are both wrong. For each, state the
+defect and describe precisely what happens to the heap when the following runs. \worth{6}
+
+\begin{cppcode}
+util::Buffer a{64U};
+util::Buffer b{a};
+
+util::Buffer c{32U};
+c = std::move(a);
+\end{cppcode}
+
+\qpart{c} Rewrite the move assignment operator correctly. \worth{2}
+
+\qpart{d} State what \code{std::move()} actually does. It is not what its name suggests. \worth{2}
+
+% ------------------------------------------------------------------------------------------
+\question{Interfaces, and the keyword that is missing}{13}
+\label{exa:q:5}
+
+\begin{cppcode}
+namespace driver::sensor
+{
+/**
+ * @brief Temperature sensor interface.
+ */
+class Interface
+{
+public:
+    ~Interface() noexcept = default;
+
+    virtual void start() noexcept                             = 0;
+    [[nodiscard]] virtual std::uint16_t read() const noexcept = 0;
+};
+
+/**
+ * @brief Temperature sensor driver for the BME280.
+ */
+class Bme280 final : public Interface
+{
+public:
+    explicit Bme280(const std::uint8_t address) noexcept
+        : myAddress{address}
+        , mySamples{new std::uint16_t[SampleCount]{}}
+    {}
+
+    ~Bme280() noexcept { delete[] mySamples; }
+
+    void start() noexcept override {}
+    [[nodiscard]] std::uint16_t read() const noexcept override { return mySamples[0U]; }
+
+private:
+    /** Number of samples held by the driver. */
+    static constexpr std::size_t SampleCount{16U};
+
+    const std::uint8_t myAddress;
+    std::uint16_t* mySamples;
+};
+} // namespace driver::sensor
+
+void run(driver::sensor::Interface* sensor) noexcept
+{
+    sensor->start();
+    delete sensor;
+}
+\end{cppcode}
+
+\qpart{a} The code above compiles without error. State exactly what happens when \code{run()} is
+called with a pointer to a heap-allocated \code{Bme280}, and why. \worth{4}
+
+\qpart{b} Give the single-word change that fixes it. Then state what the author could have written
+on \textbf{one other line} so that the compiler would have rejected the broken version outright.
+\worth{3}
+
+\qpart{c} A colleague implements the sensor for another chip and writes the read method as:
+
+\begin{cppcode}
+[[nodiscard]] std::uint16_t read() noexcept override { return 0U; }
+\end{cppcode}
+
+\noindent State what the compiler reports, and state what it would have reported had
+\code{override} been left off. \worth{3}
+
+\qpart{d} Give two advantages of programming against \code{driver::sensor::Interface} rather than
+against a concrete driver type, and state what a call through the interface costs at runtime
+compared with a direct call. \worth{3}
+
+% ------------------------------------------------------------------------------------------
+\question{The factory, and who owns what}{13}
+\label{exa:q:6}
+
+\qpart{a} State the purpose of the factory pattern in an embedded system. Explain what it means that
+the system logic depends only on interfaces, and name what has to change in a program to move it
+from real drivers to stubs. \worth{4}
+
+\qpart{b} The program below uses the raw-pointer factory from Chapter~4. It contains \textbf{two}
+ownership defects. Identify each and state the consequence. \worth{5}
+
+\begin{cppcode}
+int main()
+{
+    driver::factory::Esp32s3 factory{};
+
+    // Spare status LED on pin 4.
+    factory.gpio(4U);
+
+    app::logic::Logic logic{factory, 2U, 3U};
+    app::logic::Logic backup{logic};
+
+    logic.run();
+    return 0;
+}
+\end{cppcode}
+
+\noindent This version of \code{Logic} stores its two drivers as \code{driver::gpio::Interface*},
+obtains them from the factory in its constructor, and deletes them in its destructor. Its public
+section declares the constructor, the destructor and \code{run()}, and nothing else.
+
+\qpart{c} The factory is changed to return \code{std::unique_ptr<driver::gpio::Interface>}. State
+what happens to \code{Logic}'s destructor, and explain why one of the two defects in (b) becomes a
+compile error rather than a runtime fault. \worth{4}
+
+% ------------------------------------------------------------------------------------------
+\question{Templates}{12}
+\label{exa:q:7}
+
+\qpart{a} A colleague puts a function template's declaration in \file{bit_util.hpp} and its
+definition in \file{bit_util.cpp}, exactly as they would for an ordinary function. The build fails
+at link time with \code{undefined reference}. Explain why, and give the two arrangements the book
+recommends instead. \worth{4}
+
+\qpart{b} The bit-clearing helper below has been in the codebase for a year and is used on 8-, 16-
+and 32-bit registers without trouble. Its first use on a 64-bit register corrupts the register.
+
+\begin{cppcode}
+template<typename T>
+constexpr void clear(T& reg, const std::uint8_t bit) noexcept
+{
+    static_assert(std::is_integral<T>::value,
+        "Cannot perform bit operation with non-integral type!");
+    reg &= ~(1U << bit);
+}
+\end{cppcode}
+
+\noindent Given \code{std::uint64_t reg{0xFFFFFFFFFFFFFFFFU}} and a call \code{clear(reg, 2U)}, give
+the exact value of \code{reg} afterwards and explain how it got there. Name the second, separate
+failure this expression has for any \code{bit} of 32 or more. Then give the corrected body.
+\worth{5}
+
+\qpart{c} With the corrected template in place, the following appears in one translation unit:
+
+\begin{cppcode}
+std::uint8_t reg1{};
+std::uint32_t reg2{};
+std::uint8_t reg3{};
+
+clear(reg1, 0U);
+clear(reg2, 17U);
+clear(reg3, 3U);
+\end{cppcode}
+
+\noindent State how many versions of \code{clear()} the compiler generates and name them. State
+what this implies for a resource-constrained target, and name one situation where a template is the
+wrong tool. \worth{3}
+
+% ------------------------------------------------------------------------------------------
+\question{Two threads and a shared struct}{13}
+\label{exa:q:8}
+
+\begin{cppcode}
+namespace
+{
+struct Shared
+{
+    std::uint16_t data{};
+    bool newData{false};
+};
+
+Shared shared{};
+std::mutex mutex{};
+bool stop{false};
+
+// -----------------------------------------------------------------------------
+void txThread(const std::uint16_t count) noexcept
+{
+    for (std::uint16_t i{}; i < count; ++i)
+    {
+        shared.data    = i;
+        shared.newData = true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10U));
+    }
+    stop = true;
+}
+
+// -----------------------------------------------------------------------------
+void rxThread() noexcept
+{
+    while (!stop)
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        if (shared.newData)
+        {
+            std::printf("RX: %u\n", shared.data);
+            shared.newData = false;
+        }
+    }
+}
+} // namespace
+
+// -----------------------------------------------------------------------------
+int main()
+{
+    std::thread t1{txThread, 100U};
+    std::thread t2{rxThread};
+    t1.detach();
+    return 0;
+}
+\end{cppcode}
+
+\qpart{a} The program contains a mutex, and it is still not thread-safe. Identify \textbf{three}
+synchronization defects, and for each state the consequence. \worth{6}
+
+\qpart{b} State what happens at the closing brace of \code{main()}, and why. Name the two legal ways
+to end a \code{std::thread}'s lifetime and state which one this program should use. \worth{3}
+
+\qpart{c} Rewrite \code{rxThread()} so that it waits on a \code{std::condition_variable} instead of
+spinning. Give the predicate, state why \code{std::unique_lock} must be used rather than
+\code{std::lock_guard}, and state what the writer of the stop flag must additionally do so that the
+receiver can never be left asleep forever. \worth{4}

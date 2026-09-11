@@ -1,0 +1,162 @@
+% Section 5.2, from lectures/L05/appendix/b_type_traits_and_constraints.md.
+
+\section{Type Traits and Constraints}
+\label{c5:sec:traits}\label{c5:app:b}
+Type traits allow programs to inspect and reason about types at compile time.
+
+They are provided in the C++ standard library via the header:
+
+\begin{cppcode}
+#include <type_traits>
+\end{cppcode}
+
+\noindent Type traits are commonly used together with templates to create safer and more robust
+code, for instance to prevent misuse of low-level hardware APIs (e.g.\ restricting register
+operations to integral types).
+
+\subsection{Common type traits}
+\label{c5:sec:commontraits}
+Some commonly used type traits include:
+\begin{itemize}
+  \item \code{std::is_integral} --- checks if a type is an integer type.
+  \item \code{std::is_arithmetic} --- checks if a type is numeric (integer or floating point).
+  \item \code{std::is_unsigned} --- checks if a type is an unsigned integer.
+  \item \code{std::is_floating_point} --- checks if a type is a floating-point type.
+\end{itemize}
+Each type trait provides a boolean value:
+
+\begin{cppcode}
+std::is_integral<int>::value     // true
+std::is_integral<double>::value  // false
+\end{cppcode}
+
+\noindent Since C++17, a shorthand form is also available:
+
+\begin{cppcode}
+std::is_integral_v<int> // true
+\end{cppcode}
+
+\subsection{Compile-time constraints with \code{static_assert()}}
+\label{c5:sec:staticassert}
+Type traits are often used together with \code{static_assert()} to enforce constraints at compile
+time.
+
+Example:
+
+\begin{cppcode}
+#include <type_traits>
+
+/**
+ * @brief Add two numbers.
+ *
+ * @tparam T The numeric type. Must be arithmetic.
+ */
+template<typename T>
+constexpr T add(const T x, const T y) noexcept
+{
+    static_assert(std::is_arithmetic<T>::value, "Cannot add values of non-arithmetic types!");
+    return x + y;
+}
+\end{cppcode}
+
+\noindent If the function is used incorrectly:
+
+\begin{cppcode}
+add("Hello", "World");
+\end{cppcode}
+
+\noindent The \code{static_assert()} fails and the compiler stops with the error message given
+above. Without it, the compiler would still reject the call, since two pointers cannot be added,
+but with a less readable error from inside the function body.
+
+\subsection{Why compile-time checks matter in embedded systems}
+\label{c5:sec:whycompiletime}
+In embedded systems:
+\begin{itemize}
+  \item Errors should be detected as early as possible.
+  \item Debugging run-time issues can be difficult.
+  \item Safety and robustness are critical.
+\end{itemize}
+Compile-time checks provide:
+\begin{itemize}
+  \item Early error detection.
+  \item Clear diagnostics.
+  \item Zero run-time overhead.
+\end{itemize}
+
+\subsection{Creating custom type traits}
+\label{c5:sec:customtraits}
+If no suitable type trait exists, we can create our own.
+
+A type trait is typically implemented as a template struct that exposes a boolean constant named
+\code{value}. We set the constant \code{value} to \code{false} by default for a given type
+\code{T}:
+
+\begin{cppcode}
+template<typename T>
+struct isUnsigned
+{
+    static constexpr bool value{false};
+};
+\end{cppcode}
+
+\noindent We then set the constant \code{value} to \code{true} for unsigned types, such as
+\code{std::uint8_t} and \code{std::uint32_t}:
+
+\begin{cppcode}
+#include <cstdint>
+
+template<>
+struct isUnsigned<std::uint8_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint16_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint32_t>
+{
+    static constexpr bool value{true};
+};
+\end{cppcode}
+
+\noindent Usage:
+
+\begin{cppcode}
+// Generate a compiler error if T isn't of unsigned type:
+static_assert(isUnsigned<T>::value, "T must be unsigned!");
+\end{cppcode}
+
+\subsection{Variable templates (C++17)}
+\label{c5:sec:variabletemplates}
+For convenience, we can define a variable template:
+
+\begin{cppcode}
+template<typename T>
+inline constexpr bool isUnsigned_v{isUnsigned<T>::value};
+\end{cppcode}
+
+\noindent This allows:
+
+\begin{cppcode}
+// Generate a compiler error if T isn't of unsigned type:
+static_assert(isUnsigned_v<T>, "T must be unsigned!");
+\end{cppcode}
+
+\note In practice, the standard library already provides many useful traits (e.g.\
+\code{std::is_unsigned}). Custom traits are mainly used when no suitable standard trait exists.
+
+\subsection{Summary}
+\label{c5:sec:traitssummary}
+\begin{itemize}
+  \item Type traits allow inspection of types at compile time.
+  \item \code{static_assert()} enables compile-time validation.
+  \item Compile-time checks improve safety and robustness.
+  \item Custom type traits can be created when needed.
+  \item These tools are essential for building safe template-based APIs.
+\end{itemize}

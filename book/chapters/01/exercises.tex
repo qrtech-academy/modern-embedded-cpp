@@ -1,0 +1,344 @@
+% Section 1.4, from lectures/L01/appendix/c_exercises.md.
+
+\section{Exercises}
+\label{c1:sec:exercises}\label{c1:app:c}
+
+\begin{aside}
+\textbf{How to work these.} These exercises practice the concepts from \secref{c1:sec:cpp}. Each set
+is one program: create a directory for it with the Makefile from \secref{c1:sec:makefile}, and build
+and run it with \code{make}. Check your output against the example output each exercise gives.
+
+The solutions are in \secref{sol:sec:c1}, one program per set. Try each exercise yourself before
+looking at them.
+\end{aside}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Default Arguments and Functions}
+\label{c1:set:1}
+
+\exercise{Debug logger}{Code}
+\label{c1:ex:1.1}
+Create a namespace called \code{debug} containing a function:
+
+\begin{cppcode}
+void log(const char* message, const std::uint8_t level = 0U);
+\end{cppcode}
+
+\task{Tasks}
+\begin{enumerate}
+  \item Implement the function so it prints the message using \code{std::printf} from
+    \code{<cstdio>}.
+  \item Include the log level in the output.
+  \item Mark the function \code{noexcept}.
+\end{enumerate}
+Example usage:
+
+\begin{cppcode}
+debug::log("System started");
+debug::log("Sensor failure", 2U);
+\end{cppcode}
+
+\noindent Example output:
+
+\begin{console}
+System started, log level = 0
+Sensor failure, log level = 2
+\end{console}
+
+\exercise{System delay}{Code}
+\label{c1:ex:1.2}
+In the same program as in Exercise~\ref{c1:ex:1.1}, create a function that simulates a simple
+software delay:
+
+\begin{cppcode}
+void delay_ms(const std::uint32_t ms = 1U);
+\end{cppcode}
+
+\task{Tasks}
+\begin{enumerate}
+  \item Place the function inside namespace \code{app}.
+  \item Mark the function \code{noexcept}.
+  \item Inside the function, define a \code{constexpr} constant named \code{maxCount} and assign it
+    the value \code{10000000UL}.
+  \item Implement a delay using nested loops:
+  \begin{itemize}
+    \item The outer loop should iterate \code{ms} times.
+    \item The inner loop should iterate up to \code{maxCount}.
+    \item To reduce the risk of the compiler optimizing the loop away, add a volatile dummy variable
+      \code{volatile std::uint32_t dummy{}} inside the function and increment it inside the inner
+      loop.
+  \end{itemize}
+  \item Use this function to simulate a software delay of \code{100 ms} between the debug prints in
+    Exercise~\ref{c1:ex:1.1}.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Struct Driver}
+\label{c1:set:2}
+
+\exercise{Software timer}{Code}
+\label{c1:ex:2.1}
+In this exercise you will implement a simple software timer driver \code{driver::Timer} in a header
+file \file{driver/timer.hpp}.
+
+Add the following lines at the top of the file:
+
+\begin{cppcode}
+/**
+ * @file Timer driver implementation.
+ */
+#pragma once
+
+#include <cstdint>
+#include <cstdio>
+\end{cppcode}
+
+\noindent The driver shall simulate a timer that counts milliseconds and generates a timeout when a
+configured timeout value is reached.
+
+The struct shall:
+\begin{itemize}
+  \item Use private member variables with the prefix \code{my}.
+  \item Have a constructor.
+  \item Have a destructor.
+\end{itemize}
+Use \code{std::printf} from \code{<cstdio>} for terminal prints.
+
+\task{a) Private member variables}
+Add three private member variables:
+\begin{itemize}
+  \item The first member variable shall:
+  \begin{itemize}
+    \item Store the timeout in milliseconds.
+    \item Have the type \code{const std::uint16_t}.
+    \item Be named \code{myTimeout_ms}.
+  \end{itemize}
+  \item The second member variable shall:
+  \begin{itemize}
+    \item Store the internal counter in milliseconds.
+    \item Have the type \code{std::uint16_t}.
+    \item Be named \code{myCounter_ms}.
+  \end{itemize}
+  \item The third member variable shall:
+  \begin{itemize}
+    \item Indicate whether the timer is running.
+    \item Have the type \code{bool}.
+    \item Be named \code{myRunning}.
+  \end{itemize}
+\end{itemize}
+
+\task{b) Constructor}
+Add a constructor that:
+\begin{itemize}
+  \item Takes two input arguments:
+  \begin{itemize}
+    \item The timeout in milliseconds.
+    \item The initial running state, which shall be set to \code{false} by default.
+  \end{itemize}
+  \item Initializes:
+  \begin{itemize}
+    \item \code{myTimeout_ms} with the provided timeout value.
+    \item \code{myCounter_ms} with \code{0U}.
+    \item \code{myRunning} with \code{false}.
+  \end{itemize}
+  \item Prints that the timer is being created.
+  \item Calls the public method \code{start()} if the initial running state is \code{true}.
+\end{itemize}
+Example:
+
+\begin{console}
+Creating timer!
+\end{console}
+
+\task{c) Destructor}
+Add a destructor that:
+\begin{itemize}
+  \item Calls the public method \code{stop()}.
+  \item Prints that the timer is being destroyed.
+\end{itemize}
+Example:
+
+\begin{console}
+Destroying timer!
+\end{console}
+
+\task{d) Public methods}
+Add the following public methods:
+\begin{itemize}
+  \item \code{timeout_ms()} shall:
+  \begin{itemize}
+    \item Return \code{myTimeout_ms}.
+    \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+  \end{itemize}
+  \item \code{isRunning()} shall:
+  \begin{itemize}
+    \item Return \code{myRunning}.
+    \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+  \end{itemize}
+  \item \code{start()} shall:
+  \begin{itemize}
+    \item Set \code{myRunning} to \code{true}.
+    \item Print \code{Starting timer!}.
+  \end{itemize}
+  \item \code{stop()} shall:
+  \begin{itemize}
+    \item Set \code{myRunning} to \code{false}.
+    \item Print \code{Stopping timer!}.
+  \end{itemize}
+  \item \code{toggle()} shall:
+  \begin{itemize}
+    \item Toggle \code{myRunning}.
+    \item Print that the timer was toggled and whether it is now running or stopped:
+      \code{Toggling timer: running!} when enabled, \code{Toggling timer: stopped!} when disabled.
+  \end{itemize}
+  \item \code{tick()} shall:
+  \begin{itemize}
+    \item Increment \code{myCounter_ms} if \code{myRunning} is \code{true}.
+    \item Otherwise do nothing.
+  \end{itemize}
+  \item \code{hasTimedOut()} shall:
+  \begin{itemize}
+    \item Return \code{true} if \code{myCounter_ms >= myTimeout_ms}, otherwise \code{false}.
+    \item If \code{myCounter_ms >= myTimeout_ms}, reset \code{myCounter_ms} to \code{0U}.
+    \item Be marked \code{noexcept} and \code{[[nodiscard]]}.
+  \end{itemize}
+\end{itemize}
+
+\task{e) Create and use a timer instance}
+In \code{main()}:
+\begin{itemize}
+  \item Create a timer instance:
+  \begin{itemize}
+    \item Name the instance \code{timer}.
+    \item Set the timeout to \code{1000 ms}.
+    \item Set the timer to running at startup.
+  \end{itemize}
+  \item Create a loop that runs for \code{5000} iterations:
+  \begin{itemize}
+    \item Call \code{tick()} each iteration.
+    \item Call \code{hasTimedOut()} to check whether the timer has expired.
+    \item Print \code{Timeout after x ms!}, where \code{x} is the configured timeout, whenever the
+      timer times out.
+  \end{itemize}
+\end{itemize}
+Since the timer timeout is \code{1000 ms} and the loop runs for \code{5000} iterations, the timer
+should generate five timeouts.
+
+Example output:
+
+\begin{console}
+Creating timer!
+Starting timer!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Stopping timer!
+Destroying timer!
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{References}
+\label{c1:set:3}
+
+\exercise{Swap values}{Code}
+\label{c1:ex:3.1}
+Implement the following function in an anonymous namespace:
+
+\begin{cppcode}
+constexpr void swap(std::uint32_t& a, std::uint32_t& b) noexcept;
+\end{cppcode}
+
+\task{Tasks}
+\begin{enumerate}
+  \item Swap the values using a temporary variable \code{temp}.
+  \item Test the function with two variables.
+\end{enumerate}
+Example output:
+
+\begin{console}
+Before swap: a = 3, b = 10
+After swap: a = 10, b = 3
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Bit Manipulation Templates}
+\label{c1:set:4}
+
+\exercise{Clear bit}{Code}
+\label{c1:ex:4.1}
+Create a function template to clear a bit in a register:
+
+\begin{cppcode}
+template<typename T>
+constexpr void clear(T& reg, std::uint8_t bit) noexcept;
+\end{cppcode}
+
+\noindent Implement this function template inside an anonymous namespace.
+
+\task{Tasks}
+\begin{enumerate}
+  \item Use \code{static_assert} with \code{std::is_integral<T>::value} from
+    \code{<type_traits>} to ensure that \code{T} is an integral type.
+  \item Use the error message \code{Cannot perform bit operation with non-integral type!} in the
+    \code{static_assert}.
+  \item Clear the selected bit in the register.
+  \item Print the result in binary using C++ I/O functionality:
+  \begin{itemize}
+    \item Output stream \code{std::cout} from \code{<iostream>} for printing.
+    \item \code{std::bitset<N>} from \code{<bitset>} to generate a bitset representation.
+  \end{itemize}
+\end{enumerate}
+Example usage:
+
+\begin{cppcode}
+std::uint8_t reg{0xFFU};
+clear(reg, 2U);
+std::cout << "Register content: " << std::bitset<8U>(reg) << "\n";
+\end{cppcode}
+
+\noindent Expected output:
+
+\begin{console}
+Register content: 11111011
+\end{console}
+
+\exercise{Toggle bit(s)}{Code}
+\label{c1:ex:4.2}
+Create a function template for toggling one or several bits in a register using a parameter pack:
+
+\begin{cppcode}
+template<typename T, typename... Bits>
+constexpr void toggle(T& reg, const Bits... bits) noexcept;
+\end{cppcode}
+
+\noindent Implement this function template in the same anonymous namespace as
+Exercise~\ref{c1:ex:4.1}.
+
+\task{Tasks}
+\begin{enumerate}
+  \item Use a parameter pack.
+  \item Ensure the type is integral as in Exercise~\ref{c1:ex:4.1}.
+  \item Iterate over the bits (for example using \code{{bits...}}).
+  \item Toggle all specified bits in the register.
+  \item Print the result in binary using C++ I/O functionality:
+  \begin{itemize}
+    \item Output stream \code{std::cout} from \code{<iostream>} for printing.
+    \item \code{std::bitset<N>} from \code{<bitset>} to generate a bitset representation.
+  \end{itemize}
+\end{enumerate}
+Example usage:
+
+\begin{cppcode}
+std::uint8_t reg{0xFFU};
+clear(reg, 2U);
+toggle(reg, 0U, 2U, 4U, 6U);
+std::cout << "Register content: " << std::bitset<8U>(reg) << "\n";
+\end{cppcode}
+
+\noindent Expected output:
+
+\begin{console}
+Register content: 10101110
+\end{console}

@@ -83,6 +83,7 @@ ci/          CI scripts (build and format checks)
 info/        Course info
 lectures/    Lecture plans, examples, and exercises
 exam/        Two written papers and their solutions. Optional, and marked by nobody here.
+book/        The course typeset as a book with LuaLaTeX; `make -C book` builds the PDF.
 ```
 
 ---

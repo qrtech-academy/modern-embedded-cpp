@@ -1,0 +1,450 @@
+% Solutions to the Chapter 6 exercises, from lectures/L06/appendix/solutions: the README's prose
+% and its answers to the reflection questions, each placed with the set it belongs to, and every
+% source file typeset straight from the repository.
+
+\section{Chapter 6: Multithreading and Synchronization}
+\label{sol:sec:c6}
+Reference implementations for the exercises in \secref{c6:sec:exercises}. Each program is a
+directory under \file{lectures/L06/appendix/solutions}, built and run with \code{make}; its
+Makefile is the one from \secref{c1:sec:makefile}, with \code{-pthread} added to the compiler
+flags. Where a set's exercises build on one another, the solution is the program as it stands
+after the last of them.
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 1: Threads and atomic stop flag}
+\label{sol:set:c6.1}
+Exercises~\ref{c6:ex:1.1} to \ref{c6:ex:1.3}, in \file{exercise1}.
+
+\code{workerThread()} takes a print speed and an atomic stop flag. It prints a message at the given
+interval until the stop flag is set. \code{main()} starts the thread, sleeps for a timeout, sets the
+flag, and joins.
+
+\cppfile{lectures/L06/appendix/solutions/exercise1/exercise1.cpp}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:1.2}}
+\task{What happens if \code{join()} is not called?}
+\begin{itemize}
+  \item The \code{std::thread} object is destroyed while still joinable, which calls
+    \code{std::terminate()} and crashes the program.
+  \item The worker thread may not finish executing before the process exits.
+\end{itemize}
+
+\task{Which thread prints first, the main thread or the worker thread?}
+\begin{itemize}
+  \item Neither is guaranteed to print first.
+  \item Both threads are ready to execute as soon as the worker thread is created, and the OS
+    scheduler decides which runs first.
+\end{itemize}
+
+\task{Is the print order guaranteed?}
+\begin{itemize}
+  \item No. Thread scheduling is non-deterministic, so the order may differ between runs and
+    between platforms.
+\end{itemize}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:1.3}}
+\task{Why is \code{std::atomic<bool>} suitable for this stop flag?}
+\begin{itemize}
+  \item It guarantees that reads and writes are indivisible and visible across threads without a
+    data race.
+  \item No additional synchronization primitive is needed for a single boolean flag that is written
+    by one thread and read by another.
+\end{itemize}
+
+\task{Would a normal \code{bool} be safe here?}
+\begin{itemize}
+  \item No. Concurrent access to a plain \code{bool} from multiple threads without synchronization
+    is undefined behavior.
+  \item The compiler or CPU may also cache the value in a register, causing the worker thread to
+    never see the updated value.
+\end{itemize}
+
+\task{Why is \code{load()} used when reading the flag?}
+\begin{itemize}
+  \item \code{load()} makes the atomic read explicit and ensures the value is fetched from the
+    atomic object with the correct memory ordering, not from a stale cached copy.
+\end{itemize}
+
+\task{Why is \code{store()} used when writing the flag?}
+\begin{itemize}
+  \item \code{store()} makes the atomic write explicit and ensures the new value is published to all
+    threads with the correct memory ordering.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 2: Shared counter with data race}
+\label{sol:set:c6.2}
+Exercises~\ref{c6:ex:2.1} to \ref{c6:ex:2.3}, in \file{exercise2}.
+
+\code{incrementCounter()} takes a counter and an iteration count. Two threads increment the same
+counter concurrently. The exercises progress through three versions:
+\begin{itemize}
+  \item A plain \code{std::uint32_t} that demonstrates the data race.
+  \item A mutex-protected version that fixes it.
+  \item An \code{std::atomic<std::uint32_t>} that achieves the same result without a mutex.
+\end{itemize}
+The solution is the last of the three.
+
+\cppfile{lectures/L06/appendix/solutions/exercise2/exercise2.cpp}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:2.1}}
+\task{What final value do you expect?}
+\begin{itemize}
+  \item \code{200000}, since each of the two threads increments the counter \code{100000} times.
+\end{itemize}
+
+\task{Do you always get the expected value?}
+\begin{itemize}
+  \item No. Due to the data race the result is typically lower than \code{200000} and varies
+    between runs.
+\end{itemize}
+
+\task{Why is this program unsafe?}
+\begin{itemize}
+  \item Two threads read, modify, and write the same counter without any synchronization.
+  \item The read-modify-write sequence is not atomic for a plain integer, so one thread can
+    overwrite the other's increment.
+\end{itemize}
+
+\task{Which condition makes this a data race?}
+\begin{itemize}
+  \item Two or more threads access the same memory location concurrently, at least one access is a
+    write, and there is no synchronization between them.
+\end{itemize}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:2.2}}
+\task{What final counter value do you get now?}
+\begin{itemize}
+  \item Always \code{200000}.
+\end{itemize}
+
+\task{Why does the mutex solve the problem?}
+\begin{itemize}
+  \item The mutex ensures that only one thread can be inside the critical section at a time, making
+    the read-modify-write sequence effectively atomic.
+\end{itemize}
+
+\task{Why is \code{std::lock_guard} safer than manually calling \code{lock()} and \code{unlock()}?}
+\begin{itemize}
+  \item \code{std::lock_guard} releases the lock automatically when it goes out of scope, even if an
+    exception is thrown.
+  \item Manual \code{lock()}/\code{unlock()} risks forgetting to unlock, or leaving the mutex locked
+    if an exception occurs between the two calls.
+\end{itemize}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:2.3}}
+\task{What final counter value do you get?}
+\begin{itemize}
+  \item Always \code{200000}.
+\end{itemize}
+
+\task{Why is \code{std::atomic<std::uint32_t>} sufficient in this exercise?}
+\begin{itemize}
+  \item Incrementing a single integer is one independent operation. \code{std::atomic} makes the
+    increment indivisible and thread-safe without needing a mutex.
+\end{itemize}
+
+\task{Would an atomic counter still be sufficient if several related variables had to be updated
+together?}
+\begin{itemize}
+  \item No. If multiple related variables must be updated as a consistent unit, an atomic type
+    alone cannot protect the compound operation.
+  \item A mutex is needed to ensure the update of all related variables appears atomic to other
+    threads.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 3: Shared data protected by mutex}
+\label{sol:set:c6.3}
+Exercises~\ref{c6:ex:3.1} to \ref{c6:ex:3.4}, in \file{exercise3}.
+
+\code{SharedMem} holds a \code{std::uint16_t} data value and a \code{newData} flag.
+\code{txThread()} produces incrementing values and sets \code{newData}; \code{rxThread()} polls for
+new data and consumes it. Both threads share one mutex that protects all accesses to
+\code{SharedMem}. \code{main()} runs both threads for a fixed timeout, then sets the stop flag and
+joins.
+
+\cppfile{lectures/L06/appendix/solutions/exercise3/exercise3.cpp}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:3.4}}
+\task{Why must \code{data} and \code{newData} be protected by the same mutex?}
+\begin{itemize}
+  \item They are logically related --- RX must read \code{data} and \code{newData} together as a
+    consistent snapshot.
+  \item If they were protected separately, TX could update \code{data} after RX has already read
+    \code{newData}, causing RX to act on a stale or mismatched value.
+\end{itemize}
+
+\task{Why is \code{newData} not atomic in this design?}
+\begin{itemize}
+  \item \code{newData} must be checked and updated together with \code{data} as a consistent unit.
+  \item Protecting \code{newData} with an atomic alone would not prevent TX from updating
+    \code{data} between RX reading the flag and reading the value.
+  \item The mutex protects both fields together, making the compound operation safe.
+\end{itemize}
+
+\task{What could happen if TX updated \code{data} and \code{newData} without locking the mutex?}
+\begin{itemize}
+  \item RX could read \code{newData = true} before \code{data} has been written, or read a
+    partially updated \code{data} value.
+  \item This is a data race and results in undefined behavior.
+\end{itemize}
+
+\task{Why is the stop flag atomic instead of mutex-protected?}
+\begin{itemize}
+  \item The stop flag is a single boolean written by one thread and read by others. No compound
+    operation is needed.
+  \item An atomic boolean is sufficient and avoids the overhead of locking the mutex on every loop
+    iteration just to check a flag.
+\end{itemize}
+
+\task{Could \code{std::atomic<SharedMem>} be used instead of a mutex?}
+\begin{itemize}
+  \item Not without additional complexity. RX's operation is a read-modify-write sequence: load the
+    struct, check \code{newData}, clear \code{newData}, and store back.
+  \item Even with \code{std::atomic<SharedMem>}, that sequence is not atomic as a whole. TX could
+    store a new value between RX's load and RX's store, causing RX to silently overwrite TX's new
+    data.
+  \item Making it correct without a mutex would require a compare-exchange (CAS) retry loop in RX,
+    which is significantly more complex than the mutex approach.
+  \item The mutex is the right tool here because it makes the entire compound operation safe
+    through mutual exclusion.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Sets 4 and 5: Thread-safe stub driver}
+\label{sol:set:c6.4}\label{sol:set:c6.5}
+Exercises~\ref{c6:ex:4.1} to \ref{c6:ex:5.3}, in \file{exercise4-5}.
+
+\code{driver::counter::Interface} defines a pure virtual interface with \code{isInitialized()},
+\code{value()}, \code{increment()}, and \code{reset()}.
+
+\code{driver::counter::Stub} implements the interface:
+\begin{itemize}
+  \item \code{myMutex} (\code{mutable std::mutex}) protects \code{myValue}.
+  \item \code{myInitialized} (\code{std::atomic<bool>}) guards all counter operations --- each method
+    returns early if the driver is not initialized.
+  \item Copy and move are deleted.
+\end{itemize}
+\code{main()} creates one \code{Stub}, starts two threads via \code{counterThread()} (100 and 200
+increments respectively), joins them, and prints the final value --- expected \code{300}.
+
+\cppfile{lectures/L06/appendix/solutions/exercise4-5/include/driver/counter/interface.hpp}
+\cppfile{lectures/L06/appendix/solutions/exercise4-5/include/driver/counter/stub.hpp}
+\cppfile{lectures/L06/appendix/solutions/exercise4-5/source/main.cpp}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:4.3}}
+\task{Why does \code{value()} need to lock the mutex even though it only reads the value?}
+\begin{itemize}
+  \item Another thread could be calling \code{increment()} or \code{reset()} concurrently.
+  \item Reading \code{myValue} while it is being written is a data race. The mutex ensures the read
+    is not interleaved with a write.
+\end{itemize}
+
+\task{Why is \code{myMutex} marked \code{mutable}?}
+\begin{itemize}
+  \item \code{value()} is a \code{const} method and cannot modify member variables.
+  \item Locking a mutex is an implementation detail, not a logical mutation of the object.
+  \item \code{mutable} allows the mutex to be locked inside a \code{const} method without violating
+    \code{const} correctness.
+\end{itemize}
+
+\task{What would happen if \code{increment()} did not lock the mutex?}
+\begin{itemize}
+  \item Two threads could read the same value, both increment it, and write back the same result,
+    losing one increment.
+  \item The counter would end up lower than expected --- identical to the data race in
+    Exercise~\ref{c6:ex:2.1}.
+\end{itemize}
+
+\task{Could \code{std::atomic<std::uint32_t>} be used instead in this specific class?}
+\begin{itemize}
+  \item Yes. In this specific class each operation (increment, read, reset) acts on a single
+    variable independently, so \code{std::atomic<std::uint32_t>} would be sufficient.
+\end{itemize}
+
+\task{Why might a mutex still be preferable in a more complex driver?}
+\begin{itemize}
+  \item If future requirements add more member variables that must be updated together with
+    \code{myValue}, a mutex can protect all of them as a unit.
+  \item An atomic can only protect a single variable; compound multi-variable operations still
+    require a mutex.
+\end{itemize}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:5.3}}
+\task{Why is \code{myInitialized} suitable as an atomic variable?}
+\begin{itemize}
+  \item It is a single boolean flag that is read and written independently.
+  \item No other variable needs to be updated in the same atomic step, so
+    \code{std::atomic<bool>} is sufficient.
+\end{itemize}
+
+\task{Why is \code{myValue} still protected by a mutex?}
+\begin{itemize}
+  \item \code{myValue} is accessed by multiple operations (\code{increment}, \code{reset},
+    \code{value}) that must not interleave.
+  \item A mutex protects all operations on \code{myValue} as a group, preventing data races.
+\end{itemize}
+
+\task{Would it be safe to make both variables atomic if future requirements added more related
+state?}
+\begin{itemize}
+  \item No. If future state must be updated together with \code{myValue} as a consistent unit,
+    atomic types alone cannot protect the compound update.
+  \item A mutex would be needed to keep the update of all related variables atomic as a group.
+\end{itemize}
+
+\task{What is the main design difference between a thread-safe flag and thread-safe shared data?}
+\begin{itemize}
+  \item A thread-safe flag is a single boolean that only needs to be observed independently --- an
+    atomic is sufficient.
+  \item Thread-safe shared data involves multiple related fields that must be read or written
+    together as a consistent snapshot, requiring a mutex to protect the compound operation.
+\end{itemize}
+
+\task{What could happen if \code{setInitialized(false)} is called between the initialization check
+and the mutex lock in \code{increment()}? How would you fix this?}
+\begin{itemize}
+  \item \code{increment()} would pass the initialization check, then the driver would be marked
+    uninitialized by another thread, and \code{increment()} would proceed to modify \code{myValue}
+    --- violating the intended guard.
+  \item The fix is to make the check and the update one critical section: check
+    \code{myInitialized} after taking the lock in \code{increment()} (and likewise in
+    \code{value()} and \code{reset()}), \textbf{and} have \code{setInitialized()} take the same
+    mutex when it changes the flag.
+  \item Moving the check inside the lock is not enough on its own: \code{setInitialized()} does not
+    lock the mutex, so it could still change the flag after \code{increment()} has checked it. With
+    both sides under the mutex, \code{setInitialized(false)} either completes before
+    \code{increment()} checks the flag, or waits until the increment is done.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 6: Condition variable}
+\label{sol:set:c6.6}
+Exercise~\ref{c6:ex:6.1}, in \file{exercise6}.
+
+Built on Exercise Set 3. \code{rxThread()} no longer polls with a sleep; instead it acquires a
+\code{std::unique_lock} and calls \code{cv.wait()} with \code{hasNewData()} as the predicate.
+\code{txThread()} calls \code{cv.notify_one()} after releasing the lock. \code{main()} sets the stop
+flag while holding the mutex, so that it cannot change between the receiver checking the predicate
+and going to sleep, and then calls \code{cv.notify_all()} so the receiver wakes up and exits
+cleanly.
+
+\cppfile{lectures/L06/appendix/solutions/exercise6/exercise6.cpp}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:6.1}}
+\task{Why is \code{std::unique_lock} required here instead of \code{std::lock_guard}?}
+\begin{itemize}
+  \item \code{cv.wait()} must unlock the mutex while the thread is sleeping and re-lock it when
+    woken up.
+  \item \code{std::lock_guard} has no way to release and re-acquire the lock --- it only supports
+    locking on construction and unlocking on destruction.
+  \item \code{std::unique_lock} provides \code{lock()} and \code{unlock()}, which \code{cv.wait()}
+    uses internally.
+\end{itemize}
+
+\task{What is a spurious wake-up, and how does the predicate protect against it?}
+\begin{itemize}
+  \item A spurious wake-up is when \code{cv.wait()} returns even though no \code{notify_one()} or
+    \code{notify_all()} was called, due to OS implementation details.
+  \item The predicate re-checks the condition after every wake-up. If the condition is not met,
+    \code{wait()} automatically re-enters the waiting state instead of proceeding.
+\end{itemize}
+
+\task{Why must the stop flag also be checked inside the predicate?}
+\begin{itemize}
+  \item When the stop flag is set and \code{notify_all()} is called, the receiver wakes up.
+  \item Without \code{stop.load()} in the predicate, the receiver would see
+    \code{hasNewData() == false}, treat it as a spurious wake-up, and go back to sleep --- never
+    exiting cleanly.
+\end{itemize}
+
+\task{How does this design differ from the polling approach in Exercise~\ref{c6:ex:3.3}?}
+\begin{itemize}
+  \item In Exercise~\ref{c6:ex:3.3} the receiver wakes every \code{100 ms} regardless of whether
+    data is available, wasting CPU cycles and adding up to \code{100 ms} of latency.
+  \item With a condition variable the receiver sleeps until TX explicitly wakes it, reducing
+    latency to near zero and eliminating unnecessary polling.
+\end{itemize}
+
+\task{What would happen if \code{notify_all()} was not called after setting the stop flag?}
+\begin{itemize}
+  \item The receiver thread would remain blocked on \code{cv.wait()} even after \code{stop} is set
+    to \code{true}, because nothing wakes it up.
+  \item The main thread would then block forever on \code{join()}, and the program would hang.
+\end{itemize}
+
+\task{Why is \code{notify_all()} used here instead of \code{notify_one()}?}
+\begin{itemize}
+  \item In this design there is only one receiver thread, so \code{notify_one()} would be
+    sufficient here.
+  \item \code{notify_all()} is used for correctness in the general case --- if multiple threads were
+    waiting on the same condition variable, \code{notify_one()} would only wake one of them,
+    leaving the others blocked indefinitely.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 7: \code{std::async} and \code{std::future}}
+\label{sol:set:c6.7}
+Exercises~\ref{c6:ex:7.1} and \ref{c6:ex:7.2}, in \file{exercise7}.
+
+\code{validateFirmware()} simulates a slow flash read by sleeping for \code{2000 ms}, then iterates
+over the buffer looking for \code{0xFFU}. It is launched asynchronously via
+\code{std::async(std::launch::async, ...)}. \code{main()} polls
+\code{future.wait_for(std::chrono::milliseconds(200U))} against \code{std::future_status::ready} in
+a loop, printing a status message each iteration, then retrieves the result with
+\code{future.get()}.
+
+\cppfile{lectures/L06/appendix/solutions/exercise7/exercise7.cpp}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:7.1}}
+\task{What does \code{std::launch::async} guarantee compared to omitting the launch policy?}
+\begin{itemize}
+  \item \code{std::launch::async} guarantees the function runs in a new thread immediately,
+    independently of when \code{get()} is called.
+  \item Without the policy, the implementation may choose \code{std::launch::deferred}, which
+    defers execution until \code{get()} is called --- running the function synchronously on the
+    calling thread instead.
+\end{itemize}
+
+\task{At what point does the main thread block?}
+\begin{itemize}
+  \item The main thread blocks when \code{future.get()} is called.
+  \item Everything between \code{std::async} and \code{future.get()} executes concurrently while
+    validation runs in the background.
+\end{itemize}
+
+\task{What would happen if \code{future.get()} was called immediately after \code{std::async}?}
+\begin{itemize}
+  \item The main thread would block immediately, waiting for \code{validateFirmware()} to complete
+    before continuing.
+  \item No concurrent work would happen --- it would behave like a synchronous function call.
+\end{itemize}
+
+\needspace{8\baselineskip}
+\subsubsection{Reflection: Exercise~\ref{c6:ex:7.2}}
+\task{How does \code{wait_for()} differ from \code{get()}?}
+\begin{itemize}
+  \item \code{wait_for()} waits at most for the given duration and returns a status
+    (\code{ready}, \code{timeout}, or \code{deferred}) without consuming the result or blocking
+    indefinitely.
+  \item \code{get()} blocks until the result is available and then returns or re-throws it,
+    consuming the future.
+\end{itemize}
+
+\task{Is it safe to call \code{get()} after \code{wait_for()} returns
+\code{std::future_status::ready}?}
+\begin{itemize}
+  \item Yes. Once \code{wait_for()} returns \code{std::future_status::ready} the result is
+    guaranteed to be available, and \code{get()} will return immediately without blocking.
+\end{itemize}

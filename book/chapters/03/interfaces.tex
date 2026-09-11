@@ -1,0 +1,428 @@
+% Section 3.2, from lectures/L03/appendix/b_interfaces.md.
+
+\section{Interfaces in C++}
+\label{c3:sec:interfaces}\label{c3:app:b}
+An interface in C++ is an abstract base class that (normally) only contains pure virtual methods,
+i.e.\ methods that have no implementation. The purpose of an interface is to define a common set
+of methods that different classes can implement in their own way depending on their needs.
+
+\subsection{Advantages of interfaces}
+\label{c3:sec:advantages}
+Using interfaces has several advantages:
+\begin{itemize}
+  \item \textbf{Abstraction:} You can write code that works against an abstraction rather than a
+    concrete class. This makes it easier to replace implementations without changing the rest of
+    the code.
+  \item \textbf{Replaceability:} Different implementations can be used depending on the need, for
+    example different hardware drivers or test classes.
+  \item \textbf{Reusability:} Code that uses interfaces becomes more general and can be reused in
+    different contexts.
+  \item \textbf{Testability:} By using interfaces, you can easily create mock or fake classes for
+    unit testing.
+\end{itemize}
+
+\subsection{Structure of an interface}
+\label{c3:sec:structure}
+Below the structure of an interface for timer circuits is shown. This interface is named
+\code{driver::timer::Interface}. To keep the code compact, no comments are used in this example:
+
+\begin{cppcode}
+namespace driver::timer
+{
+class Interface
+{
+public:
+    virtual ~Interface() noexcept = default;
+    virtual void start() noexcept = 0;
+    virtual void stop() noexcept = 0;
+    [[nodiscard]] virtual bool isRunning() const noexcept = 0;
+    virtual void reset() noexcept = 0;
+};
+} // namespace driver::timer
+\end{cppcode}
+
+\noindent Through the interface above, a timer can be started, stopped, and reset via the methods
+\code{start()}, \code{stop()}, and \code{reset()}. It is also possible to check whether the timer
+is active or not via the method \code{isRunning()}.
+
+A few things to note:
+\begin{itemize}
+  \item The destructor is marked as \code{virtual}:
+  \begin{itemize}
+    \item This ensures that the correct destructor is called when an instance of a subclass is
+      deleted through a pointer or reference to the interface.
+    \item This is crucial for avoiding memory leaks and for correctly cleaning up resources in both
+      the derived class and the base class.
+  \end{itemize}
+  \item The destructor is defined as \code{= default}:
+  \begin{itemize}
+    \item This results in an empty, automatic implementation.
+    \item It is good practice to declare the destructor as virtual in an interface. Otherwise,
+      objects of subclasses that are deleted through a pointer or reference to the interface may
+      exhibit undefined behavior.
+    \item Since the interface has nothing to clean up, a default implementation is sufficient here.
+  \end{itemize}
+  \item All methods that are meant to be overridden in subclasses are marked with \code{virtual}
+    and end with \code{= 0}:
+  \begin{itemize}
+    \item This makes them pure virtual methods without implementation in the interface.
+  \end{itemize}
+  \item All virtual methods are here marked \code{noexcept}:
+  \begin{itemize}
+    \item This forces all concrete implementations in the subclasses to not be able to throw
+      exceptions.
+    \item This is advantageous in an embedded system, but if you do not want to enforce this it is
+      fine to omit \code{noexcept} here.
+  \end{itemize}
+  \item The method \code{isRunning()} is marked \code{[[nodiscard]]}:
+  \begin{itemize}
+    \item This encourages callers to use the returned value by generating a compiler warning if it
+      is discarded.
+    \item The attribute belongs to the declaration it is written on, not to the class. It is
+      therefore \textbf{not} inherited by overriding methods, and a call made directly on a
+      concrete subclass whose implementation omits it produces no warning.
+    \item Therefore, subclasses \textbf{should} repeat the \code{[[nodiscard]]} attribute on their
+      implementations. This is done throughout this book.
+    \item Note also that compiler support for \code{[[nodiscard]]} on virtual methods varies. Some
+      compilers, such as GCC, do not warn at all when the return value of a \emph{virtual} call is
+      discarded, not even when the call is made through the interface. Repeating the attribute on
+      the override is what makes the warning appear where it can.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Structure of a concrete subclass}
+\label{c3:sec:subclass}
+Below is an example of a concrete subclass \code{driver::timer::Atmega328p}, which represents a
+concrete implementation for timer circuits for the ATmega328P microcontroller:
+
+\begin{cppcode}
+namespace driver::timer
+{
+class Atmega328p final : public Interface
+{
+public:
+    // Example constructor.
+    explicit Atmega328p(std::uint16_t duration_ms) noexcept;
+
+    // Overridden methods.
+    ~Atmega328p() noexcept override;
+    void start() noexcept override;
+    void stop() noexcept override;
+    [[nodiscard]] bool isRunning() const noexcept override;
+    void reset() noexcept override;
+
+    // Additional ATmega328P-specific methods (if any).
+
+    // Deleted constructors and assignment operators.
+    Atmega328p()                             = delete;
+    Atmega328p(const Atmega328p&)            = delete;
+    Atmega328p(Atmega328p&&)                 = delete;
+    Atmega328p& operator=(const Atmega328p&) = delete;
+    Atmega328p& operator=(Atmega328p&&)      = delete;
+
+private:
+    // Timer implementation details.
+};
+} // namespace driver::timer
+\end{cppcode}
+
+\noindent Some things we saw earlier in the section on inheritance (\secref{c3:sec:inheritance})
+also appear here:
+\begin{itemize}
+  \item The keyword \code{final} is used to ensure that the class \code{driver::timer::Atmega328p}
+    cannot be inherited; this is the final implementation:
+  \begin{itemize}
+    \item As a rule of thumb, this is good to do if the class is not intended to be inherited.
+    \item However, in some cases it may be desirable to inherit the implementation for testing, and
+      in that case this keyword must be omitted.
+  \end{itemize}
+  \item The class \code{driver::timer::Atmega328p} inherits the class
+    \code{driver::timer::Interface} by writing \code{: public Interface} after the class name.
+    Writing \code{public} means that everything that is public (or protected) in the interface is
+    also public (or protected) in this derived class.
+\end{itemize}
+Some new things to note:
+\begin{itemize}
+  \item The overridden methods are marked with \code{override} precisely to indicate that these are
+    concrete implementations of overridden virtual methods.
+  \item The destructor is also marked with \code{override} to clearly show that it replaces the
+    virtual destructor in the interface. It is the \code{virtual} destructor in the interface that
+    ensures the correct destructor is called during polymorphic destruction; \code{override} makes
+    the compiler check that this is the case, since it is an error if the base class destructor is
+    not virtual.
+  \item The constructor has nothing to do with the interface and is therefore neither marked
+    \code{virtual} nor \code{override}.
+\end{itemize}
+
+\subsection{Example of using interfaces}
+\label{c3:sec:usinginterfaces}
+Below an interface \code{driver::led::Interface} is shown. This interface should be usable for
+various LEDs, for example from different microprocessors:
+
+\begin{cppcode}
+/**
+ * @file LED driver interface.
+ */
+#pragma once
+
+#include <cstdint>
+
+namespace driver::led
+{
+/**
+ * @brief LED driver interface.
+ */
+class Interface
+{
+public:
+    /**
+     * @brief Destructor.
+     */
+    virtual ~Interface() noexcept = default;
+
+    /**
+     * @brief Get the pin the LED is connected to.
+     *
+     * @return The pin the LED is connected to.
+     */
+    [[nodiscard]] virtual std::uint8_t pin() const noexcept = 0;
+
+    /**
+     * @brief Check whether the LED is enabled.
+     *
+     * @return True if the LED is enabled, false otherwise.
+     */
+    [[nodiscard]] virtual bool isEnabled() const noexcept = 0;
+
+    /**
+     * @brief Enable/disable the LED.
+     *
+     * @param[in] enable True if the LED is to be enabled, false otherwise.
+     */
+    virtual void setEnabled(bool enable) noexcept = 0;
+
+    /**
+     * @brief Toggle the LED.
+     */
+    virtual void toggle() noexcept = 0;
+};
+} // namespace driver::led
+\end{cppcode}
+
+\noindent Below the subclass \code{driver::led::Atmega328p} is shown, which inherits the interface
+\code{driver::led::Interface} and is implemented to easily control LEDs connected to the ATmega328P
+microcontroller:
+
+\begin{cppcode}
+namespace driver::led
+{
+/**
+ * @brief LED driver for ATmega328P.
+ *
+ *        This class is non-copyable and non-movable.
+ */
+class Atmega328p final : public Interface
+{
+public:
+    /**
+     * @brief Constructor.
+     *
+     * @param[in] pin The pin the LED is connected to.
+     */
+    explicit Atmega328p(std::uint8_t pin) noexcept;
+
+    /**
+     * @brief Destructor.
+     */
+    ~Atmega328p() noexcept override;
+
+    /**
+     * @brief Get the pin the LED is connected to.
+     *
+     * @return The pin the LED is connected to.
+     */
+    [[nodiscard]] std::uint8_t pin() const noexcept override;
+
+    /**
+     * @brief Check whether the LED is enabled.
+     *
+     * @return True if the LED is enabled, false otherwise.
+     */
+    [[nodiscard]] bool isEnabled() const noexcept override;
+
+    /**
+     * @brief Enable/disable the LED.
+     *
+     * @param[in] enable True if the LED is to be enabled, false otherwise.
+     */
+    void setEnabled(bool enable) noexcept override;
+
+    /**
+     * @brief Toggle the LED.
+     */
+    void toggle() noexcept override;
+
+    Atmega328p()                             = delete; // No default constructor.
+    Atmega328p(const Atmega328p&)            = delete; // No copy constructor.
+    Atmega328p(Atmega328p&&)                 = delete; // No move constructor.
+    Atmega328p& operator=(const Atmega328p&) = delete; // No copy assignment.
+    Atmega328p& operator=(Atmega328p&&)      = delete; // No move assignment.
+
+private:
+    /** The pin the LED is connected to. */
+    std::uint8_t myPin;
+
+    /** Indicate whether the LED is enabled. */
+    bool myIsEnabled;
+};
+} // namespace driver::led
+\end{cppcode}
+
+\noindent By using pointers or references to \code{driver::led::Interface}, you can write code that
+works with all subclasses. As an example, a function named \code{blinkLed()} is demonstrated below,
+which is used to blink a given LED. Note that:
+\begin{itemize}
+  \item The input argument \code{led} consists of a reference to a \code{driver::led::Interface}.
+  \item The LED can therefore be an instance of any arbitrary subclass.
+  \item For example, this could be an instance of the previously demonstrated class
+    \code{driver::led::Atmega328p}, or alternatively it could be an instance of a class for an LED
+    on an ESP32-S3 processor or similar.
+\end{itemize}
+
+\begin{cppcode}
+/**
+ * @brief Blink the given LED.
+ *
+ * @param[in, out] led The LED to blink.
+ * @param[in] blinkTimeMs The blink time in milliseconds.
+ */
+void blinkLed(driver::led::Interface& led, const std::uint16_t blinkTimeMs) noexcept
+{
+    // Toggle the LED, then delay the calling thread.
+    led.toggle();
+    std::this_thread::sleep_for(std::chrono::milliseconds(blinkTimeMs));
+
+    // Toggle the LED again, then delay the calling thread.
+    led.toggle();
+    std::this_thread::sleep_for(std::chrono::milliseconds(blinkTimeMs));
+}
+\end{cppcode}
+
+\noindent When the function above is called, we can use one of the subclasses directly, for example
+our class \code{driver::led::Atmega328p}. Assume that we have implemented an LED connected to pin 9
+on an Arduino Uno via an instance named \code{led1}:
+
+\begin{cppcode}
+driver::led::Atmega328p led1{9U};
+\end{cppcode}
+
+\noindent We can blink this LED with a blink time of, for example, \code{1000 ms} by calling the
+function \code{blinkLed()}. Since \code{driver::led::Atmega328p} is a subclass of
+\code{driver::led::Interface}, we can pass \code{led1} directly:
+
+\begin{cppcode}
+blinkLed(led1, 1000U);
+\end{cppcode}
+
+\noindent Assume that we have also created a subclass \code{driver::led::Esp32s3} to implement LEDs
+for an ESP32-S3 processor, as shown below.
+
+Note that:
+\begin{itemize}
+  \item The implementation is slightly different this time; most notably, the user has the
+    possibility to set the LED's initial state directly via a call to the constructor.
+  \item This class also has a private method named \code{init()}.
+  \item This is demonstrated to show that subclasses can be tailored according to specific needs:
+\end{itemize}
+
+\begin{cppcode}
+namespace driver::led
+{
+/**
+ * @brief LED driver for ESP32-S3.
+ *
+ *        This class is non-copyable and non-movable.
+ */
+class Esp32s3 final : public Interface
+{
+public:
+    /**
+     * @brief Constructor.
+     *
+     * @param[in] pin The pin the LED is connected to.
+     * @param[in] initialState Initial state of the LED (default = off).
+     */
+    explicit Esp32s3(std::uint8_t pin, bool initialState = false) noexcept;
+
+    /**
+     * @brief Destructor.
+     */
+    ~Esp32s3() noexcept override;
+
+    /**
+     * @brief Get the pin the LED is connected to.
+     *
+     * @return The pin the LED is connected to.
+     */
+    [[nodiscard]] std::uint8_t pin() const noexcept override;
+
+    /**
+     * @brief Check whether the LED is enabled.
+     *
+     * @return True if the LED is enabled, false otherwise.
+     */
+    [[nodiscard]] bool isEnabled() const noexcept override;
+
+    /**
+     * @brief Enable/disable the LED.
+     *
+     * @param[in] enable True if the LED is to be enabled, false otherwise.
+     */
+    void setEnabled(bool enable) noexcept override;
+
+    /**
+     * @brief Toggle the LED.
+     */
+    void toggle() noexcept override;
+
+    Esp32s3()                          = delete; // No default constructor.
+    Esp32s3(const Esp32s3&)            = delete; // No copy constructor.
+    Esp32s3(Esp32s3&&)                 = delete; // No move constructor.
+    Esp32s3& operator=(const Esp32s3&) = delete; // No copy assignment.
+    Esp32s3& operator=(Esp32s3&&)      = delete; // No move assignment.
+
+private:
+    /**
+     * @brief Initialize the LED.
+     */
+    void init(bool initialState) noexcept;
+
+    /** The pin the LED is connected to. */
+    std::uint8_t myPin;
+
+    /** Indicate whether the LED is enabled. */
+    bool myIsEnabled;
+};
+} // namespace driver::led
+\end{cppcode}
+
+\noindent Assume that we have implemented an LED connected to pin 20 on an ESP32-S3 processor via an
+instance named \code{led2}. We turn on the LED directly at startup:
+
+\begin{cppcode}
+driver::led::Esp32s3 led2{20U, true};
+\end{cppcode}
+
+\noindent We can also blink this LED by calling the function \code{blinkLed()}, since the class
+\code{driver::led::Esp32s3} is a subclass of \code{driver::led::Interface}. For example, to blink
+this LED with a blink time of 500 milliseconds, the following call can be made:
+
+\begin{cppcode}
+blinkLed(led2, 500U);
+\end{cppcode}
+
+\noindent The full example is in \secref{c3:sec:example}.
+
+See also the following C implementation to understand how interfaces work ``under the hood'' (from
+the previous embedded C course):
+\url{https://github.com/qrtech-academy/embedded-c/blob/main/lectures/L10/interface_demo/README.md}.

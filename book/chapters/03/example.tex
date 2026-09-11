@@ -1,0 +1,74 @@
+% Section 3.3, from lectures/L03/examples/cpp_interface: the README's prose, then every file of
+% the example typeset straight from the repository.
+
+\section{Example: An LED Interface in C++}
+\label{c3:sec:example}
+This is a demonstration of an interface \code{driver::led::Interface}, which is used to easily
+work with different types of LEDs, for example LEDs from different processors, via subclasses. It
+is the complete program behind \secref{c3:sec:usinginterfaces}, and it lives in
+\file{lectures/L03/examples/cpp_interface}.
+
+\subsection{Files}
+\label{c3:sec:examplefiles}
+\begin{itemize}
+  \item \file{driver/led/interface.hpp} constitutes the interface itself in the form of the base
+    class \code{driver::led::Interface}.
+  \item \file{driver/led/atmega328p.hpp} constitutes an implementation of LEDs for the processor
+    ATmega328P via the subclass \code{driver::led::Atmega328p}. The corresponding source code is
+    \file{source/driver/led/atmega328p.cpp}.
+  \item \file{driver/led/esp32s3.hpp} constitutes an implementation of LEDs for the processor
+    ESP32-S3 via the subclass \code{driver::led::Esp32s3}. The corresponding source code is
+    \file{source/driver/led/esp32s3.cpp}.
+  \item In \file{main.cpp}, LEDs for each processor are created (via the previously mentioned
+    subclasses) and blink at different frequencies:
+  \begin{itemize}
+    \item This is achieved through a shared blink function that expects a reference to an LED
+      interface (\code{driver::led::Interface}).
+    \item Since both subclasses inherit \code{driver::led::Interface}, this works perfectly.
+  \end{itemize}
+\end{itemize}
+
+\subsubsection{The interface}
+\cppfile{lectures/L03/examples/cpp_interface/include/driver/led/interface.hpp}
+
+\subsubsection{The ATmega328P implementation}
+\cppfile{lectures/L03/examples/cpp_interface/include/driver/led/atmega328p.hpp}
+\cppfile{lectures/L03/examples/cpp_interface/source/driver/led/atmega328p.cpp}
+
+\subsubsection{The ESP32-S3 implementation}
+\cppfile{lectures/L03/examples/cpp_interface/include/driver/led/esp32s3.hpp}
+\cppfile{lectures/L03/examples/cpp_interface/source/driver/led/esp32s3.cpp}
+
+\subsubsection{The program}
+\cppfile{lectures/L03/examples/cpp_interface/source/main.cpp}
+
+\subsection{Compiling and running the program}
+\label{c3:sec:examplebuild}
+The example is built with the Makefile from \secref{c1:sec:tips}, extended with the three source
+files and the \file{include} directory:
+
+\makefile{lectures/L03/examples/cpp_interface/makefile}
+
+\noindent Compile and run the program with the following command (in this directory):
+
+\begin{shell}
+make
+\end{shell}
+
+\noindent You can also build the program without running it afterwards with the following command:
+
+\begin{shell}
+make build
+\end{shell}
+
+\noindent You can run the program without compiling beforehand with the following command:
+
+\begin{shell}
+make run
+\end{shell}
+
+\noindent You can also remove compiled files with the following command:
+
+\begin{shell}
+make clean
+\end{shell}

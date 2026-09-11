@@ -1,0 +1,39 @@
+% Chapter 1, typeset from lectures/L01: the README is the opener and the closing review, and
+% each appendix is a section, in the same order and with the same subsections.
+
+\chapter{Modern Embedded C++ Concepts}
+\label{c1:ch:concepts}
+
+{\large\itshape What C++ adds to C, and what it costs on a microcontroller.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item The transition from C to modern C++ for embedded systems.
+  \item Namespaces.
+  \item \code{constexpr} and compile-time constants.
+  \item \code{noexcept} and exception handling in embedded systems.
+  \item Default arguments.
+  \item Modern C++ structs: member functions, constructor and destructor, and encapsulation.
+  \item References.
+  \item Function templates and parameter packs.
+\end{itemize}
+\end{chapterbox}
+
+This chapter introduces the modern C++ language features most commonly used in embedded systems,
+and shows how C++ can improve the structure and safety of embedded software. You will see how a
+modern C++ struct groups data and behavior in a single type, and how a simple driver can be
+implemented as one, with member functions, a constructor and destructor, and encapsulation. You
+will see how references simplify function interfaces compared to pointers, and how templates
+enable generic utilities such as bit manipulation helpers, which is also your first intuition for
+compile-time programming with \code{constexpr} and templates.
+
+Work the chapter in order. \Secref{c1:sec:compilation} installs WSL and the GCC compiler and shows
+how to build a program with \code{make}; do that first, because every program in the book is built
+the same way. \Secref{c1:sec:cpp} is the substance of the chapter, and the exercises in
+\secref{c1:sec:exercises} are where you write the code yourself. Their solutions are in
+\secref{sol:sec:c1}.
+
+\input{chapters/01/compilation}
+\input{chapters/01/cpp}
+\input{chapters/01/summary}
+\input{chapters/01/exercises}

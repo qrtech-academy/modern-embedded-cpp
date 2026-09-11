@@ -1,0 +1,772 @@
+% Appendix: the model answers to Paper A, from exam/paper_a_solutions.md.
+
+% The answers' headings are labelled ansa:q:N.
+\renewcommand{\answerprefix}{ansa}
+
+\chapter{Model Answers to Paper A}
+\label{ansa:ch:answers}
+
+Marks are shown per part. Method carries them: a correct diagnosis with a clumsy fix is worth more
+than a correct fix with no diagnosis, and several later parts consume earlier answers, so an error
+should be followed through rather than penalised twice.
+
+Code is marked on semantics. Missing semicolons, missing includes and misplaced braces cost
+nothing.
+
+% ==========================================================================================
+\answersection{1}{Crossing the line between C and C++}{12}
+
+\answerpart{a}{4}
+\textbf{The mechanism is name mangling.} C++ supports function overloading, so several functions
+may share a name and differ only in their parameter lists. The compiler therefore encodes the
+parameter types into the symbol it emits, turning \code{halGpioInit()} into something like
+\code{_Z11halGpioInitv}. C has no overloading and emits the name unchanged.
+
+The vendor's library was compiled by a C compiler and exports \code{halGpioInit()}. Your
+translation unit was compiled by a C++ compiler, saw an ordinary C++ declaration, and emitted a call
+to the mangled name. The two do not match, so the linker finds nothing. The error message is itself
+the clue: the linker prints the missing symbol demangled, \code{halGpioInit()} with parentheses,
+which only happens when the symbol was a C++ one. \worth{2}
+
+\textbf{The fix.} Tell the C++ compiler to use C linkage for those declarations:
+
+\begin{ccode}
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void halGpioInit(void);
+void halGpioWrite(uint8_t pin, bool state);
+
+#ifdef __cplusplus
+}
+#endif
+\end{ccode}
+\worth{1}
+
+\textbf{Why the guard.} \code{extern "C"} is C++-only syntax. A C compiler reading the unguarded
+header would fail on it. \code{__cplusplus} is defined only when the file is compiled as C++, so the
+C compiler sees the preprocessor strip both blocks and is left with plain declarations. \worth{1}
+
+Credit either of these two additions: that \code{extern "C"} changes only linkage and does not make
+C++-only constructs legal, so the contents must remain valid C; or that a header written this way
+is exactly the kind that keeps the \code{.h} extension rather than \code{.hpp}, because it is meant
+to be compiled as both.
+
+\answerpart{b}{3}
+Three advantages, any three of:
+\begin{itemize}
+  \item \textbf{Type safety.} \code{constexpr std::uint32_t cpuFrequency{16000000U}} has a type the
+    compiler checks at every use. \code{#define CPU_FREQUENCY 16000000} is a textual substitution
+    with no type at all, and the error it eventually produces names the expansion, not the macro.
+  \item \textbf{Scoping.} A \code{constexpr} obeys namespaces, class scope and block scope, so two
+    modules may each have their own \code{bufLen}. A macro is invisible to all of that: it is live
+    from its \code{#define} to the end of the translation unit and collides with anything of the
+    same name, including member variables.
+  \item \textbf{Debuggability and diagnostics.} The value exists in the symbol table as a named
+    entity of known type. A macro has been erased before the compiler proper ever sees it.
+\end{itemize}
+\credit{1 mark for any two, 2 for all three}
+
+\textbf{What a runtime \code{const} cannot do.} A \code{constexpr} value may be used anywhere a
+\emph{constant expression} is required: an array bound, a non-type template argument, a
+\code{static_assert} condition, a \code{case} label. A \code{const} variable whose initializer is
+not itself a constant expression, for example \code{const std::uint32_t n{readTrimRegister()};},
+cannot be used in any of those places. \code{constexpr} also states the requirement at the point of
+definition, so it is diagnosed there rather than at the first use that needed it. \worth{1}
+
+\answerpart{c}{3}
+\textbf{What it guarantees.} That no exception will propagate out of the function. \worth{1}
+
+\textbf{If one does anyway.} The program calls \code{std::terminate()} immediately. There is no
+handler search and no guarantee of unwinding --- the failure is turned into an abort at the point
+it occurred. \worth{1}
+
+\textbf{Two reasons to disable exceptions in an embedded build}, any two of:
+\begin{itemize}
+  \item Binary size: unwind tables and the exception-handling runtime cost flash the device may not
+    have.
+  \item Determinism: the cost of a throw depends on the depth of the stack to be unwound and is not
+    statically bounded, which is unacceptable on a path with a deadline.
+  \item A simpler runtime environment; the error-handling scheme is then return codes, status flags
+    or error callbacks, which are visible in the signature.
+\end{itemize}
+\worth{1}
+
+\answerpart{d}{2}
+The two are not in conflict because \code{noexcept} never meant ``cannot throw''. It means ``if an
+exception tries to leave here, terminate''.
+
+Chapter~1's rule is about a function whose failure the caller could reasonably handle: if a function
+might fail by throwing and that failure is recoverable, taking away the caller's ability to catch it
+is wrong. Chapter~4 takes the opposite view of the same fact deliberately. \code{std::make_unique}
+can throw \code{std::bad_alloc}; on a device where the heap is exhausted, there is nothing useful to
+recover to. On such a target the surrounding code is typically compiled without exception support
+and has no handler anywhere. \worth{1}
+
+\textbf{The behavior selected} is therefore: on allocation failure, \code{std::terminate()} at the
+point of allocation, rather than an exception propagating through code that has no handler for it.
+A predictable stop instead of undefined drift. \worth{1}
+
+% ==========================================================================================
+\answersection{2}{Object lifetime, and a driver that nearly works}{12}
+
+\answerpart{a}{4}
+\begin{console}
+Init 9
+Init 13
+Init 7
+Inner
+Release 7
+Release 13
+Outer
+Release 9
+\end{console}
+\credit{2 marks; deduct 1 for one line out of place, 2 for a scrambled second half}
+
+\textbf{The two rules.}
+\begin{enumerate}
+  \item A destructor runs when the object goes out of scope, which for \code{button} and
+    \code{buzzer} is the closing brace of the inner block, not the end of \code{main}. This is why
+    \code{Release 7} and \code{Release 13} appear \textbf{before} \code{Outer}.
+  \item Objects in the same scope are destroyed in the \textbf{reverse} order of their construction.
+    \code{buzzer} was built last, so it is released first.
+\end{enumerate}
+\credit{2 marks, 1 each}
+
+Both rules together are the mechanism behind RAII, which is part (c).
+
+\answerpart{b}{6}
+\textit{(1.5 marks per defect: 0.5 for naming it, 0.5 for the consequence, 0.5 for the corrected
+line.)}
+
+\paragraph{1. The constructor is not \code{explicit}}
+It takes a single argument, so it doubles as a conversion from \code{std::uint16_t} to
+\code{Timer}. Given \code{void arm(driver::Timer timer);}, the call \code{arm(500U)} compiles
+silently and builds a temporary timer out of a number. The compiler stops being able to tell a timer
+from an integer, which is precisely the mistake it exists to catch.
+
+\begin{cppcode}
+explicit Timer(const std::uint16_t timeout_ms) noexcept
+\end{cppcode}
+
+\paragraph{2. The member initializer list is in the wrong order}
+Members are initialized in the order they are \textbf{declared}, never in the order written in the
+list. The declaration order is \code{myTimeout_ms}, \code{myCounter_ms}, \code{myRunning}; the list
+says \code{myCounter_ms}, \code{myTimeout_ms}, \code{myRunning}. Nothing goes wrong at runtime here
+because no initializer reads another member, but the compiler warns (\code{-Wreorder}, which
+\code{-Wall} enables, so under the book's \code{-Werror} the snippet would not even build) and the
+list is now actively misleading: the day somebody writes \code{myCounter_ms{myTimeout_ms}} it will
+read a member that has not been initialized yet, and the code will look correct.
+
+\begin{cppcode}
+: myTimeout_ms{timeout_ms}
+, myCounter_ms{0U}
+, myRunning{false}
+\end{cppcode}
+
+\paragraph{3. \code{timeout_ms()} is a query but is not \code{const}}
+It reads a member and changes nothing, but without the trailing \code{const} it cannot be called on
+a \code{const Timer&}. Any function that takes the timer read-only is then unable to ask it its own
+timeout, which forces callers to pass non-const references and gives away the protection that
+\code{const} was there to provide. It should carry \code{[[nodiscard]]} too, as \code{elapsed()}
+already does.
+
+\begin{cppcode}
+[[nodiscard]] std::uint16_t timeout_ms() const noexcept { return myTimeout_ms; }
+\end{cppcode}
+
+\paragraph{4. Copy and move operations are not deleted}
+A \code{Timer} stands for one hardware timer. The compiler supplies a copy constructor, so
+\code{driver::Timer backup{timer};} compiles and produces a second object counting independently
+against the same peripheral, with its own idea of when the timeout is due.
+
+\begin{cppcode}
+Timer(const Timer&)            = delete; // No copy constructor.
+Timer(Timer&&)                 = delete; // No move constructor.
+Timer& operator=(const Timer&) = delete; // No copy assignment.
+Timer& operator=(Timer&&)      = delete; // No move assignment.
+\end{cppcode}
+
+\noindent\textit{A candidate who also notes that no \code{Timer() = delete;} is needed here ---
+declaring any constructor already suppresses the implicit default one --- has understood the rule
+rather than copied the pattern. Credit it, but not at the expense of one of the four above.}
+
+\answerpart{c}{2}
+\textbf{RAII}, Resource Acquisition Is Initialization: a resource is acquired when the object is
+created and released automatically when the object is destroyed. Because destruction is driven by
+scope and the compiler emits it on every exit path, the release cannot be forgotten. \worth{1}
+
+\textbf{An embedded example}, any one of: disabling the interrupt the driver enabled; returning a
+pin to its reset direction and pull configuration; stopping a timer or PWM channel so it stops
+toggling a pin; releasing a DMA channel or a bus lock; powering down the peripheral clock.
+\worth{1}
+
+% ==========================================================================================
+\answersection{3}{Classes, and what belongs to the type}{12}
+
+\answerpart{a}{2}
+\textbf{The formal difference is the default access level.} Members of a \code{class} are
+\code{private} unless stated otherwise; members of a \code{struct} are \code{public}. Everything else
+--- constructors, destructors, methods, inheritance, templates, encapsulation --- is available to
+both. \textit{(A candidate who also names the default access of a base class, \code{private} for
+\code{class} and \code{public} for \code{struct}, is right and should be credited.)} \worth{1}
+
+\textbf{The book's convention.} \code{struct} is for simple data-oriented types: plain data, or a
+holder for \code{static constexpr} constants. \code{class} is for anything with real encapsulation,
+inheritance, polymorphism, or custom copy and move semantics. \worth{1}
+
+\answerpart{b}{3}
+\textbf{What the compiler does.} \code{playAlarm} wants a \code{Buzzer} and is handed a
+\code{std::uint16_t}. The single-argument constructor is a viable implicit conversion, so the
+compiler calls it to build a \code{Buzzer{4000U}} directly in the by-value parameter (in C++17 no
+copy is made) and runs the function. The program prints \code{Alarm at 4000 Hz} and looks entirely
+correct. \worth{1}
+
+\textbf{Why it is a hazard.} The call site says ``play the alarm on this buzzer'' and the program
+does something else: it manufactures a buzzer out of a number, uses it once and throws it away.
+Whatever buzzer the caller meant was never involved; any hardware setup in the constructor, and any
+teardown in the destructor, ran for a throwaway object. Worse, the conversion accepts anything
+convertible to \code{std::uint16_t} --- a pin number, a duration in milliseconds, a loop counter ---
+so an entire class of type errors passes review and compiles clean. \worth{1}
+
+\textbf{The change:} \code{explicit}.
+
+\begin{cppcode}
+explicit Buzzer(const std::uint16_t frequency_hz) noexcept
+\end{cppcode}
+
+\noindent After that, \code{playAlarm(4000U)} is a compile error and \code{playAlarm(Buzzer{4000U})}
+is the only way to say it, which at least says what it means. \worth{1}
+
+\answerpart{c}{4}
+\begin{cppcode}
+public:
+    /** Maximum number of GPIO instances supported by this MCU. */
+    static constexpr std::uint8_t MaxInstances{40U};
+
+private:
+    /** Number of currently active GPIO instances. */
+    static std::uint8_t ourInstanceCount;
+\end{cppcode}
+\credit{2 marks: 1 for the pair, 1 for the naming}
+
+\noindent The naming mark is for the leading capital on the \code{static constexpr} and the
+\code{our} prefix on the private static.
+
+\textbf{Where each is defined.} \code{MaxInstances} needs no definition anywhere. Since C++17 a
+\code{static constexpr} data member is implicitly \code{inline}, so the line inside the class is both
+its declaration and its definition and the header may be included in any number of translation
+units.
+
+\code{ourInstanceCount} is a plain \code{static} and must be defined exactly once, in a source file:
+
+\begin{cppcode}
+std::uint8_t Gpio::ourInstanceCount{0U};
+\end{cppcode}
+
+\noindent Without it the linker reports an undefined reference; put it in the header instead and
+every translation unit that includes it defines the same symbol, which is a duplicate-definition
+error. The two differ because one is a compile-time constant that never needs storage and the other
+is a mutable object that needs exactly one. \worth{1}
+
+\textbf{What a \code{static} method cannot access.} A static method is called on the class, not on
+an object, so it has no \code{this} pointer. It can therefore only touch other static members ---
+never \code{myPin}, \code{myState}, or any non-static method. Asking it to would be asking ``which
+object's \code{myState}?'', a question with no answer. \worth{1}
+
+\answerpart{d}{3}
+\textbf{\code{final} on a class forbids deriving from it.} Any \code{class X : public Gpio} is then
+a compile error. \worth{1}
+
+\textbf{Why a driver normally has it.} A concrete driver is the end of the chain: nothing is meant
+to specialize an ATmega328P LED further. Sealing it says so, removes the question of whether its
+destructor needs to be virtual, and lets the compiler devirtualize calls when it knows the static
+type is the final one. \worth{1}
+
+\textbf{Why you might leave it off.} So that a test build can derive from it and override behavior
+--- \secref{c3:app:a} names exactly this case. You cannot inherit from a \code{final} class even for
+a fake, so sealing a class is a decision about who is allowed to test it. \worth{1}
+
+% ==========================================================================================
+\answersection{4}{The class that owns something}{13}
+
+\answerpart{a}{3}
+\begin{cppcode}
+Buffer(const Buffer& other) noexcept;             // Copy constructor.
+Buffer(Buffer&& other) noexcept;                  // Move constructor.
+Buffer& operator=(const Buffer& other) noexcept;  // Copy assignment operator.
+Buffer& operator=(Buffer&& other) noexcept;       // Move assignment operator.
+\end{cppcode}
+
+\noindent\textit{(3 marks, or 2 if the names are right but a signature is not: the \code{&&} on the
+move operations and the returned reference on the assignments are the parts worth checking.)}
+
+\answerpart{b}{6}
+\textbf{The copy constructor is a shallow copy.} \credit{3 marks}
+
+It copies the pointer, not the bytes. After \code{util::Buffer b{a};}, \code{a.myData} and
+\code{b.myData} hold the same address. There is now one 64-byte block and two objects that each
+believe they own it. Writes through \code{b} are visible through \code{a}, which is already wrong.
+The fatal part is destruction: both destructors run \code{delete[]} on that address. The first frees
+the block; the second frees a block that is no longer allocated. That is undefined behavior, and in
+practice a heap corruption abort or a silent corruption of whatever the allocator has since handed
+out.
+
+The fix is to allocate a new block and copy \code{mySize} bytes into it --- or, for a class
+representing a hardware buffer, to \code{= delete} the copy constructor and stop the question from
+arising.
+
+\textbf{The move assignment operator leaks, then dangles.} \credit{3 marks}
+
+The operator has three defects, and \code{c = std::move(a);} shows the first two:
+\begin{enumerate}
+  \item \textbf{It leaks.} \code{c} already owned a 32-byte block. \code{myData} is overwritten
+    without \code{delete[]} first, so those 32 bytes are unreachable for the rest of the program's
+    life.
+  \item \textbf{It leaves the source owning what it gave away.} \code{other.myData} is not cleared,
+    so \code{a} is still a live object whose destructor will \code{delete[]} the 64-byte block that
+    \code{c} now points at. Whichever is destroyed first leaves the other holding a dangling
+    pointer, and the second destructor double-frees.
+  \item \textbf{It has no self-assignment guard.} \code{a = std::move(a)} is harmless only because
+    the operator is already broken; once \code{delete[] myData} is added in front, self-assignment
+    frees the buffer and then assigns the freed pointer to itself.
+\end{enumerate}
+
+\textbf{Taken together}, after the four lines in the question, one 64-byte block is referenced by
+\code{a}, \code{b} and \code{c}, the 32-byte block is lost, and three destructors will attempt to
+free the same address. \textit{(No extra marks, but a candidate who states this has read the whole
+snippet rather than each operation separately.)}
+
+\textit{Also creditable, not required: the constructor is \code{noexcept} and calls \code{new},
+which can throw \code{std::bad_alloc}, so an allocation failure terminates. That is a defensible
+choice on an embedded target --- it is the Chapter~4 position from Question~\ref{exa:q:1}(d) --- but
+it is a choice, and it should be a deliberate one.}
+
+\answerpart{c}{2}
+\begin{cppcode}
+Buffer& operator=(Buffer&& other) noexcept
+{
+    if (this != &other)
+    {
+        delete[] myData;
+
+        myData = other.myData;
+        mySize = other.mySize;
+
+        other.myData = nullptr;
+        other.mySize = 0U;
+    }
+    return *this;
+}
+\end{cppcode}
+
+\noindent\textit{(1 mark for releasing the current buffer and guarding self-assignment, 1 mark for
+leaving \code{other} in a valid, destructible state.)}
+
+Nulling \code{other.myData} is what makes the moved-from object safe: \code{delete[] nullptr} is
+defined and does nothing, so \code{other}'s destructor is now harmless. ``Valid but unspecified'' is
+the contract a moved-from object owes --- it must still be destructible.
+
+\answerpart{d}{2}
+\textbf{\code{std::move} moves nothing.} It is a cast: it returns an rvalue reference to its
+argument, \code{static_cast<T&&>}, and does not touch the object. Its entire effect is on overload
+resolution --- it makes the compiler prefer an overload taking \code{T&&}, which is how a move
+constructor or move assignment operator gets chosen over the copying one. All of the actual work
+happens inside that operation. \worth{1}
+
+Two consequences worth stating: an object is unchanged by \code{std::move} itself and only changes
+if the selected operation changes it; and \code{std::move} on a \code{const} object yields a
+\code{const} rvalue, which binds to \code{const T&} and therefore silently \textbf{copies}.
+\worth{1}
+
+\textit{Worth knowing, and a good place to say it: \code{Buffer} has a user-declared copy
+constructor, a user-declared move assignment operator and a user-declared destructor, so no move
+constructor is implicitly declared. \code{util::Buffer d{std::move(a)};} therefore selects the copy
+constructor --- the broken, shallow one --- and the word \code{move} at the call site is doing
+nothing at all. For the same reason the copy assignment operator is implicitly deleted, so
+\code{b = a;} does not compile. This is the argument for declaring all five or deleting all four,
+never some of them.}
+
+% ==========================================================================================
+\answersection{5}{Interfaces, and the keyword that is missing}{13}
+
+\answerpart{a}{4}
+\code{~Interface()} is \textbf{not} \code{virtual}. Deleting an object of derived type through a
+pointer to a base class with a non-virtual destructor is \textbf{undefined behavior}. \worth{2}
+
+What a typical implementation actually does is worth spelling out, because it is the reason nobody
+notices: the call is resolved statically from the pointer's type, so only \code{~Interface()} runs.
+\code{~Bme280()} never runs, \code{delete[] mySamples} never happens, and $16 \times 2 = 32$ bytes
+leak on every sensor destroyed. The program does not crash, does not warn and passes its tests; on a
+device that constructs and destroys sensors over months of uptime, it runs out of heap and dies
+somewhere unrelated. \worth{2}
+
+\textit{Also creditable: \code{operator delete} is handed the wrong type and, in a sized-deallocation
+build, the wrong size. Under AddressSanitizer this is exactly what the program reports ---
+\code{new-delete-type-mismatch} --- and, if it is allowed to continue past that report
+(\code{ASAN_OPTIONS=halt_on_error=0}), \code{32 byte(s) leaked in 1 allocation(s)}, one
+\code{std::uint16_t[16]} per sensor.}
+
+\textit{A note for the marker: GCC and Clang do warn here, \code{-Wdelete-non-virtual-dtor}, which
+\code{-Wall} enables. Two things blunt it. The warning fires at the line with the \code{delete}, not
+at the interface where the mistake was made, so it lands in code the interface's author may never
+compile; and it disappears entirely once the \code{delete} is inside a \code{std::unique_ptr}'s
+deleter in some other header. A candidate who says ``the compiler would have told you'' is half
+right and should be told which half.}
+
+\answerpart{b}{3}
+\textbf{The fix:}
+
+\begin{cppcode}
+virtual ~Interface() noexcept = default;
+\end{cppcode}
+\worth{1}
+
+\textbf{The other line.} The derived destructor should have been written:
+
+\begin{cppcode}
+~Bme280() noexcept override { delete[] mySamples; }
+\end{cppcode}
+
+\noindent With \code{override} on it, the broken version does not compile at all: \code{override}
+asserts that this function overrides a virtual one, and if the base destructor is not virtual there
+is nothing to override, so the compiler rejects it and points at the exact line. That is why
+\secref{c3:app:b} marks the derived destructor \code{override} --- it is not decoration, it is a
+tripwire that converts a silent runtime leak into a build failure. \worth{2}
+
+\answerpart{c}{3}
+The base declares \code{read() const}. The colleague's \code{read()} is not \code{const}, so it is a
+\textbf{different} signature and does not override anything.
+
+\textbf{With \code{override}:} a hard compile error at that line, along the lines of \emph{``method
+declared `override' but does not override a base class method''}. The mistake is reported where it
+was made. \credit{1.5 marks}
+
+\textbf{Without \code{override}:} the class silently fails to implement the pure virtual
+\code{read() const}, so it is still abstract. The compiler says nothing at the declaration; the error
+arrives later and somewhere else, at the first attempt to create one --- \emph{``invalid
+new-expression of abstract class type''}, or \emph{``cannot declare variable to be of abstract
+type''} --- followed by a note listing \code{read() const} as the pure virtual still unimplemented.
+The non-const \code{read()} also \textbf{hides} the base name for lookup on the derived type, so even
+where it compiles it does not do what the reader expects. \credit{1.5 marks}
+
+\textit{Also creditable: the same trap exists for \code{noexcept}. An override may not have a looser
+exception specification than the function it overrides, so dropping \code{noexcept} from an override
+of a \code{noexcept} virtual is an error too --- which is exactly why \secref{c3:app:b} puts
+\code{noexcept} in the interface, to force it on every implementation.}
+
+\answerpart{d}{3}
+\textbf{Two advantages}, any two of: \credit{2 marks}
+\begin{itemize}
+  \item \textbf{Testability.} The logic can be exercised against a stub with no hardware present.
+    This is the advantage that pays for the other ones, and the reason the factory in Chapter~4
+    exists.
+  \item \textbf{Replaceability.} A second chip means a new class and no change to any existing code
+    that uses the interface.
+  \item \textbf{Reusability.} Code written against the abstraction is not tied to one MCU and can
+    move between projects.
+\end{itemize}
+
+\textbf{The runtime cost.} Each object carries a hidden pointer to its class's vtable --- one pointer
+of storage per object --- and a call through the interface is an indirect call through that table
+rather than a direct one, so it normally cannot be inlined. That is the whole cost, and it is the
+same mechanism the C interface example that Chapter~3 points to builds by hand out of a struct of
+function pointers. \worth{1}
+
+% ==========================================================================================
+\answersection{6}{The factory, and who owns what}{13}
+
+\answerpart{a}{4}
+\textbf{Purpose.} A factory centralizes the creation of hardware-specific objects, so the decision
+about \emph{which concrete driver type} exists in exactly one place instead of being scattered
+through the code that uses them. It plays the role a HAL or BSP plays in a C project.
+\credit{1.5 marks}
+
+\textbf{What ``depends only on interfaces'' means.} \code{app::logic::Logic} names
+\code{driver::gpio::Interface} and \code{driver::factory::Interface} and never names \code{Esp32s3}
+or \code{Stub}. It does not include their headers, does not know how a pin is configured on any
+particular chip, and does not change or need recompiling when a platform is added. It knows it will
+be given something that can \code{read}, \code{write} and \code{toggle}; it does not know what.
+\credit{1.5 marks}
+
+\textbf{What has to change to move to stubs.} One line in \code{main} ---
+\code{driver::factory::Esp32s3 factory{};} becomes \code{driver::factory::Stub factory{};} --- and
+the corresponding \code{#include}. Nothing under \code{app::logic} changes at all. \worth{1}
+
+\answerpart{b}{5}
+\textbf{Defect 1: the discarded owning pointer.} \credit{2.5 marks}
+
+\begin{cppcode}
+factory.gpio(4U);
+\end{cppcode}
+
+\noindent\code{gpio()} allocates with \code{new} and hands ownership of the result to the caller.
+Here the returned pointer is thrown away, so nothing in the program holds the object's address and
+nothing can ever \code{delete} it: a leak, and for a real driver, a pin that has been configured with
+no way to release it. This is exactly the case the factory interface marks \code{gpio()}
+\code{[[nodiscard]]} for.
+
+\textit{A note for the marker, not required of the candidate: do not treat the attribute as a
+guarantee that the build would have caught this. Even where a diagnostic is produced it is a warning
+and not an error, and whether one appears at all depends on the compiler and on where the call is
+resolved. The attribute is not inherited by an override --- which is why the book repeats it on
+every overriding method --- and GCC 13 diagnoses only a call it can resolve statically. This very
+line is flagged, because \code{Esp32s3} is \code{final} and its override repeats the attribute (and
+under the book's \code{-Werror} it stops the build), but the same call made through a
+\code{driver::factory::Interface&} produces nothing at all. \code{[[nodiscard]]} documents an
+intention; holding the pointer is what enforces it.}
+
+\textbf{Defect 2: \code{Logic} is copyable and owns raw pointers.} \credit{2.5 marks}
+
+\begin{cppcode}
+app::logic::Logic backup{logic};
+\end{cppcode}
+
+\noindent\code{Logic} declares a destructor that deletes both drivers, but declares neither a copy
+constructor nor a deleted one, so the compiler generates one that copies the two pointer
+\textbf{values}. \code{backup} and \code{logic} now hold the same two driver objects --- both drive
+the same physical pins --- and when the two are destroyed, at the end of \code{main} if \code{run()}
+ever returns, both destructors run and each deletes both objects. Two deletes per object: undefined
+behavior, and the failure lands during shutdown, which is the worst possible place to find it. Under
+AddressSanitizer, with a \code{run()} that returns, the program reports a heap-use-after-free inside
+\code{Logic::~Logic()}.
+
+Nothing warns about this by default. The implicit copy constructor of a class with a user-declared
+destructor is \emph{deprecated}, but the diagnostic for it is \code{-Wdeprecated-copy-dtor}, which
+neither \code{-Wall} nor \code{-Wextra} turns on.
+
+The rule broken is the rule of three: a class that needs a destructor needs its copy operations
+written or deleted. For a class holding a unique hardware resource, deleted --- which is what
+\secref{c4:app:a} does, and why the paper is careful to say that \emph{this} version declares nothing
+but the constructor, the destructor and \code{run()}. A candidate who answers ``it does not compile,
+because \code{Logic} deletes its copy constructor'' has read the chapter rather than the question;
+award the marks if they then state what the deletion is there to prevent, since that is the same
+knowledge:
+
+\begin{cppcode}
+Logic(const Logic&)            = delete;
+Logic(Logic&&)                 = delete;
+Logic& operator=(const Logic&) = delete;
+Logic& operator=(Logic&&)      = delete;
+\end{cppcode}
+
+\answerpart{c}{4}
+\textbf{\code{Logic}'s destructor disappears entirely.} With
+
+\begin{cppcode}
+std::unique_ptr<driver::gpio::Interface> myLed;
+std::unique_ptr<driver::gpio::Interface> myButton;
+\end{cppcode}
+
+\noindent each member destroys the object it owns when \code{Logic} is destroyed, so there is no
+\code{delete} left to write and therefore no destructor left to write. The code that could be
+forgotten no longer exists. \worth{2}
+
+\textbf{Defect 2 becomes a compile error.} \code{std::unique_ptr} represents exclusive ownership and
+its copy constructor is deleted. A class whose member cannot be copied cannot have an implicit copy
+constructor, so \code{Logic}'s is defined as deleted, and
+\code{app::logic::Logic backup{logic};} no longer compiles. The double delete has been moved from
+run time to build time, and nobody had to remember to write the four \code{= delete} lines: the
+member's own semantics propagated to the class that holds it. \worth{2}
+
+\textit{Note for completeness: defect 1 does not become an error. Discarding the returned
+\code{std::unique_ptr} still compiles. What changes is the consequence --- instead of leaking, the
+temporary is destroyed at the end of the full expression, so the object is created and immediately
+destroyed. No leak, but the driver you asked for does not exist.}
+
+% ==========================================================================================
+\answersection{7}{Templates}{12}
+
+\answerpart{a}{4}
+\textbf{Why.} A template is not code; it is a pattern from which code is generated. The compiler
+produces an actual function only when it sees a use with concrete template arguments, and it can
+only do that where the \textbf{definition} is visible. \file{bit_util.cpp} is compiled on its own,
+contains no use of the template, and therefore generates nothing at all. The translation unit that
+calls \code{clear<std::uint8_t>} sees only the declaration, assumes the function exists somewhere
+and emits a call to a symbol nobody ever defined. The failure is at link time, not compile time,
+which is why the error is \code{undefined reference} rather than anything that names templates.
+\worth{2}
+
+\textbf{The two arrangements:} \credit{2 marks, 1 each}
+\begin{enumerate}
+  \item Declaration and definition together in the header, e.g.\ all of
+    \file{container/vector.hpp}.
+  \item Declaration in \file{container/vector.hpp}, definition in
+    \file{container/impl/vector_impl.hpp}, with \code{#include "container/impl/vector_impl.hpp"} at
+    the \textbf{bottom} of the first. The compiler sees the same thing; the reader gets a header
+    that is readable.
+\end{enumerate}
+
+\textit{Explicit instantiation in the \code{.cpp} for each type used is a third technically correct
+answer and should be credited, with the observation that it requires naming every type in advance
+and so gives up the genericity the template was for.}
+
+\answerpart{b}{5}
+\textbf{The value:}
+
+\begin{console}
+reg = 0x00000000FFFFFFFB
+\end{console}
+\worth{2}
+
+\textbf{How it got there.} \code{1U} is \code{unsigned int}, 32 bits wide. \code{1U << 2} is
+\code{4U}, still \code{unsigned int}. \code{~4U} is \code{0xFFFFFFFB}, still 32 bits. Only at the
+\code{&=} is that value converted to \code{std::uint64_t}, and because it is \textbf{unsigned} it is
+zero-extended: \code{0x00000000FFFFFFFB}. The mask therefore carries 32 leading zeros that were never
+asked for.
+
+\begin{console}
+0xFFFFFFFFFFFFFFFF & 0x00000000FFFFFFFB = 0x00000000FFFFFFFB
+\end{console}
+
+\noindent Bit 2 is cleared as requested --- and so is every bit from 32 to 63. The function did what
+it was told and half the register with it. It went unnoticed for a year because for \code{T} of 32
+bits or fewer, the mask is at least as wide as the register and no bits are lost. \worth{1}
+
+\textbf{The second failure.} For \code{bit >= 32}, \code{1U << bit} shifts an \code{unsigned int} by
+at least its own width, which is \textbf{undefined behavior} --- not merely a wrong answer. In
+practice many targets take the shift count modulo 32, so \code{clear(reg, 32U)} clears bit 0 of a
+64-bit register, on top of the upper half it already loses. \worth{1}
+
+\textbf{The corrected body:}
+
+\begin{cppcode}
+reg &= static_cast<T>(~(static_cast<T>(1U) << bit));
+\end{cppcode}
+
+\noindent The cast forces the shift and the complement to happen in \code{T}'s own width, which is
+what the original meant to say. \textit{(This is the same \code{static_cast<T>(1U)} that the
+\code{set()} function of \secref{c1:sec:templates} uses, and the reason it is there.)} \worth{1}
+
+\textit{Worth noting and creditable: for a narrow \code{T} such as \code{std::uint8_t} the shift
+still promotes to \code{int}, which is harmless here --- \code{~(1 << 2)} is \code{-5}, and
+converting that to \code{std::uint8_t} gives \code{0xFB} --- but a \code{bit} outside the register's
+own width silently clears nothing. Neither version defends against a caller asking for bit 9 of an
+8-bit register.}
+
+\answerpart{c}{3}
+\textbf{Two versions}, \code{clear<std::uint8_t>} and \code{clear<std::uint32_t>}. \code{reg1} and
+\code{reg3} have the same type, so the third call reuses the first instantiation, and \code{bit} is
+an ordinary function parameter rather than a template parameter, so its differing values generate
+nothing extra. \worth{1}
+
+\textbf{The implication.} Code size grows with the number of distinct \textbf{types} a template is
+used with, not with the number of call sites. Ten calls on \code{std::uint8_t} cost one function;
+one call each on five register widths costs five. On a resource-constrained target that is the
+number to watch. \worth{1}
+
+\textbf{Where a template is the wrong tool}, either of: \credit{1 mark}
+\begin{itemize}
+  \item When the implementation must be chosen at \textbf{run time} --- a driver selected from a
+    configuration byte or a detected board revision. A template resolves everything at compile time,
+    so the choice has to exist in the binary as a virtual call behind an interface.
+  \item When the body is large and the type list is long: $N$ copies of a big function cost more
+    flash than one indirect call ever costs cycles.
+\end{itemize}
+
+% ==========================================================================================
+\answersection{8}{Two threads and a shared struct}{13}
+
+\answerpart{a}{6}
+\textit{(2 marks per defect: 1 for identifying it, 1 for the consequence.)}
+
+\paragraph{1. TX never locks the mutex}
+\code{txThread} writes \code{shared.data} and \code{shared.newData} with no lock at all. A mutex
+excludes only the threads that lock it; RX locking on its own excludes nobody. Both fields are read
+by RX while TX writes them, which is a data race and therefore undefined behavior. The concrete
+failure is also easy to state: nothing orders the two writes, so RX can see
+\code{newData == true} while \code{data} still holds the previous value, and print a message that
+was never sent.
+
+This is also the case where making each field \code{std::atomic} would \textbf{not} be a fix. The
+two fields have to change together, as one unit, and only a mutex can make a multi-variable update
+atomic.
+
+\paragraph{2. \code{stop} is a plain \code{bool} shared between two threads}
+TX writes it, RX reads it, and nothing synchronizes the two: a data race, undefined behavior. Beyond
+the standard's verdict, the practical failure is specific. Nothing inside the RX loop can change
+\code{stop}, so the compiler is entitled to load it once and hoist the test out of the loop
+entirely, and RX then spins forever after TX has finished. The fix is
+\code{std::atomic<bool> stop{false};} with \code{stop.store(true)} and \code{stop.load()}. This is
+the case an atomic is exactly right for: one independent flag.
+
+\paragraph{3. RX busy-waits}
+The loop locks and unlocks the mutex as fast as the CPU allows, with no sleep and no wait, to
+discover that nothing has changed. Between messages that is 10\,ms of a core spent doing nothing ---
+on a battery-powered target, the difference between idle current and full current, and on a
+single-core MCU it also delays every other thread. The structure that fixes it is a
+\code{std::condition_variable}, which is part (c).
+
+\textit{A candidate who instead offers ``a detached thread may still be touching \code{shared},
+\code{mutex} and \code{stop} while those namespace-scope objects are being destroyed after
+\code{main} returns'' has named a real fourth defect and should be given the marks for it.}
+
+\answerpart{b}{3}
+\textbf{At the closing brace of \code{main}}, \code{t2} is destroyed while still
+\textbf{joinable} --- it was never joined and never detached. The destructor of a joinable
+\code{std::thread} calls \code{std::terminate()}. The program does not return 0; it aborts.
+\credit{1.5 marks}
+
+\textbf{The two legal ways to end a \code{std::thread}'s lifetime} are \code{join()}, which blocks
+the caller until the thread finishes, and \code{detach()}, which severs the association and lets the
+thread run on its own. Exactly one of them must happen before the \code{std::thread} object is
+destroyed. \worth{1}
+
+\textbf{Which this program should use: \code{join()}, on both threads.} \code{detach()} on \code{t1}
+is the second half of the same bug --- \code{main} returns immediately afterwards, so a detached
+thread is left running against objects whose lifetime is ending. \credit{0.5 marks}
+
+\answerpart{c}{4}
+\begin{cppcode}
+void rxThread() noexcept
+{
+    while (!stop.load())
+    {
+        std::unique_lock<std::mutex> lock{mutex};
+        condition.wait(lock, [] { return shared.newData || stop.load(); });
+
+        // Terminate if the wait was ended by the stop flag rather than by data.
+        if (!shared.newData) { break; }
+
+        std::printf("RX: %u\n", shared.data);
+        shared.newData = false;
+    }
+}
+\end{cppcode}
+\credit{2 marks for the structure and the predicate}
+
+\textbf{The predicate} is \code{shared.newData || stop.load()} --- ``there is data, or we are
+shutting down''. The second term is what makes the wait exitable; without it the thread has no
+reason to ever wake.
+
+\textbf{Why \code{std::unique_lock} and not \code{std::lock_guard}.} \code{wait()} must release the
+mutex while the thread sleeps and re-acquire it before returning, otherwise no other thread could
+ever take the lock to produce the data being waited for. \code{std::lock_guard} locks in its
+constructor and unlocks in its destructor and offers nothing in between. \code{std::unique_lock}
+exposes the unlock and relock operations that \code{wait()} needs. \worth{1}
+
+\textbf{What the writer of the stop flag must do.} Set the flag while holding the mutex, and then
+call \code{condition.notify_all()}:
+
+\begin{cppcode}
+{
+    std::lock_guard<std::mutex> lock{mutex};
+    stop.store(true);
+}
+condition.notify_all();
+\end{cppcode}
+
+\noindent Once TX has finished, nothing else will ever notify; a receiver already asleep inside
+\code{wait()} would stay there forever, holding a predicate that would now return true if only
+something woke it up to evaluate it. \code{notify_all()} wakes every waiter so each can re-check and
+exit. The lock matters even though \code{stop} is atomic: without it the store and the notification
+can both land after the receiver has evaluated the predicate as false but before it has gone to
+sleep, the notification is lost, and the receiver sleeps forever anyway. \worth{1}
+
+\textit{Two things worth saying to a candidate who got the rest right. The predicate overload of
+\code{wait()} is also what handles spurious wakeups: it re-checks the condition on every wake and
+goes back to sleep if it is false, which is why this is written with a predicate rather than a bare
+\code{wait(lock)}. And TX must now take the mutex around its two writes and call
+\code{notify_one()} after releasing it --- the fix to (a)(1) and this part are the same change seen
+from the two ends.}

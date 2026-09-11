@@ -1,0 +1,503 @@
+% Section 4.4, from lectures/L04/appendix/c_exercises.md.
+
+\section{Exercises}
+\label{c4:sec:exercises}\label{c4:app:c}
+
+\begin{aside}
+\textbf{How to work these.} These exercises reinforce the concepts from \secref{c4:sec:raw} and
+\secref{c4:sec:smart}. Sets~1 to~3 build one program with a raw-pointer factory; Set~4 turns the
+same program into one with a smart-pointer factory. Build and run it with the Makefile from
+\secref{c1:sec:tips}, which already supports the \file{include} and \file{source} directories
+below.
+
+The solutions are in \secref{sol:sec:c4}. Try each exercise yourself before looking at them.
+\end{aside}
+
+Create the following directory structure:
+
+\begin{console}
+Makefile
+include/
+    app/
+        logic/
+            logic.hpp
+    driver/
+        factory/
+            esp32s3.hpp
+            interface.hpp
+            stub.hpp
+        serial/
+            esp32s3.hpp
+            interface.hpp
+            stub.hpp
+source/
+    main.cpp
+\end{console}
+
+\note When a class overrides a method that is marked \code{[[nodiscard]]} in the interface, repeat
+the attribute on the overriding method as well. The attribute is not inherited; see the structure
+of an interface in \secref{c3:app:b}.
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Serial Interface and Drivers}
+\label{c4:set:1}
+
+\exercise{Serial interface}{Code}
+\label{c4:ex:1.1}
+In this exercise you will design an interface \code{driver::serial::Interface} representing a
+generic serial driver.
+
+\task{Tasks}
+Design a class named \code{driver::serial::Interface} that represents a generic serial
+communication driver.
+
+All methods except the destructor shall be pure virtual (\code{= 0}).
+
+\task{a) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Virtual.
+  \item Marked \code{noexcept}.
+  \item Implemented using \code{= default}.
+\end{itemize}
+
+\task{b) Initialization status}
+Add a pure virtual method \code{isInitialized()} that:
+\begin{itemize}
+  \item Indicates whether the driver has been initialized (\code{true/false}).
+  \item Does not modify the object (\code{const}).
+  \item Cannot throw exceptions.
+  \item Generates a warning if the return value is discarded (\code{[[nodiscard]]}).
+\end{itemize}
+
+\task{c) Transmitting data}
+Add a pure virtual method \code{write()} that:
+\begin{itemize}
+  \item Transmits one byte of data.
+  \item Takes a parameter of type \code{std::uint8_t}.
+  \item Does not return a value.
+  \item Cannot throw exceptions.
+\end{itemize}
+
+\task{d) Receiving data}
+Add a pure virtual method \code{read()} that:
+\begin{itemize}
+  \item Attempts to read one byte from the serial driver.
+  \item Takes a reference to a variable where the byte will be stored.
+  \item Returns \code{true} if a byte was received, otherwise \code{false}.
+  \item Cannot throw exceptions.
+  \item Lets the caller discard the return value; the caller does not need to check whether a byte
+    was received.
+\end{itemize}
+
+\exercise{Stub serial driver}{Code}
+\label{c4:ex:1.2}
+In this exercise you will implement a stub driver \code{driver::serial::Stub}.
+
+A stub driver simulates hardware behavior and is useful for testing without real hardware.
+
+The class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::serial::Interface}.
+  \item Be marked \code{final}.
+\end{itemize}
+
+\task{a) Member variables}
+Add three private member variables:
+\begin{itemize}
+  \item The first member variable shall:
+  \begin{itemize}
+    \item Store the most recently transmitted byte.
+    \item Have the type \code{std::uint8_t}.
+    \item Be named \code{myLastByte}.
+  \end{itemize}
+  \item The second member variable shall:
+  \begin{itemize}
+    \item Indicate whether the driver is initialized.
+    \item Have the type \code{bool}.
+    \item Be named \code{myInitialized}.
+  \end{itemize}
+  \item The third member variable shall:
+  \begin{itemize}
+    \item Indicate whether a byte is available to read.
+    \item Have the type \code{bool}.
+    \item Be named \code{myHasData}.
+  \end{itemize}
+\end{itemize}
+
+\task{b) Constructor}
+Add a default constructor that:
+\begin{itemize}
+  \item Sets the driver as initialized.
+  \item Indicates that no data is available to read.
+  \item Is marked \code{noexcept}.
+\end{itemize}
+
+\task{c) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Public.
+  \item Marked \code{noexcept}.
+  \item Implemented using \code{= default}.
+\end{itemize}
+
+\task{d) Implement interface methods}
+Implement all methods required by the interface:
+\begin{itemize}
+  \item The method \code{isInitialized()} shall return the value stored in \code{myInitialized}.
+  \item The method \code{write()} shall:
+  \begin{itemize}
+    \item Do nothing if \code{myInitialized} is \code{false}.
+    \item Otherwise store the transmitted byte in \code{myLastByte} and set \code{myHasData} to
+      \code{true}.
+  \end{itemize}
+  \item The method \code{read()} shall:
+  \begin{itemize}
+    \item Return \code{false} if \code{myInitialized} is \code{false} or \code{myHasData} is
+      \code{false}.
+    \item Otherwise copy the stored byte (\code{myLastByte}) into the output argument, set
+      \code{myHasData} to \code{false}, and return \code{true}.
+  \end{itemize}
+\end{itemize}
+
+\task{e) Disable copy and move semantics}
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+\exercise{Serial driver for ESP32-S3}{Code}
+\label{c4:ex:1.3}
+In this exercise you will create a hardware-specific serial driver \code{driver::serial::Esp32s3}.
+
+This class represents a serial driver for the ESP32-S3 microcontroller.
+
+The class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::serial::Interface}.
+  \item Be marked \code{final}.
+\end{itemize}
+
+\task{a) Member variables}
+Add two private member variables:
+\begin{itemize}
+  \item The first shall store the transmit pin number.
+  \item The second shall store the receive pin number.
+  \item Both shall have the type \code{std::uint8_t} and be marked \code{const}.
+  \item They shall be named \code{myTxPin} and \code{myRxPin}.
+\end{itemize}
+
+\task{b) Constructor}
+Add an explicit constructor that:
+\begin{itemize}
+  \item Takes a transmit pin number.
+  \item Takes a receive pin number.
+  \item Stores them in the corresponding member variables.
+  \item Is marked \code{noexcept}.
+\end{itemize}
+
+\task{c) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Public.
+  \item Marked \code{noexcept}.
+  \item Declared with \code{override}.
+\end{itemize}
+
+\task{d) Interface methods}
+Declare and implement the required interface methods.
+
+For this exercise, it is sufficient to use placeholder implementations:
+\begin{itemize}
+  \item \code{isInitialized()} may always return \code{true}.
+  \item \code{write()} shall print the transmitted byte in hexadecimal format. For example,
+    transmitting byte \code{0xFF} on TX pin \code{17} shall print
+    \code{Transmitting byte 0xFF via TX pin 17!}.
+  \item \code{read()} may always return \code{false}.
+\end{itemize}
+
+\task{e) Disable copy and move semantics}
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Default constructor.
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Factory Interface with Raw Pointers}
+\label{c4:set:2}
+
+\exercise{Factory interface}{Code}
+\label{c4:ex:2.1}
+In this exercise you will design a factory interface \code{driver::factory::Interface}.
+
+The purpose of this factory is to create serial drivers without exposing the concrete driver type
+to the application logic.
+
+\task{Tasks}
+Design a class named \code{driver::factory::Interface}.
+
+\task{a) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Virtual.
+  \item Marked \code{noexcept}.
+  \item Implemented using \code{= default}.
+\end{itemize}
+
+\task{b) Factory method}
+Add a pure virtual method \code{serial()} that:
+\begin{itemize}
+  \item Creates a serial driver.
+  \item Takes a transmit pin number of type \code{std::uint8_t}.
+  \item Takes a receive pin number of type \code{std::uint8_t}.
+  \item Returns a pointer to \code{driver::serial::Interface}.
+  \item Is marked \code{noexcept}.
+  \item Generates a warning if the return value is discarded (\code{[[nodiscard]]}).
+\end{itemize}
+
+\exercise{ESP32-S3 factory}{Code}
+\label{c4:ex:2.2}
+In this exercise you will implement \code{driver::factory::Esp32s3}.
+
+This factory shall create real drivers for ESP32-S3.
+
+The class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::factory::Interface}.
+  \item Be marked \code{final}.
+\end{itemize}
+
+\task{a) Constructor and destructor}
+Add:
+\begin{itemize}
+  \item A default constructor marked \code{noexcept}.
+  \item A destructor marked \code{noexcept} and \code{override}.
+\end{itemize}
+
+\task{b) Factory method}
+Implement the method \code{serial()} so that it:
+\begin{itemize}
+  \item Takes a transmit pin number and a receive pin number as input.
+  \item Dynamically allocates a \code{driver::serial::Esp32s3}.
+  \item Returns the object as a pointer to \code{driver::serial::Interface}.
+\end{itemize}
+Use the operator \code{new}.
+
+\task{c) Disable copy and move semantics}
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+\exercise{Stub factory}{Code}
+\label{c4:ex:2.3}
+In this exercise you will implement \code{driver::factory::Stub}.
+
+This factory shall create stub serial drivers.
+
+The class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::factory::Interface}.
+  \item Be marked \code{final}.
+\end{itemize}
+
+\task{a) Constructor and destructor}
+Add:
+\begin{itemize}
+  \item A default constructor marked \code{noexcept}.
+  \item A destructor marked \code{noexcept} and \code{override}.
+\end{itemize}
+
+\task{b) Factory method}
+Implement the method \code{serial()} so that it:
+\begin{itemize}
+  \item Takes a transmit pin number and a receive pin number as input.
+  \item Ignores both pin numbers.
+  \item Dynamically allocates a \code{driver::serial::Stub}.
+  \item Returns the object as a pointer to \code{driver::serial::Interface}.
+\end{itemize}
+Use the operator \code{new}.
+
+\task{c) Disable copy and move semantics}
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Application Logic with Raw Pointers}
+\label{c4:set:3}
+
+\exercise{Logic class using a factory}{Code}
+\label{c4:ex:3.1}
+In this exercise you will implement a logic class \code{app::logic::Logic} that uses a factory to
+create its serial driver.
+
+The application logic shall:
+\begin{itemize}
+  \item Own one serial driver.
+  \item Periodically transmit a message.
+  \item Attempt to read one received byte.
+\end{itemize}
+
+\task{a) Member variable}
+Add a private member variable \code{mySerial} of type \code{driver::serial::Interface*}.
+
+\task{b) Constructor}
+Add a constructor that:
+\begin{itemize}
+  \item Takes a reference to \code{driver::factory::Interface}.
+  \item Takes a transmit pin number of type \code{std::uint8_t}.
+  \item Takes a receive pin number of type \code{std::uint8_t}.
+  \item Is marked \code{noexcept}.
+\end{itemize}
+Inside the constructor, use the factory to create the serial driver.
+
+\task{c) Destructor}
+Add a destructor that:
+\begin{itemize}
+  \item Is marked \code{noexcept}.
+  \item Deletes \code{mySerial}.
+\end{itemize}
+
+\task{d) \code{run()} method}
+Add a method \code{run()} that:
+\begin{itemize}
+  \item Is marked \code{noexcept}.
+  \item Runs continuously.
+  \item Sends an incrementing byte value (\code{0}--\code{255}). After reaching \code{255}, the value
+    wraps around to \code{0}.
+  \item Attempts to read one byte into a local variable and prints it if received.
+  \item Repeats forever.
+  \item Delays execution by \code{100 ms} at the end of each loop iteration:
+\end{itemize}
+
+\begin{cppcode}
+#include <chrono>
+#include <thread>
+
+constexpr std::uint8_t sleep_ms{100U};
+
+std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+\end{cppcode}
+
+\noindent Use local variables of type \code{std::uint8_t} to store the transmitted and received
+bytes:
+
+\begin{cppcode}
+std::uint8_t txByte{}, rxByte{};
+\end{cppcode}
+
+\task{e) Disable copy and move semantics}
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Default constructor.
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+\exercise{Using the raw-pointer factory in \code{main}}{Code}
+\label{c4:ex:3.2}
+In this exercise you will test your application using both factories.
+
+\task{a) ESP32-S3 factory}
+In \file{main.cpp}:
+\begin{itemize}
+  \item Create an instance of \code{driver::factory::Esp32s3}.
+  \item Create an instance of \code{app::logic::Logic} using that factory.
+  \item Pass suitable pin numbers, for example \code{17U} and \code{18U}.
+  \item Call \code{run()}.
+\end{itemize}
+
+\task{b) Stub factory}
+Modify \file{main.cpp} so that \code{driver::factory::Stub} is used instead of
+\code{driver::factory::Esp32s3}.
+
+\task{c) Reflection}
+Answer the following questions:
+\begin{itemize}
+  \item What code in \code{Logic} had to change when switching from the ESP32-S3 factory to the
+    stub factory?
+  \item What code in \code{main()} had to change?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Factory Interface with Smart Pointers}
+\label{c4:set:4}
+
+\exercise{Updating the factory interface}{Code}
+\label{c4:ex:4.1}
+In this exercise you will modernize the factory interface by replacing raw pointers with
+\code{std::unique_ptr}.
+
+\task{Tasks}
+Update \code{driver::factory::Interface} so that the method \code{serial()}:
+\begin{itemize}
+  \item Returns \code{std::unique_ptr<driver::serial::Interface>}.
+  \item Still takes a transmit pin number of type \code{std::uint8_t}.
+  \item Still takes a receive pin number of type \code{std::uint8_t}.
+  \item Is marked \code{noexcept}.
+  \item Is still marked \code{[[nodiscard]]}: discarding the returned \code{std::unique_ptr} would
+    destroy the newly created object immediately.
+\end{itemize}
+Also include the header \code{<memory>} where needed.
+
+\exercise{Updating the concrete factories}{Code}
+\label{c4:ex:4.2}
+In this exercise you will update both concrete factories to use smart pointers.
+
+\task{a) ESP32-S3 factory}
+Modify \code{driver::factory::Esp32s3} so that:
+\begin{itemize}
+  \item The method \code{serial()} returns \code{std::unique_ptr<driver::serial::Interface>}.
+  \item The object is created using
+    \code{std::make_unique<driver::serial::Esp32s3>(txPin, rxPin)}.
+\end{itemize}
+
+\task{b) Stub factory}
+Modify \code{driver::factory::Stub} so that:
+\begin{itemize}
+  \item The method \code{serial()} returns \code{std::unique_ptr<driver::serial::Interface>}.
+  \item The object is created using \code{std::make_unique<driver::serial::Stub>()}.
+  \item The pin numbers are ignored.
+\end{itemize}
+
+\exercise{Updating the logic class}{Code}
+\label{c4:ex:4.3}
+In this exercise you will update \code{app::logic::Logic} to use smart pointers.
+
+\task{a) Member variable}
+Replace the raw pointer member \code{mySerial} with a \code{std::unique_ptr<driver::serial::Interface>}.
+
+\task{b) Constructor}
+Keep the constructor parameters the same as before, but initialize the member variable using the
+factory's smart-pointer return value.
+
+\task{c) Destructor}
+Remove the destructor entirely.
+
+\task{d) \code{run()} method}
+Keep the behavior the same as before:
+\begin{itemize}
+  \item Send an incrementing byte value (\code{0}--\code{255}), wrapping around to \code{0} after
+    \code{255}.
+  \item Attempt to read one byte and print it if received.
+  \item Delay execution by \code{100 ms} at the end of each loop iteration.
+  \item Repeat forever.
+\end{itemize}
+Remember that member access through a smart pointer still uses the arrow operator \code{->}.

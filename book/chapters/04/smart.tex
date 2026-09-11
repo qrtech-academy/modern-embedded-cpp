@@ -1,0 +1,344 @@
+% Section 4.2, from lectures/L04/appendix/b_factory_smart_pointers.md.
+
+\section{Driver Factory with Smart Pointers (Abstract Factory)}
+\label{c4:sec:smart}\label{c4:app:b}
+In this section we further develop the factory example from \secref{c4:sec:raw}.
+
+We replace raw pointers with smart pointers and use a simplified form of the \textbf{Abstract
+Factory pattern}.
+
+The purpose is to:
+\begin{itemize}
+  \item Avoid manual memory management.
+  \item Clarify ownership.
+  \item Make the system safer and more robust.
+\end{itemize}
+
+\subsection{What is Abstract Factory?}
+\label{c4:sec:abstractfactory}
+\textbf{Abstract Factory} is a design pattern where:
+\begin{itemize}
+  \item A common factory interface defines how objects are created.
+  \item Multiple concrete factories implement this interface.
+  \item Each factory creates drivers for a specific platform or environment.
+\end{itemize}
+In our case:
+
+\begin{narrowtable}{@{}ll@{}}
+  \thead{Factory} & \thead{What it creates} \\
+  \midrule
+  \code{Esp32s3} & Real hardware drivers (for ESP32-S3) \\
+  \code{Stub} & Simulated drivers for testing \\
+\end{narrowtable}
+
+\noindent The system logic only uses the factory interface and does not know which concrete factory
+is used.
+
+\subsection{Why do we switch to smart pointers?}
+\label{c4:sec:whysmart}
+In the previous example with raw pointers, the factory created objects using the \code{new}
+operator:
+
+\begin{cppcode}
+return new gpio::Esp32s3(pin);
+\end{cppcode}
+
+\noindent The system logic had to delete the objects manually using the \code{delete} operator:
+
+\begin{cppcode}
+delete myLed;
+\end{cppcode}
+
+\noindent Using raw pointers introduces several problems:
+\begin{itemize}
+  \item It is easy to forget to call \code{delete}, which leads to memory leaks.
+  \item Ownership of the object is unclear.
+  \item Manual memory management makes programs harder to write correctly.
+\end{itemize}
+A modern C++ solution is to use \code{std::unique_ptr} from the \code{<memory>} header instead of
+raw pointers.
+
+A \code{std::unique_ptr}:
+\begin{itemize}
+  \item Represents exclusive ownership.
+  \item Deletes the object automatically.
+  \item Cannot be copied, only moved.
+\end{itemize}
+The \code{std::unique_ptr} returned by the factory transfers ownership of the created object to the
+caller.
+
+When the \code{std::unique_ptr} goes out of scope, the object is automatically destroyed.
+
+If we use smart pointers, the factory can instead create objects by calling the
+\code{std::make_unique()} function from \code{<memory>}:
+
+\begin{cppcode}
+return std::make_unique<gpio::Esp32s3>(pin);
+\end{cppcode}
+
+\noindent \code{std::make_unique()}:
+\begin{itemize}
+  \item Creates the object.
+  \item Returns a \code{std::unique_ptr}.
+  \item Ensures safe and clear construction.
+\end{itemize}
+
+\subsection{Exceptions and \code{noexcept}}
+\label{c4:sec:noexcept}
+In C++, memory allocation can fail. When we use \code{new} or \code{std::make_unique()}, an
+exception (\code{std::bad_alloc}) may be thrown if the system cannot allocate memory.
+
+In embedded systems, exceptions are often not used, or a predictable behavior is preferred when
+errors occur. Therefore \code{noexcept} is still often used in driver and factory interfaces.
+
+Example:
+
+\begin{cppcode}
+virtual std::unique_ptr<gpio::Interface> gpio(std::uint8_t pin) noexcept = 0;
+\end{cppcode}
+
+\noindent If a function marked with \code{noexcept} nevertheless throws an exception, the program
+terminates immediately.
+
+This provides clear and predictable error behavior. In many embedded systems this is desirable
+because:
+\begin{itemize}
+  \item Running out of memory is often a critical error.
+  \item The system cannot safely continue anyway.
+\end{itemize}
+For this reason, \code{noexcept} is used in our driver and factory interfaces. If a memory error
+still occurs, the program will terminate, providing clear and predictable error behavior.
+
+\subsection{Example implementation using Abstract Factory}
+\label{c4:sec:smartexample}
+Here we use a simplified form of the Abstract Factory pattern.
+
+\subsubsection{Step 1: Factory interface}
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+#include <memory>
+
+namespace driver
+{
+/** GPIO driver interface. */
+namespace gpio { class Interface; }
+} // namespace driver
+
+namespace driver::factory
+{
+class Interface
+{
+public:
+    virtual ~Interface() noexcept = default;
+
+    [[nodiscard]] virtual std::unique_ptr<gpio::Interface> gpio(std::uint8_t pin) noexcept = 0;
+};
+} // namespace driver::factory
+\end{cppcode}
+
+\noindent The factory now returns a \code{std::unique_ptr} instead of a raw pointer.
+
+Note that \code{gpio()} is marked \code{[[nodiscard]]}: discarding the returned
+\code{std::unique_ptr} would destroy the newly created object immediately, since nothing would be
+left holding onto it. This is exactly the ``factory function returning an owning resource'' case
+mentioned back in \secref{c1:sec:nodiscard}.
+
+\subsubsection{Step 2: Real factory (for ESP32-S3)}
+
+\begin{cppcode}
+#pragma once
+
+#include <memory>
+
+#include "driver/factory/interface.hpp"
+#include "driver/gpio/esp32s3.hpp"
+
+namespace driver::factory
+{
+class Esp32s3 final : public Interface
+{
+public:
+    Esp32s3() noexcept = default;
+    ~Esp32s3() noexcept override = default;
+
+    [[nodiscard]] std::unique_ptr<gpio::Interface> gpio(std::uint8_t pin) noexcept override
+    {
+        return std::make_unique<gpio::Esp32s3>(pin);
+    }
+
+    Esp32s3(const Esp32s3&)            = delete;
+    Esp32s3(Esp32s3&&)                 = delete;
+    Esp32s3& operator=(const Esp32s3&) = delete;
+    Esp32s3& operator=(Esp32s3&&)      = delete;
+};
+} // namespace driver::factory
+\end{cppcode}
+
+\subsubsection{Step 3: Stub factory}
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+#include <memory>
+
+#include "driver/factory/interface.hpp"
+#include "driver/gpio/stub.hpp"
+
+namespace driver::factory
+{
+class Stub final : public Interface
+{
+public:
+    Stub() noexcept = default;
+    ~Stub() noexcept override = default;
+
+    [[nodiscard]] std::unique_ptr<gpio::Interface> gpio(std::uint8_t pin) noexcept override
+    {
+        (void)(pin);
+        return std::make_unique<gpio::Stub>();
+    }
+
+    Stub(const Stub&)            = delete;
+    Stub(Stub&&)                 = delete;
+    Stub& operator=(const Stub&) = delete;
+    Stub& operator=(Stub&&)      = delete;
+};
+} // namespace driver::factory
+\end{cppcode}
+
+\subsubsection{Step 4: System logic with \code{unique_ptr}}
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+#include <memory>
+
+#include "driver/factory/interface.hpp"
+#include "driver/gpio/interface.hpp"
+
+namespace app::logic
+{
+class Logic final
+{
+public:
+    explicit Logic(driver::factory::Interface& factory,
+                   std::uint8_t ledPin,
+                   std::uint8_t buttonPin) noexcept
+        : myLed{factory.gpio(ledPin)}
+        , myButton{factory.gpio(buttonPin)}
+    {}
+
+    void run() noexcept
+    {
+        bool buttonPrev{false};
+
+        while (1)
+        {
+            // Read the current button input.
+            const bool buttonCurrent{myButton->read()};
+
+            // Toggle the LED on button press (rising edge).
+            if (buttonCurrent && !buttonPrev)
+            {
+                myLed->toggle();
+            }
+            // Store the current button input for next comparison.
+            buttonPrev = buttonCurrent;
+        }
+    }
+
+    Logic()                        = delete; // No default constructor.
+    Logic(const Logic&)            = delete; // No copy constructor.
+    Logic(Logic&&)                 = delete; // No move constructor.
+    Logic& operator=(const Logic&) = delete; // No copy assignment.
+    Logic& operator=(Logic&&)      = delete; // No move assignment.
+
+private:
+    std::unique_ptr<driver::gpio::Interface> myLed;
+    std::unique_ptr<driver::gpio::Interface> myButton;
+};
+} // namespace app::logic
+\end{cppcode}
+
+\note
+\begin{itemize}
+  \item No destructor is needed.
+  \item The memory is released automatically.
+\end{itemize}
+
+\subsubsection{Step 5: \code{main}}
+Just as in the factory example with raw pointers, we create a factory in the \code{main} function
+and then pass it to the system logic to create objects.
+
+Below is an example of how a factory can be used to run the system logic on ESP32-S3 by passing an
+instance of \code{driver::factory::Esp32s3} to the system logic and then calling \code{run()}:
+
+\begin{cppcode}
+#include <cstdint>
+
+#include "driver/factory/esp32s3.hpp"
+#include "app/logic/logic.hpp"
+
+int main()
+{
+    constexpr std::uint8_t ledPin{2U};
+    constexpr std::uint8_t buttonPin{3U};
+
+    // Create system logic and initialize the system.
+    driver::factory::Esp32s3 factory{};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
+
+    // Run the system continuously.
+    logic.run();
+    return 0;
+}
+\end{cppcode}
+
+\noindent As shown in the example factory with raw pointers, it is sufficient to switch to the stub
+factory \code{driver::factory::Stub} in order to run with stub drivers:
+
+\begin{cppcode}
+#include <cstdint>
+
+#include "driver/factory/stub.hpp"
+#include "app/logic/logic.hpp"
+
+int main()
+{
+    constexpr std::uint8_t ledPin{2U};
+    constexpr std::uint8_t buttonPin{3U};
+
+    // Create system logic and initialize the system.
+    driver::factory::Stub factory{};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
+
+    // Run the system continuously.
+    logic.run();
+    return 0;
+}
+\end{cppcode}
+
+\subsection{Summary}
+\label{c4:sec:smartsummary}
+In this version we use:
+\begin{itemize}
+  \item \textbf{Interfaces} for all drivers.
+  \item \textbf{Abstract Factory} to create the correct type of drivers.
+  \item \textbf{\code{std::unique_ptr}} for safe ownership.
+\end{itemize}
+Advantages:
+\begin{itemize}
+  \item No manual \code{delete}.
+  \item No memory leaks.
+  \item Clear ownership.
+  \item The same system logic works:
+  \begin{itemize}
+    \item On real hardware.
+    \item In simulation.
+  \end{itemize}
+\end{itemize}

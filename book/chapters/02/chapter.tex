@@ -1,0 +1,40 @@
+% Chapter 2, typeset from lectures/L02: the README is the opener and the closing review, and
+% each appendix is a section, in the same order and with the same subsections.
+
+\chapter{Classes}
+\label{c2:ch:classes}
+
+{\large\itshape A type that owns its data, and decides how it may be created, copied and
+used.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item An introduction to object-oriented programming in C++.
+  \item Classes and encapsulation.
+  \item Constructors and destructors.
+  \item File organization for classes: separation into header and source files.
+  \item Copy and move semantics.
+  \item The keywords \code{explicit}, \code{final}, \code{default}, and \code{delete}.
+\end{itemize}
+\end{chapterbox}
+
+This chapter is about creating simple classes in C++. You will see what constructors and
+destructors are for, what encapsulation means in object-oriented programming, and how a class is
+organized across a header file and a source file. You will also meet copy and move semantics, the
+keywords \code{explicit}, \code{final}, \code{default}, and \code{delete}, and enumeration classes
+(\code{enum class}).
+
+The chapter builds directly on the modern C++ concepts of Chapter~\ref{c1:ch:concepts}, in
+particular the structs with member functions of \secref{c1:sec:structs}, and otherwise assumes only
+basic C: functions, pointers, and structs.
+
+\Secref{c2:sec:classes1} is an introduction to classes in C++, built around a GPIO driver, and is
+the part to read first. \Secref{c2:sec:classes2} is a deeper discussion of classes: the keyword
+\code{explicit}, \code{static} members, and how copy and move operations are written. The
+exercises in \secref{c2:sec:exercises} are where you write your first class-based drivers, and
+their solutions are in \secref{sol:sec:c2}.
+
+\input{chapters/02/classes1}
+\input{chapters/02/classes2}
+\input{chapters/02/summary}
+\input{chapters/02/exercises}

@@ -1,0 +1,4 @@
+# Everything the LuaLaTeX build writes, including the PDF: it is built from the sources here with
+# `make -C book`, and published outside the repository rather than committed with every change.
+build/
+modern-embedded-cpp.pdf

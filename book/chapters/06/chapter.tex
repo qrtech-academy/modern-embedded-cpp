@@ -1,0 +1,41 @@
+% Chapter 6, typeset from lectures/L06: the README is the opener and the closing review, and
+% each appendix is a section, in the same order and with the same subsections.
+
+\chapter{Multithreading and Synchronization}
+\label{c6:ch:threads}
+
+{\large\itshape Threads, and the tools that stop them corrupting what they share.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item Introduction to multithreading in C++ (\code{std::thread}).
+  \item Concurrency vs.\ true parallelism --- single-core vs.\ multi-core.
+  \item Scheduling: time-slicing vs.\ cooperative.
+  \item Data races and why they are dangerous.
+  \item Critical sections using \code{std::mutex} and \code{std::lock_guard}.
+  \item The difference between \code{std::mutex} and \code{std::atomic}.
+  \item Signalling between threads using \code{std::condition_variable}.
+  \item Launching background tasks with \code{std::future} and \code{std::async}.
+  \item Priority inversion --- a common pitfall in embedded systems.
+\end{itemize}
+\end{chapterbox}
+
+This chapter is about running code in more than one thread, and about the tools C++ provides to
+keep those threads from corrupting the data they share. It explains what a thread is and how one
+is created with \code{std::thread}, what separates concurrency from parallelism, and how a
+scheduler decides which thread runs. It then shows why a data race leads to \emph{undefined
+behavior}, how \code{std::mutex} and \code{std::lock_guard} protect a critical section, when
+\code{std::atomic} is sufficient and when a mutex is required, how \code{std::condition_variable}
+lets one thread wait for another without busy-waiting, and how \code{std::async} and
+\code{std::future} launch a task and collect its result. It ends with priority inversion, and why
+\code{std::mutex} does not solve it on an RTOS.
+
+The chapter assumes a good knowledge of C++ from the chapters before it (classes, references and
+RAII) and a basic understanding of program flow and object lifetime. Read
+\secref{c6:sec:threads} first; the exercises in \secref{c6:sec:exercises} then build a series of
+small threaded programs, ending with a thread-safe driver. Their solutions are in
+\secref{sol:sec:c6}.
+
+\input{chapters/06/threads}
+\input{chapters/06/summary}
+\input{chapters/06/exercises}

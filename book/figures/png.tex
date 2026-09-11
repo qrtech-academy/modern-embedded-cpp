@@ -1,0 +1,14 @@
+% The course's copy of the priority-inversion figure: the book's drawing, in the book's fonts and
+% inks, on a page cut to its size with a 10pt margin. `make png` renders it to
+% lectures/L06/appendix/images/priority_inversion.png, so the lecture and the book show one
+% drawing.
+\documentclass{book}
+\usepackage{cppbook}
+\begin{document}
+\setbox0\hbox{\input{figures/priority_inversion}}
+\pdfvariable horigin 0pt
+\pdfvariable vorigin 0pt
+\pagewidth=\dimexpr\wd0+20pt\relax
+\pageheight=\dimexpr\ht0+\dp0+20pt\relax
+\shipout\hbox{\kern10pt\vbox{\kern10pt\hbox{\box0}\kern10pt}}
+\end{document}

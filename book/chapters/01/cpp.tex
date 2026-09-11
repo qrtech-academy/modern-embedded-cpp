@@ -1,0 +1,1392 @@
+% Section 1.2, from lectures/L01/appendix/b_from_c_to_cpp.md.
+
+\section{From C to Modern Embedded C++}
+\label{c1:sec:cpp}\label{c1:app:b}
+
+\subsection{Why use C++ in embedded systems?}
+\label{c1:sec:why}
+Embedded systems increasingly use C++ because it enables:
+\begin{itemize}
+  \item Better abstraction (via classes and interfaces).
+  \item Stronger type safety through stricter compile-time checks.
+  \item Compile-time guarantees (e.g.\ \code{static_assert}, templates).
+  \item Improved modularity and separation of concerns.
+  \item Reusable and testable drivers.
+\end{itemize}
+Importantly, C++ provides these benefits while still allowing low-level hardware access and
+zero-cost abstractions.
+
+Unlike many desktop C++ applications, embedded systems often:
+\begin{itemize}
+  \item Disable exceptions (and mark functions \code{noexcept}).
+  \item Avoid dynamic allocation (\code{malloc/free} or \code{new/delete}), or limit it to system
+    initialization.
+  \item Prefer deterministic execution, meaning that the execution time of critical code paths must
+    be predictable and bounded.
+\end{itemize}
+
+\subsection{Key differences between C and C++}
+\label{c1:sec:differences}
+
+\begin{narrowtable}{@{}lll@{}}
+  \thead{Feature} & \thead{C} & \thead{C++} \\
+  \midrule
+  Namespaces & No & Yes \\
+  Classes & No & Yes \\
+  Templates & No & Yes \\
+  References & No & Yes \\
+  Compile-time polymorphism & No & Yes \\
+  Standard containers & Limited & Rich STL \\
+  RAII & No & Yes \\
+\end{narrowtable}
+
+\note RAII (\emph{Resource Acquisition Is Initialization}) means that a resource is acquired when
+an object is created and automatically released when the object goes out of scope.
+
+\subsection{\code{.h} vs \code{.hpp}}
+\label{c1:sec:hpp}
+In C and C++, header files are conventionally given the extension \code{.h}. In C++-only code,
+the extension \code{.hpp} is also commonly used.
+
+From the compiler's perspective, the extension makes no difference:
+\begin{itemize}
+  \item \code{#include} works identically regardless of the file extension.
+  \item The compiler does not use the extension to decide whether to compile a file as C or C++;
+    that is determined by the compiler invocation (e.g.\ \code{gcc} vs \code{g++}) or by the
+    extension of the \emph{source} file that includes the header.
+\end{itemize}
+Even though the choice has no effect on the generated code, the extension is still useful as a
+convention:
+\begin{itemize}
+  \item \code{.h} is shared between C and C++, so a \code{.h} file could be valid C, valid C++, or
+    both --- the extension alone does not tell you which.
+  \item \code{.hpp} immediately signals that a header uses C++-only features, such as classes,
+    templates, namespaces, or references, and therefore requires a C++ compiler.
+\end{itemize}
+This is especially useful in a book like this one, where paired C and C++ implementations of the
+same driver are sometimes shown side by side (see e.g.\ the \code{cpp_interface} example in
+\secref{c3:sec:example}, and the C interface demo from the embedded C course that
+Chapter~\ref{c3:ch:interfaces} links to). Using \code{.hpp} for the C++ version removes any doubt
+about which language a given header belongs to.
+
+\note In this book, header files use the \code{.hpp} extension.
+
+\subsection{\code{extern "C"} and \code{\#ifdef __cplusplus}}
+\label{c1:sec:externc}
+C and C++ have different linkage rules. C++ supports function overloading, so the compiler
+\emph{mangles} function names to encode parameter types, allowing multiple functions with the same
+name but different signatures to coexist. C has no overloading and does not mangle names.
+
+This becomes a problem when C++ code needs to call a function compiled by a C compiler (or vice
+versa): if one side expects a mangled name and the other exports an unmangled one, the linker
+cannot find a matching symbol.
+
+\code{extern "C"} tells the C++ compiler to use C linkage for the enclosed declarations, disabling
+name mangling for them:
+
+\begin{cppcode}
+extern "C" void gpioInit();
+\end{cppcode}
+
+\noindent Multiple declarations can be wrapped in a block:
+
+\begin{cppcode}
+extern "C"
+{
+void gpioInit();
+void gpioWrite(std::uint8_t pin, bool state);
+}
+\end{cppcode}
+
+\note[Important] \code{extern "C"} only affects linkage/name mangling. It does not make C++-only
+features usable from C: a function with C linkage cannot be overloaded or be a template, and a
+declaration that a C compiler is also going to read must be valid C (plain functions and data, no
+classes, templates, overloading, or references).
+
+\subsubsection{\code{\#ifdef __cplusplus}}
+\code{extern "C"} is C++-only syntax; a C compiler does not understand it and will fail to compile
+a header containing it. Since headers are often shared between C and C++ (see
+\secref{c1:sec:hpp}), they are usually guarded with the predefined macro \code{__cplusplus},
+which is only defined when the file is compiled by a C++ compiler:
+
+\begin{ccode}
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void gpioInit();
+void gpioWrite(uint8_t pin, bool state);
+
+#ifdef __cplusplus
+}
+#endif
+\end{ccode}
+
+\begin{itemize}
+  \item When compiled as C++, \code{__cplusplus} is defined, so the declarations are wrapped in
+    \code{extern "C"}.
+  \item When compiled as C, \code{__cplusplus} is undefined, the preprocessor strips out both
+    \code{#ifdef} blocks entirely, and the C compiler only sees the plain declarations.
+\end{itemize}
+This pattern is common in embedded systems, where a hardware vendor typically ships C headers and
+libraries (register definitions, HAL functions), while the application itself is written in C++.
+Wrapping the vendor's C declarations this way lets C++ application code link against the C library
+without modifying the vendor's code.
+
+\note A header written this way is meant to be compiled as either C or C++, which is exactly the
+kind of header that keeps the \code{.h} extension described in \secref{c1:sec:hpp} --- \code{.hpp}
+would incorrectly imply it is C++-only.
+
+\subsection{Namespaces}
+\label{c1:sec:namespaces}
+Namespaces are used to avoid symbol collisions in large software systems. They can be compared to
+folders on a computer:
+\begin{itemize}
+  \item Just as different folders can contain files with the same name, different namespaces can
+    contain functions, classes, variables, and other entities with the same name.
+  \item For example, two different namespaces may both contain a function called \code{init()}
+    without causing a conflict.
+\end{itemize}
+A namespace is defined using the \code{namespace} keyword, followed by a name and a block of code
+enclosed in braces.
+
+Below is a simple example of a namespace named \code{driver}:
+
+\begin{cppcode}
+namespace driver
+{
+
+} // namespace driver
+\end{cppcode}
+
+\noindent Anything declared inside this block becomes part of the \code{driver} namespace.
+
+For example, the namespace may contain a function called \code{init()}:
+
+\begin{cppcode}
+namespace driver
+{
+void init()
+{
+    // Driver initialization code.
+}
+} // namespace driver
+\end{cppcode}
+
+\noindent To call this function from outside the namespace, we prefix it with the namespace name
+followed by the scope resolution operator \code{::}:
+
+\begin{cppcode}
+int main()
+{
+    driver::init();
+    return 0;
+}
+\end{cppcode}
+
+\note
+\begin{itemize}
+  \item Most functionality from the C++ standard library is accessed through namespace
+    \code{std}.
+  \item Therefore, it is common to write \code{std::} before standard library types and functions,
+    for example \code{std::uint8_t}, \code{std::uint16_t}, \code{std::size_t}, and
+    \code{std::printf}.
+  \item C library functionality is also available in C++, but it is usually included through C++
+    headers such as \code{<cstdint>}, \code{<cstdio>}, and \code{<cstring>}.
+  \item In modern C++, these headers are generally preferred over the older C-style forms
+    \code{<stdint.h>}, \code{<stdio.h>}, and \code{<string.h>}.
+\end{itemize}
+
+\subsubsection{Anonymous namespaces}
+In C++, an anonymous namespace can be used to restrict symbols (variables, functions, types, and
+compile-time constants) to a single translation unit (i.e.\ a single source file).
+
+This is similar to using the keyword \code{static} for functions or variables in C.
+
+Anonymous namespaces are typically used in \code{.cpp} files to hide internal helper functions or
+variables that should not be visible outside the file.
+
+Example:
+
+\begin{cppcode}
+namespace
+{
+// Content only visible within this source file.
+void helper() {}
+} // namespace
+\end{cppcode}
+
+\subsubsection{Nested namespaces}
+Namespaces can also be nested, similar to how folders can contain subfolders:
+\begin{itemize}
+  \item Namespaces are often used to reflect the logical structure of the project.
+  \item For example, assume a project has the following directory structure:
+\end{itemize}
+
+\begin{console}
+include/
+    driver/
+        gpio.hpp
+        timer.hpp
+source/
+    driver/
+        gpio.cpp
+        timer.cpp
+    main.cpp
+\end{console}
+
+\noindent A common convention would be:
+\begin{itemize}
+  \item The content of \file{driver/gpio.hpp} and \file{driver/gpio.cpp} belongs to the namespace
+    \code{driver::gpio}.
+  \item The content of \file{driver/timer.hpp} and \file{driver/timer.cpp} belongs to the namespace
+    \code{driver::timer}.
+\end{itemize}
+This makes it easy to see which module a function belongs to.
+
+\subsubsection{Nested namespace syntax}
+Modern C++ allows nested namespaces to be declared in a compact form:
+
+\begin{cppcode}
+namespace driver::gpio
+{
+void init()
+{
+    // GPIO initialization code.
+}
+} // namespace driver::gpio
+\end{cppcode}
+
+\noindent Before C++17, the same namespace would typically be written as:
+
+\begin{cppcode}
+namespace driver
+{
+namespace gpio
+{
+void init()
+{
+    // GPIO initialization code.
+}
+} // namespace gpio
+} // namespace driver
+\end{cppcode}
+
+\noindent Both forms are equivalent, but the compact form is preferred in modern C++.
+
+\subsubsection{Using functions from nested namespaces}
+A function defined in namespace \code{driver::gpio} can be called using its fully qualified name:
+
+\begin{cppcode}
+int main()
+{
+    driver::gpio::init();
+    return 0;
+}
+\end{cppcode}
+
+\noindent This makes it clear which module the function belongs to and prevents naming conflicts
+in larger projects.
+
+\note[In short] In embedded systems, namespaces are commonly used to organize drivers, hardware
+abstraction layers (HAL), and communication protocols.
+
+\subsection{\code{constexpr}}
+\label{c1:sec:constexpr}
+The keyword \code{constexpr} indicates that a value or expression (including simple functions) can
+be evaluated at compile time rather than at runtime. This allows the compiler to compute values in
+advance, which can improve performance and ensure that such values are usable in
+constant-expression contexts.
+
+In embedded systems, \code{constexpr} is particularly useful for defining hardware-related
+constants such as clock frequencies, register offsets, buffer sizes, and bit masks.
+
+For example:
+
+\begin{cppcode}
+/** CPU frequency in Hz. */
+constexpr std::uint32_t cpuFrequency{16000000U};
+
+/** Baud rate in bps (bits per second). */
+constexpr std::uint32_t baudrate{115200U};
+
+/** Buffer length in bytes. */
+constexpr std::size_t bufLen{20U};
+\end{cppcode}
+
+\note Brace initialization \code{{}} is used instead of \code{=} above:
+\begin{itemize}
+  \item This is advantageous, since \code{{}} can be used to initialize everything.
+  \item An exception is when using the \code{auto} keyword prior to C++17; then \code{auto} should
+    be used in combination with \code{=} to avoid creating so-called initializer lists.
+\end{itemize}
+
+Because these values are known at compile time, the compiler can replace their usage directly with
+the computed value in the generated machine code.
+
+Compared to macros (\code{#define}), \code{constexpr} has several advantages:
+\begin{itemize}
+  \item It is type-safe.
+  \item It obeys normal C++ scoping rules (functions, local blocks, and namespaces).
+  \item It can be used in constant expressions.
+\end{itemize}
+For example, \code{constexpr} values can be used for:
+\begin{itemize}
+  \item Array sizes.
+  \item Template parameters.
+  \item Compile-time calculations.
+\end{itemize}
+In modern C++, \code{constexpr} is generally preferred over \code{#define} for defining constants.
+
+\code{constexpr} can be used for functions when the values are known at compile time:
+
+\begin{cppcode}
+constexpr int add(const int x, const int y) { return x + y; }
+\end{cppcode}
+
+\subsection{\code{noexcept}}
+\label{c1:sec:noexcept}
+The keyword \code{noexcept} indicates that a function is guaranteed not to throw exceptions.
+
+For reference, an example of throwing an exception is shown below. In this example, an exception is
+thrown if the value of \code{val} exceeds \code{100U}:
+
+\begin{cppcode}
+#include <cstdint>
+#include <stdexcept>
+
+int main()
+{
+    constexpr std::uint8_t limit{100U};
+    std::uint8_t val{};
+
+    while (1)
+    {
+        if (limit < val++)
+        {
+            throw std::out_of_range("Value exceeded limit!");
+        }
+    }
+    return 0;
+}
+\end{cppcode}
+
+\noindent Exceptions are a mechanism used in many C++ programs to signal runtime errors:
+\begin{itemize}
+  \item When an exception is thrown, the program begins stack unwinding, meaning that the call stack
+    is traversed until a matching exception handler (i.e.\ a \code{catch} block) is found.
+  \item If a function marked \code{noexcept} attempts to throw an exception, the program will
+    terminate immediately.
+\end{itemize}
+In many embedded systems, exceptions are disabled entirely. This is typically done to:
+\begin{itemize}
+  \item Reduce binary size.
+  \item Simplify the runtime environment.
+  \item Ensure deterministic behavior.
+\end{itemize}
+In such systems, errors are typically handled using C-style mechanisms such as:
+\begin{itemize}
+  \item Return codes.
+  \item Status flags.
+  \item Error callbacks.
+\end{itemize}
+Because of this, it is common practice in embedded C++ to mark functions that are not expected to
+fail with the \code{noexcept} keyword.
+
+Doing so has several benefits:
+\begin{itemize}
+  \item It documents that the function cannot throw exceptions.
+  \item It enables additional compiler optimizations.
+  \item It avoids the need for exception-related stack handling.
+\end{itemize}
+Example:
+
+\begin{cppcode}
+namespace driver::gpio
+{
+bool read() noexcept { return false; }
+} // namespace driver::gpio
+\end{cppcode}
+
+\note[Important]
+\begin{itemize}
+  \item In embedded drivers, functions that perform simple hardware operations (such as reading or
+    writing registers) are typically marked \code{noexcept}, since they are not expected to throw
+    exceptions.
+  \item Functions that may perform dynamic memory allocation, such as resizing a vector, should not
+    be marked \code{noexcept}, since memory allocation may fail.
+\end{itemize}
+
+\subsection{Default arguments}
+\label{c1:sec:defaultargs}
+C++ allows functions to specify default values for parameters:
+\begin{itemize}
+  \item If the caller does not provide a value for a parameter, the default value is used
+    automatically.
+  \item This can simplify APIs by allowing common cases to use fewer arguments.
+\end{itemize}
+For example, consider the function \code{log()} below:
+
+\begin{cppcode}
+namespace debug
+{
+void log(const char* message, std::uint8_t level = 0U)
+{
+    // Log message with the specified level.
+}
+} // namespace debug
+\end{cppcode}
+
+\noindent The parameter \code{level} has a default value of \code{0U}. This means the function can
+be called in two different ways:
+\begin{itemize}
+  \item If the log level is not important, the function can be called with only the message:
+\begin{cppcode}
+debug::log("System started");
+\end{cppcode}
+    In this case, the value \code{0U} will automatically be used for \code{level}.
+  \item If a specific log level is desired, the caller can provide it explicitly:
+\begin{cppcode}
+debug::log("Driver failure", 2U);
+\end{cppcode}
+\end{itemize}
+Default arguments are commonly used in embedded software for functions that have sensible default
+behavior, such as:
+\begin{itemize}
+  \item Logging systems.
+  \item Driver configuration functions.
+  \item Initialization routines.
+\end{itemize}
+They allow APIs to remain flexible while keeping common usage simple.
+
+\subsubsection{Default argument placement}
+In C++, default arguments may only be omitted from right to left. This means that parameters with
+default values must be placed at the end of the parameter list.
+
+A valid example is shown below:
+
+\begin{cppcode}
+void printValue(const std::uint32_t value, const bool hex = false) noexcept;
+\end{cppcode}
+
+\noindent This function can be called in either of the following ways:
+
+\begin{cppcode}
+printValue(42U);
+printValue(42U, true);
+\end{cppcode}
+
+\noindent The following is not valid:
+
+\begin{cppcode}
+void printValue(const std::uint32_t value = 0U, const bool hex) noexcept;
+\end{cppcode}
+
+\noindent This is not allowed because the second parameter does not have a default value, even
+though the first one does.
+
+If this were allowed, a call such as this:
+
+\begin{cppcode}
+printValue(true);
+\end{cppcode}
+
+\noindent would become unclear and potentially cause errors (\code{true} can be implicitly
+converted to \code{value} as \code{1}).
+
+\subsection{Modern C++ structs}
+\label{c1:sec:structs}
+In C++, a \code{struct} can contain not only data members but also member functions, often
+referred to as methods. This allows related data and operations to be grouped together in a
+single type.
+
+Consider the following \code{driver::Gpio} driver, implemented as a stub (for simulation):
+
+\begin{cppcode}
+#include <cstdint>
+
+namespace driver
+{
+/**
+ * @brief GPIO stub driver.
+ */
+struct Gpio
+{
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t pin;
+
+    /** GPIO state. */
+    bool state;
+
+    /**
+     * @brief Set GPIO state.
+     *
+     * @param[in] state GPIO state (true = enabled, false = disabled).
+     */
+    void write(const bool state) noexcept
+    {
+        // Note: The 'this' keyword is used here to refer to our member variable 'state',
+        // since we have an input argument with the same name.
+        this->state = state;
+    }
+
+    /**
+     * @brief Get GPIO state.
+     *
+     * @return True if the GPIO is enabled, false otherwise.
+     *
+     * @note The 'const' keyword is used after the method name to set the GPIO instance to
+     *       read-only in the scope of this method.
+     */
+    bool read() const noexcept { return state; }
+};
+} // namespace driver
+\end{cppcode}
+
+\noindent The \code{driver::Gpio} struct contains:
+\begin{itemize}
+  \item Two data members (\code{pin} and \code{state}).
+  \item Two methods (\code{write} and \code{read}).
+\end{itemize}
+These functions operate on the data stored in the struct.
+
+Instances of the struct can be created as follows:
+
+\begin{cppcode}
+// Initialize LED connected to pin 9, state set to false.
+driver::Gpio led{9U, false};
+
+// Initialize button connected to pin 13, simulate pressdown at startup.
+driver::Gpio button{13U, true};
+\end{cppcode}
+
+\noindent Note that unlike in C, the keyword \code{struct} is not required when creating an
+instance of a struct and can therefore be omitted.
+
+The functions can then be called using the dot operator, just like the data members:
+
+\begin{cppcode}
+// Enable the LED if the button is pressed.
+const bool buttonPressed{button.read()};
+led.write(buttonPressed);
+\end{cppcode}
+
+\noindent In traditional C, similar functionality would typically be implemented using a struct
+combined with separate functions that take a pointer to the struct, as shown below:
+
+\begin{ccode}
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+/**
+ * @brief GPIO stub driver.
+ */
+typedef struct
+{
+    /** Pin the GPIO is connected to. */
+    const uint8_t pin;
+
+    /** GPIO state. */
+    bool state;
+} gpio_t;
+
+/**
+ * @brief Set GPIO state.
+ *
+ * @param[in, out] self Pointer to the GPIO.
+ * @param[in] state GPIO state (true = enabled, false = disabled).
+ */
+void gpio_write(gpio_t* self, const bool state)
+{
+    if (NULL == self) { return; }
+    self->state = state;
+}
+
+/**
+ * @brief Get GPIO state.
+ *
+ * @param[in] self Pointer to the GPIO.
+ *
+ * @return True if the GPIO is enabled, false otherwise.
+ */
+bool gpio_read(const gpio_t* self)
+{
+    return NULL != self ? self->state : false;
+}
+\end{ccode}
+
+\noindent Instances of the struct can then be created and used as shown below:
+
+\begin{ccode}
+// Initialize LED connected to pin 9, state set to false.
+gpio_t led = {9U, false};
+
+// Initialize button connected to pin 13, simulate pressdown at startup.
+gpio_t button = {13U, true};
+
+// Enable the LED if the button is pressed.
+const bool button_pressed = gpio_read(&button);
+gpio_write(&led, button_pressed);
+\end{ccode}
+
+\subsubsection{Comparison}
+\paragraph{C-style approach}
+
+\begin{ccode}
+gpio_write(&led, true);
+\end{ccode}
+
+\paragraph{C++ approach}
+
+\begin{cppcode}
+led.write(true);
+\end{cppcode}
+
+\noindent The C++ syntax improves readability and keeps related functionality together, making the
+code easier to understand and maintain.
+
+\subsubsection{Constructor and destructor}
+It is also possible to add initialization and cleanup methods. These methods are known as:
+\begin{itemize}
+  \item Constructor:
+  \begin{itemize}
+    \item Has the same name as the struct.
+    \item Called automatically when an object is created.
+    \item Can be used to automatically initialize an object on creation (for instance pin
+      configuration).
+    \item For example, a constructor for the \code{driver::Gpio} struct above can be implemented
+      as follows:
+  \end{itemize}
+\end{itemize}
+
+\begin{cppcode}
+/**
+ * @brief Constructor.
+ *
+ * @param[in] pin Pin the GPIO is connected to.
+ * @param[in] initialState Initial state (default = disabled).
+ */
+Gpio(const std::uint8_t pin, const bool initialState = false) noexcept
+    : pin{pin}
+    , state{initialState}
+{
+    std::printf("Initializing GPIO at pin %u!\n", pin);
+    // Configure pin here!
+}
+\end{cppcode}
+
+\begin{itemize}
+  \item Destructor:
+  \begin{itemize}
+    \item Has the same name as the struct, but with prefix \code{~}.
+    \item Called automatically when an object is destroyed.
+    \item For example, this happens when an object goes out of scope or when \code{delete} is used.
+    \item Can be used to automatically release allocated resources or undo hardware-related setup.
+    \item Often used to release peripherals, disable interrupts, or restore hardware state in
+      embedded systems.
+  \end{itemize}
+\end{itemize}
+
+\begin{cppcode}
+/**
+ * @brief Destructor.
+ */
+~Gpio() noexcept
+{
+    std::printf("Releasing resources reserved for GPIO at pin %u!\n", pin);
+    // Release allocated resources here.
+}
+\end{cppcode}
+
+\noindent After adding the constructor and destructor, the struct \code{driver::Gpio} looks like
+this:
+
+\begin{cppcode}
+#include <cstdint>
+#include <cstdio>
+
+namespace driver
+{
+/**
+ * @brief GPIO stub driver.
+ */
+struct Gpio
+{
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t pin;
+
+    /** GPIO state. */
+    bool state;
+
+    /**
+     * @brief Constructor.
+     *
+     * @param[in] pin Pin the GPIO is connected to.
+     * @param[in] initialState Initial state (default = disabled).
+     */
+    Gpio(const std::uint8_t pin, const bool initialState = false) noexcept
+        : pin{pin}
+        , state{initialState}
+    {
+        std::printf("Initializing GPIO at pin %u!\n", pin);
+        // Configure pin here!
+    }
+
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept
+    {
+        std::printf("Releasing resources reserved for GPIO at pin %u!\n", pin);
+        // Release allocated resources here.
+    }
+
+    /**
+     * @brief Set GPIO state.
+     *
+     * @param[in] state GPIO state (true = enabled, false = disabled).
+     */
+    void write(const bool state) noexcept
+    {
+        // Note: The 'this' keyword refers to the current object.
+        // It is used here because the parameter name 'state' hides the member variable.
+        this->state = state;
+    }
+
+    /**
+     * @brief Get GPIO state.
+     *
+     * @return True if the GPIO is enabled, false otherwise.
+     *
+     * @note The 'const' keyword is used after the method name to set the GPIO instance to
+     *       read-only in the scope of this method.
+     */
+    bool read() const noexcept { return state; }
+};
+} // namespace driver
+\end{cppcode}
+
+\noindent Before a constructor is defined, the struct can be initialized using aggregate
+initialization. After a user-defined constructor is added, the same brace syntax may still be used,
+but it now calls the constructor instead.
+
+For example, the following initialization:
+
+\begin{cppcode}
+int main()
+{
+    driver::Gpio led{9U, false};
+    led.write(true);
+}
+\end{cppcode}
+
+\noindent will generate the following output because the constructor and destructor are called
+automatically:
+
+\begin{console}
+Initializing GPIO at pin 9!
+Releasing resources reserved for GPIO at pin 9!
+\end{console}
+
+\noindent This illustrates the idea behind \textbf{RAII} (\emph{Resource Acquisition Is
+Initialization}):
+\begin{itemize}
+  \item Initialization is performed during object creation.
+  \item Cleanup is performed automatically when the object is destroyed.
+\end{itemize}
+
+\subsubsection{Introduction to encapsulation}
+In C++, parts of a struct can be made private using the \code{private} keyword, as shown below for
+the \code{driver::Gpio} struct:
+\begin{itemize}
+  \item The \code{public} keyword has been added for clarity; in a C++ struct, everything is public
+    by default.
+  \item The \code{private} keyword has been added to create a private segment.
+  \item The member variables and methods have been removed for simplicity.
+\end{itemize}
+
+\begin{cppcode}
+namespace driver
+{
+struct Gpio
+{
+public:
+    // Public segment - accessible outside the struct.
+private:
+    // Private segment - inaccessible outside the struct.
+};
+} // namespace driver
+\end{cppcode}
+
+\noindent Using the \code{private} keyword has an important advantage:
+\begin{itemize}
+  \item Symbols (member variables, constants, and methods) declared in the private segment are
+    inaccessible outside the struct.
+  \item This allows us to hide implementation details and data that should not be accessed directly
+    by other parts of the program.
+  \item In many designs, member variables are declared private. This ensures that the internal
+    state of the object can only be modified through its member functions.
+\end{itemize}
+For instance, the member variables of the \code{driver::Gpio} struct are typically made private,
+which is shown below:
+\begin{itemize}
+  \item The private segment is typically placed at the bottom of the struct, while the public
+    interface (constructors and methods) is placed first. This makes it easier to see how the
+    struct should be used.
+  \item Here we add the \code{my} prefix to make it clear that these are member variables and to
+    reduce the need to use the \code{this} keyword (\code{this->state = state} was used earlier).
+\end{itemize}
+
+\begin{cppcode}
+namespace driver
+{
+struct Gpio
+{
+private:
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t myPin;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver
+\end{cppcode}
+
+\note The snippet above only shows the private segment of \code{driver::Gpio}.
+
+Then we update the struct:
+\begin{itemize}
+  \item Member variables \code{pin} and \code{state} are replaced with \code{myPin} and
+    \code{myState}.
+  \item The \code{pin()} method is added so that users still can read the pin number.
+\end{itemize}
+
+\begin{cppcode}
+#include <cstdint>
+#include <cstdio>
+
+namespace driver
+{
+/**
+ * @brief GPIO stub driver.
+ */
+struct Gpio
+{
+    /**
+     * @brief Constructor.
+     *
+     * @param[in] pin Pin the GPIO is connected to.
+     * @param[in] initialState Initial state (default = disabled).
+     */
+    Gpio(const std::uint8_t pin, const bool initialState = false) noexcept
+        : myPin{pin}
+        , myState{initialState}
+    {
+        std::printf("Initializing GPIO at pin %u!\n", myPin);
+        // Configure pin here!
+    }
+
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept
+    {
+        std::printf("Releasing resources reserved for GPIO at pin %u!\n", myPin);
+        // Release allocated resources here.
+    }
+
+    /**
+     * @brief Get GPIO pin number.
+     *
+     * @return Pin the GPIO is connected to.
+     */
+    std::uint8_t pin() const noexcept { return myPin; }
+
+    /**
+     * @brief Set GPIO state.
+     *
+     * @param[in] state GPIO state (true = enabled, false = disabled).
+     */
+    void write(const bool state) noexcept { myState = state; }
+
+    /**
+     * @brief Get GPIO state.
+     *
+     * @return True if the GPIO is enabled, false otherwise.
+     */
+    bool read() const noexcept { return myState; }
+
+private:
+    /** Pin the GPIO is connected to. */
+    const std::uint8_t myPin;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver
+\end{cppcode}
+
+\noindent After making the member variables private, the compiler will generate an error if we try
+to access them directly:
+
+\begin{cppcode}
+int main()
+{
+    driver::Gpio led{9U};
+
+    // Allowed: pin() provides controlled read access to the pin number.
+    std::printf("The LED is connected to pin %u!\n", led.pin());
+
+    // Allowed: write() is part of the public interface.
+    led.write(true);
+
+    // Not allowed: myPin is private.
+    // std::printf("Pin: %u!\n", led.myPin);
+
+    // Not allowed: myState is private.
+    // led.myState = true;
+}
+\end{cppcode}
+
+\noindent Chapter~\ref{c2:ch:classes} introduces classes:
+\begin{itemize}
+  \item In C++, structs and classes support almost the same language features, but classes use
+    \code{private} as the default access level, while structs use \code{public}.
+  \item Structs are often used for simple data-oriented types, while classes are commonly used for
+    more complex objects that may involve inheritance, polymorphism, or custom copy and move
+    semantics.
+\end{itemize}
+
+\subsection{References}
+\label{c1:sec:references}
+References provide an alternative way to pass variables to functions.
+
+A reference acts as an alias for another variable. This means that operations performed on the
+reference directly affect the original variable. References behave similarly to pointers but can
+be used with normal variable syntax.
+
+References are declared using the \code{&} symbol.
+
+Consider the following example:
+
+\begin{cppcode}
+void toggle(bool& state)
+{
+    state = !state;
+}
+\end{cppcode}
+
+\noindent The parameter \code{state} is a reference to a \code{bool}.
+
+This means the function modifies the original variable that was passed to it.
+
+Example usage:
+
+\begin{cppcode}
+bool state{false};
+
+toggle(state);
+\end{cppcode}
+
+\noindent After the function call, the value of \code{state} will be \code{true}.
+
+In C, similar behavior would typically be implemented using pointers:
+
+\begin{ccode}
+void toggle(bool* state)
+{
+    *state = !(*state);
+}
+\end{ccode}
+
+\subsubsection{Comparison}
+\paragraph{C-style approach (with pointer)}
+
+\begin{ccode}
+toggle(&state);
+\end{ccode}
+
+\paragraph{C++ approach (with reference)}
+
+\begin{cppcode}
+toggle(state);
+\end{cppcode}
+
+\noindent While pointers are still used in C++, references are often preferred because they:
+\begin{itemize}
+  \item Cannot be \code{nullptr} (\code{NULL} in C).
+  \item Do not require the address operator (\code{&}) to pass addresses.
+  \item Do not require dereferencing (\code{*}) to read the value a pointer is pointing at.
+  \item Provide clearer syntax.
+\end{itemize}
+As a result, references are commonly used in modern C++ when a function needs to modify an
+existing variable. However, a reference cannot be reseated to refer to another object after
+initialization; pointers are still used when we need to change the address we refer to, for
+instance when implementing dynamic arrays.
+
+\subsection{The \code{auto} keyword}
+\label{c1:sec:auto}
+The keyword \code{auto} allows the compiler to automatically deduce the type of a variable from
+its initializer.
+
+For example:
+
+\begin{cppcode}
+auto number  = 5;   // Deduced as int.
+auto counter = 10U; // Deduced as unsigned int.
+auto voltage = 3.3; // Deduced as double.
+\end{cppcode}
+
+\noindent This can improve readability and reduce the need to repeat long type names.
+
+However, care must be taken when using \code{auto} with brace initialization \code{{}} in
+C++11/14. In some cases the compiler may deduce an \code{std::initializer_list} instead of the
+intended type.
+
+For example:
+
+\begin{cppcode}
+auto a = 10; // Deduced as int.
+auto b{10};  // Deduced std::initializer_list<int> prior to C++17.
+\end{cppcode}
+
+\noindent Because of this, when using \code{auto} before C++17 it was generally recommended to use
+the assignment operator \code{=} instead of brace initialization \code{{}}.
+
+In modern C++ (C++17 and later), the behavior was improved and brace initialization works more
+intuitively. However, a common rule of thumb is still:
+\begin{itemize}
+  \item When using \code{auto}, prefer \code{=} instead of \code{{}} unless you explicitly want an
+    \code{std::initializer_list}.
+\end{itemize}
+However, in this book the data type will usually be specified explicitly. The \code{auto} keyword
+will mainly be used in situations where the type would otherwise be verbose, for example when
+iterating over containers:
+
+\begin{cppcode}
+// Enable all LEDs in a list.
+for (auto& led : leds)
+{
+    led.on();
+}
+\end{cppcode}
+
+\noindent Without \code{auto}, the type may become very long.
+
+\subsection{Function templates: a first look}
+\label{c1:sec:templates}
+\note Here we only introduce the basic idea. Templates are covered in more detail in
+Chapter~\ref{c5:ch:templates}.
+
+Templates allow functions and classes to operate on multiple data types without duplicating code.
+
+In embedded systems, templates are often used to implement generic utilities such as bit
+manipulation helpers.
+
+Consider the following example to set a bit \code{bit} in a given register \code{reg}:
+\begin{itemize}
+  \item The data type of the register for which to write is set to \code{T}. The type is set at
+    compile time when the function is instantiated.
+  \item We constrain this function to only work for integral types with a \code{static_assert}. If
+    this function is called with some other type, such as a floating point number, a compiler
+    error with error message \code{Failed to set bit in register: T must be of integral type!} is
+    generated.
+  \item We check the data type using \code{std::is_integral<T>} from \code{<type_traits>},
+    specifically via its member variable \code{value}:
+  \begin{itemize}
+    \item If \code{T} is of integral type, \code{std::is_integral<T>::value} is \code{true} and the
+      assertion succeeds.
+    \item If \code{T} isn't of integral type, \code{std::is_integral<T>::value} is \code{false} and
+      the assertion fails.
+    \item For more information about type traits, see \secref{c1:sec:typetraits}.
+  \end{itemize}
+  \item The value \code{1} is cast to type \code{T} via a \code{static_cast}, which is a safer
+    alternative to regular C casts.
+\end{itemize}
+
+\begin{cppcode}
+#include <cstdint>
+#include <type_traits>
+
+/**
+ * @brief Set bit in register.
+ *
+ * @tparam T The register type. Must be integral.
+ *
+ * @param[in, out] reg Register to write to.
+ * @param[in] bit The bit to set.
+ */
+template<typename T>
+constexpr void set(T& reg, const std::uint8_t bit) noexcept
+{
+    static_assert(std::is_integral<T>::value,
+        "Failed to set bit in register: T must be of integral type!");
+    reg |= (static_cast<T>(1U) << bit);
+}
+\end{cppcode}
+
+\noindent The function can be used to set bits in registers of arbitrary integral type. In the
+example below, bits 1--2 in an 8-bit register are set by calling the \code{set()} function
+twice:
+
+\begin{cppcode}
+std::uint8_t reg{};
+set(reg, 1U);
+set(reg, 2U);
+\end{cppcode}
+
+\note Unlike C, functions in C++ can have the same name as long as their parameter lists differ.
+The compiler determines which version to use at each function call based on the types of the
+arguments. This is called function overloading.
+
+\subsubsection{Template instantiation and code size}
+Templates are instantiated separately for each data type used in the program. For example, if the
+function \code{set()} is used with both \code{std::uint8_t} and \code{std::uint32_t}:
+
+\begin{cppcode}
+std::uint8_t reg1{};
+std::uint32_t reg2{};
+
+set(reg1, 1U);
+set(reg2, 12U);
+\end{cppcode}
+
+\noindent Then the compiler generates two separate versions of the function:
+
+\begin{cppcode}
+set(std::uint8_t&, std::uint8_t)
+set(std::uint32_t&, std::uint8_t)
+\end{cppcode}
+
+\noindent Each version is compiled independently and included in the final binary:
+\begin{itemize}
+  \item This behavior is one of the reasons templates are considered zero-cost abstractions; the
+    generated code is specialized for the exact type being used, which allows the compiler to
+    optimize the implementation.
+  \item However, in embedded systems this also means that excessive template usage can increase
+    the binary size, since multiple versions of the same function may be generated.
+  \item For this reason, templates should be used carefully in resource-constrained systems,
+    especially when many different data types are involved.
+\end{itemize}
+
+\subsubsection{Parameter packs}
+We can also implement parameter packs so that multiple bits can be set at once:
+
+\begin{cppcode}
+#include <cstdint>
+#include <type_traits>
+
+template<typename T, typename... Bits>
+constexpr void set(T& reg, const Bits... bits) noexcept
+{
+    static_assert(std::is_integral<T>::value,
+        "Failed to set bit in register: T must be of integral type!");
+
+    for (const auto& bit : {bits...})
+    {
+        reg |= (static_cast<T>(1U) << bit);
+    }
+}
+\end{cppcode}
+
+\noindent In the example below, bits 1--5 in an 8-bit register are set by calling the
+\code{set()} function once:
+
+\begin{cppcode}
+// Set bit 1-5 in a register.
+std::uint8_t reg{};
+set(reg, 1U, 2U, 3U, 4U, 5U);
+\end{cppcode}
+
+\noindent The compiler will generate code similar to the following:
+
+\begin{cppcode}
+reg |= (static_cast<T>(1U) << 1U);
+reg |= (static_cast<T>(1U) << 2U);
+reg |= (static_cast<T>(1U) << 3U);
+reg |= (static_cast<T>(1U) << 4U);
+reg |= (static_cast<T>(1U) << 5U);
+\end{cppcode}
+
+\subsubsection{Fold expressions (C++17)}
+In the implementation above we iterate over the bits using a loop and a so-called \textbf{braced
+initializer list}. This approach is easy to read and resembles how similar logic might be written
+in C.
+
+Since C++17, we can omit the loop by using a fold expression:
+
+\begin{cppcode}
+((reg |= (static_cast<T>(1U) << bits)), ...);
+\end{cppcode}
+
+\noindent This expression expands the parameter pack \code{bits...} and performs the operation once
+for each element.
+
+\note The operation being folded needs its own pair of parentheses, hence the double parentheses at
+the start. The language requires each operand of a fold expression to be a so-called
+\emph{cast-expression}, and an assignment such as \code{reg |= x} is not one. Writing
+
+\begin{cppcode}
+(reg |= (static_cast<T>(1U) << bits), ...); // Won't compile.
+\end{cppcode}
+
+\noindent therefore produces a compiler error such as
+\code{binary expression in operand of fold-expression}.
+
+Because of this feature, the \code{set()} function can be implemented more compactly:
+
+\begin{cppcode}
+template<typename T, typename... Bits>
+constexpr void set(T& reg, const Bits... bits) noexcept
+{
+    static_assert(std::is_integral<T>::value,
+        "Failed to set bit in register: T must be of integral type!");
+    ((reg |= (static_cast<T>(1U) << bits)), ...);
+}
+\end{cppcode}
+
+\subsection{\code{[[nodiscard]]}}
+\label{c1:sec:nodiscard}
+\code{[[nodiscard]]} is a C++17 attribute that can be added to a function declaration. It tells the
+compiler to emit a warning if the caller ignores (discards) the function's return value.
+
+Like \code{constexpr} and templates, \code{[[nodiscard]]} is a zero-cost abstraction: it exists
+purely as a compile-time aid and has no effect on the generated machine code or runtime
+performance.
+
+Consider the \code{read()} method of the \code{driver::Gpio} struct introduced earlier:
+
+\begin{cppcode}
+[[nodiscard]] bool read() const noexcept { return myState; }
+\end{cppcode}
+
+\noindent Since \code{read()} has no side effects, calling it and ignoring the result does nothing
+useful and is almost always a mistake. With \code{[[nodiscard]]} in place, the following now
+produces a compiler warning:
+
+\begin{cppcode}
+led.read(); // Warning: ignoring return value of function declared 'nodiscard'.
+\end{cppcode}
+
+\noindent While the return value must be used to avoid the warning:
+
+\begin{cppcode}
+const bool state{led.read()};
+\end{cppcode}
+
+\noindent \code{[[nodiscard]]} is particularly useful in embedded systems for functions such as:
+\begin{itemize}
+  \item Query/read functions, similar to \code{read()} above.
+  \item Functions returning error or status codes, where ignoring the result may hide a failure.
+  \item Factory functions that return an owning resource, such as \code{std::unique_ptr}
+    (introduced in Chapter~\ref{c4:ch:factory}), where discarding the result would immediately
+    release the resource.
+\end{itemize}
+\note \code{[[nodiscard]]} should not be added indiscriminately. Functions that are called mainly
+for their side effects, where the return value is genuinely optional, do not need it.
+
+\subsection{Additional information about type traits}
+\label{c1:sec:typetraits}
+Type traits allow programs to inspect and reason about types at compile time.
+
+In the C++ standard library, many type traits are implemented as small structs containing a static
+constant boolean value (\code{static} means that the value belongs to the type itself rather than
+to an instance of the struct).
+
+We can implement a simplified version of a trait that checks whether a type is unsigned:
+
+\begin{cppcode}
+template<typename T>
+struct isUnsigned
+{
+    static constexpr bool value{false};
+};
+\end{cppcode}
+
+\note
+\begin{itemize}
+  \item The type trait is nothing more than a struct template containing a boolean constant
+    \code{value}.
+  \item By default, this boolean value is \code{false} for all types \code{T}.
+  \item We can specialize the template for specific types \code{T} so that \code{value} becomes
+    \code{true}, as shown below, where the types \code{std::uint8_t}, \code{std::uint16_t},
+    \code{std::uint32_t}, and \code{std::uint64_t} are treated as unsigned types:
+\end{itemize}
+
+\begin{cppcode}
+template<>
+struct isUnsigned<std::uint8_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint16_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint32_t>
+{
+    static constexpr bool value{true};
+};
+
+template<>
+struct isUnsigned<std::uint64_t>
+{
+    static constexpr bool value{true};
+};
+\end{cppcode}
+
+\note There is no separate specialization for \code{std::size_t}. It is not a type of its own but
+an alias of one of the unsigned types above (\code{std::uint64_t} on a 64-bit Linux machine,
+typically \code{std::uint32_t} on a 32-bit microcontroller), so it is already covered, and
+specializing it as well would be a redefinition that fails to compile.
+
+
+\noindent We can use our own type trait \code{isUnsigned<T>} to check if a type \code{T} is
+unsigned as shown below:
+
+\begin{cppcode}
+static_assert(isUnsigned<T>::value, "T must be of unsigned type!");
+\end{cppcode}
+
+\noindent Since C++17, it is common to also provide a variable template ending in \code{_v} that
+exposes the boolean value directly:
+
+\begin{cppcode}
+template<typename T>
+inline constexpr bool isUnsigned_v{isUnsigned<T>::value};
+\end{cppcode}
+
+\note \code{inline} allows the variable template to be defined in a header file and included in
+multiple translation units without causing multiple definition errors.
+
+This variable template allows us to write:
+
+\begin{cppcode}
+static_assert(isUnsigned_v<T>, "T must be of unsigned type!");
+\end{cppcode}
+
+\noindent In this book, the traditional form \code{isUnsigned<T>::value} will be used for clarity.
+
+\subsection{Summary}
+\label{c1:sec:cppsummary}
+This section introduced the following modern C++ features commonly used in embedded software:
+\begin{itemize}
+  \item \code{.h} vs \code{.hpp} header file conventions.
+  \item \code{extern "C"} and \code{#ifdef __cplusplus} for headers shared between C and C++.
+  \item Namespaces.
+  \item \code{constexpr} and compile-time constants.
+  \item \code{noexcept} and exception handling in embedded systems.
+  \item Default arguments.
+  \item Structs with member functions, constructors/destructors, and encapsulation.
+  \item References.
+  \item The \code{auto} keyword.
+  \item Function templates.
+  \item \code{[[nodiscard]]} for catching ignored return values.
+\end{itemize}
+These features allow developers to write safer, clearer, and more maintainable embedded software
+while still maintaining full control over hardware and performance.

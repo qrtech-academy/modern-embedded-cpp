@@ -1,0 +1,31 @@
+% Section 4.3, from lectures/L04/README.md: the objectives, the evaluation questions, and the next
+% lecture.
+
+\section{Review}
+\label{c4:sec:review}
+
+\needspace{6\baselineskip}
+\subsection*{What you should be able to do now}
+After this chapter, you should:
+\begin{itemize}
+  \item Understand what the factory pattern is and why it is used.
+  \item Understand how a factory enables switching between real drivers and stubs.
+  \item Understand how the system logic can create drivers via a factory.
+  \item Be able to read and follow a simple factory example.
+\end{itemize}
+
+\needspace{6\baselineskip}
+\subsection*{Questions to test yourself}
+\begin{enumerate}
+  \item What is the purpose of the factory pattern?
+  \item What does it mean that the system logic only depends on driver interfaces and not on
+    concrete driver types?
+  \item Who is responsible for deleting driver objects when factories return raw pointers?
+  \item What is the difference between raw pointers and \code{std::unique_ptr}?
+  \item Why is \code{std::unique_ptr} suitable in the factory pattern?
+\end{enumerate}
+
+\needspace{6\baselineskip}
+\subsection*{Looking ahead}
+Chapter~\ref{c5:ch:templates} is about templates: generic programming for embedded systems without
+runtime overhead.

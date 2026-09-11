@@ -1,0 +1,984 @@
+% Section 6.1, from lectures/L06/appendix/a_multithreading_synchronization.md.
+
+\section{Multithreading and Synchronization in C++}
+\label{c6:sec:threads}\label{c6:app:a}
+This section introduces the fundamentals of concurrency in C++, and extends into more advanced
+topics useful for embedded systems with multiple cores or an RTOS:
+\begin{itemize}
+  \item \code{std::thread}: Threads for parallel execution of code in C++.
+  \item \code{std::mutex} combined with \code{std::lock_guard}: Protection of shared data (critical
+    sections).
+  \item \code{std::atomic}: How to share individual variables between threads without a mutex.
+  \item The practical differences between atomic variables and mutexes.
+  \item Scheduling: how the OS decides which thread runs and when.
+  \item \code{std::future} and \code{std::async}: Higher-level asynchronous task launching.
+  \item \code{std::condition_variable}: Efficient signalling between threads.
+  \item Priority inversion: A subtle but dangerous bug in mixed-priority systems.
+\end{itemize}
+
+\subsection{Concurrency vs.\ true parallelism}
+\label{c6:sec:parallelism}
+Modern systems can execute multiple tasks simultaneously or appear to do so, depending on the
+hardware and OS. These two concepts are known as concurrency and parallelism:
+\begin{itemize}
+  \item \textbf{Concurrency} means multiple tasks make progress over time; they may not run at
+    exactly the same instant.
+  \item \textbf{Parallelism} means they genuinely run simultaneously.
+\end{itemize}
+The distinction becomes clear when looking at single-core vs.\ multi-core hardware:
+\begin{itemize}
+  \item On a \textbf{single-core MCU} the scheduler interleaves threads one at a time
+    (concurrency).
+  \item On a \textbf{multi-core SoC} (e.g.\ ARM Cortex-A53 quad-core) threads truly run at the same
+    time (parallelism).
+\end{itemize}
+\code{std::thread} works the same way in both cases; the hardware and OS decide.
+
+\subsection{What is a thread?}
+\label{c6:sec:thread}
+A thread is an independent execution flow managed by the OS. Each thread has its own:
+\begin{itemize}
+  \item \textbf{Program counter}: Tracks which instruction executes next.
+  \item \textbf{Stack}: Holds local variables and return addresses for that thread's call chain.
+  \item \textbf{Register state}: The CPU registers saved and restored on every context switch.
+\end{itemize}
+What threads share is everything else in the process: global variables, the heap, file handles,
+and any other objects explicitly passed between them. This is what makes shared-data bugs
+possible.
+
+In C++, a thread is created using:
+
+\begin{cppcode}
+std::thread t{function, argument};
+\end{cppcode}
+
+\note The \code{join()} method must be called to wait for a thread to finish before the program
+exits:
+
+\begin{cppcode}
+std::thread t1{function1, argument1};
+std::thread t2{function2, argument2};
+
+t1.join();
+t2.join();
+\end{cppcode}
+
+\noindent Alternatively, \code{detach()} can be used to allow a thread to run independently of the
+other threads, but this is not recommended in the context of this book.
+
+\note Function \code{std::ref()} must be used when passing references to a thread, since
+\code{std::thread} copies its arguments by default:
+
+\begin{cppcode}
+std::uint32_t counter{};
+std::thread t1{function1, std::ref(counter)};
+t1.join();
+\end{cppcode}
+
+\noindent To pass a constant reference, use \code{std::cref()} instead:
+
+\begin{cppcode}
+std::uint32_t counter{};
+std::thread t2{function2, std::cref(counter)};
+t2.join();
+\end{cppcode}
+
+\subsection{Scheduling: time-slicing vs.\ cooperative}
+\label{c6:sec:scheduling}
+The OS switches between threads in one of two ways:
+\begin{itemize}
+  \item \textbf{Preemptive (time-slice):} The OS forcibly switches the running thread after a fixed
+    time quantum (e.g.\ \code{1 ms}). The thread has no say; a timer interrupt triggers the context
+    switch.
+  \item \textbf{Cooperative:} A thread runs until it voluntarily yields. One badly-behaved thread
+    can starve the rest.
+\end{itemize}
+You can hint at cooperative behaviour from C++ by invoking \code{std::this_thread::yield()} as
+shown below, but you cannot control the scheduler directly. Notably, \code{std::thread} provides no
+way to set thread priority. For that, you must use the platform's native thread handle via
+\code{std::thread::native_handle()} and call the platform API (e.g.\
+\code{pthread_setschedparam()} on POSIX, \code{SetThreadPriority()} on Windows).
+
+\begin{cppcode}
+#include <chrono>
+#include <cstdint>
+#include <thread>
+
+void task() noexcept
+{
+    constexpr std::uint8_t sleep_ms{5U};
+
+    // Run thread continuously.
+    while (true)
+    {
+        // Do some work in this thread.
+        doSomeWork();
+
+        // Give hint to give up the CPU now (cooperative behaviour).
+        std::this_thread::yield();
+
+        // Sleep for at least 5 ms.
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+    }
+}
+\end{cppcode}
+
+\noindent Below is an example that demonstrates how you can set the priority and policy of a given
+thread \code{t1} in a Linux system:
+\begin{itemize}
+  \item \code{native_handle()} returns a \code{pthread_t} on Linux, enabling access to the full
+    POSIX thread API.
+  \item \code{SCHED_FIFO} is a real-time scheduling policy; it requires elevated privileges on
+    Linux (run with \code{sudo}).
+  \item \code{t1} is assigned \code{SCHED_FIFO} with priority \code{99}, which is the highest
+    \code{SCHED_FIFO} priority on Linux (the valid range is \code{1}--\code{99};
+    \code{sched_get_priority_max(SCHED_FIFO)} returns the maximum on any POSIX system).
+\end{itemize}
+
+\begin{cppcode}
+int main()
+{
+    // Create thread running function task().
+    std::thread t1{task};
+
+    // Get the native handle of the thread (pthread in Linux).
+    auto handle = t1.native_handle();
+
+    // Set thread policy and priority via the handle.
+    constexpr int maxPrio{99};
+    sched_param sched{maxPrio};
+    pthread_setschedparam(handle, SCHED_FIFO, &sched);
+
+    t1.join();
+    return 0;
+}
+\end{cppcode}
+
+\subsection{What is a data race?}
+\label{c6:sec:datarace}
+A data race occurs when:
+\begin{itemize}
+  \item Two threads access the same memory location.
+  \item At least one access is a write operation.
+  \item No synchronization mechanism is used.
+\end{itemize}
+Result:
+\begin{itemize}
+  \item Leads to undefined behavior, even if the program appears to work during testing.
+  \item The program may work correctly until it suddenly does not.
+\end{itemize}
+
+\subsection{Mutexes and critical sections}
+\label{c6:sec:mutex}
+A mutex is a lock that makes it easy to protect critical sections, i.e., regions containing
+resources shared between threads.
+
+A mutex is implemented using the \code{std::mutex} type from the \code{<mutex>} header:
+
+\begin{cppcode}
+std::mutex mutex{};
+\end{cppcode}
+
+\noindent A mutex can be used to protect resources shared between threads:
+\begin{itemize}
+  \item A given mutex is shared between the threads.
+  \item Shared resources are protected by locking the mutex using \code{lock()}. This call blocks
+    the current thread until the resource becomes available.
+  \item Shared resources are made available to other threads by unlocking the mutex using
+    \code{unlock()}.
+  \item A mutex can protect multiple related variables simultaneously.
+\end{itemize}
+The example below demonstrates how a mutex is shared between two functions running in separate
+threads. Each thread temporarily gains exclusive access to the shared resources:
+\begin{itemize}
+  \item The threads take turns using \code{std::cout} for terminal output.
+  \item A mutex is used to protect \code{std::cout} in each thread:
+  \begin{itemize}
+    \item A thread reserves \code{std::cout} as soon as it becomes available by locking the mutex.
+    \item While \code{std::cout} is reserved, other threads must wait.
+    \item Once access is granted, the thread performs its output operation.
+    \item After the output is complete, the mutex is unlocked to make \code{std::cout} available to
+      the other thread.
+  \end{itemize}
+\end{itemize}
+\note These examples intentionally omit a stop mechanism and are used for illustration purposes
+only.
+
+\begin{cppcode}
+std::mutex mutex{};
+
+// Function running in thread 1.
+void thread1Func()
+{
+    while (true)
+    {
+        // Lock mutex before entering critical region.
+        mutex.lock();
+        {
+            // Critical region - Feel free to access shared resources here.
+            // Note: Terminal print is a resource shared between the threads.
+            std::cout << "Thread1 currently has access to the terminal!\n";
+        }
+        // Unlock the mutex to make shared data available for the other thread.
+        mutex.unlock();
+    }
+}
+
+// Function running in thread 2.
+void thread2Func()
+{
+    while (true)
+    {
+        // Lock mutex before entering critical region.
+        mutex.lock();
+        {
+            // Critical region - Feel free to access shared resources here.
+            // Note: Terminal print is a resource shared between the threads.
+            std::cout << "Thread2 currently has access to the terminal!\n";
+        }
+        // Unlock the mutex to make shared data available for other threads.
+        mutex.unlock();
+    }
+}
+\end{cppcode}
+
+\noindent We can also use \code{std::lock_guard<T>} from \code{<mutex>} to automatically lock and
+unlock a mutex:
+
+\begin{cppcode}
+std::lock_guard<std::mutex> lock{mutex};
+\end{cppcode}
+
+\noindent This works as follows:
+\begin{itemize}
+  \item The mutex is automatically locked when the lock guard is created.
+  \item The mutex is automatically unlocked when the lock guard is destroyed, i.e., when it goes
+    out of scope.
+\end{itemize}
+The code snippet above can be modified to use a lock guard, as shown below:
+
+\begin{cppcode}
+std::mutex mutex{};
+
+// Function running in thread 1.
+void thread1Func()
+{
+    while (true)
+    {
+        {
+            // Lock mutex before entering critical region.
+            std::lock_guard<std::mutex> lock{mutex};
+
+            // Critical region - Feel free to access shared resources here.
+            // Note: Terminal print is a resource shared between the threads.
+            std::cout << "Thread1 currently has access to the terminal!\n";
+        }
+    }
+}
+
+// Function running in thread 2.
+void thread2Func()
+{
+    while (true)
+    {
+        {
+            // Lock mutex before entering critical region.
+            std::lock_guard<std::mutex> lock{mutex};
+
+            // Critical region - Feel free to access shared resources here.
+            // Note: Terminal print is a resource shared between the threads.
+            std::cout << "Thread2 currently has access to the terminal!\n";
+        }
+    }
+}
+\end{cppcode}
+
+\subsection{\code{std::atomic}}
+\label{c6:sec:atomic}
+Individual variables shared between threads, such as stop flags, can be made atomic instead of
+being protected by a mutex. This simplifies the implementation because no mutex needs to be
+created, locked, or unlocked:
+\begin{itemize}
+  \item Atomic variables are implemented using the \code{std::atomic} type from the \code{<atomic>}
+    header.
+  \item For example, an atomic boolean variable named \code{stopFlag} can be implemented as:
+\end{itemize}
+
+\begin{cppcode}
+std::atomic<bool> stopFlag{false};
+\end{cppcode}
+
+\noindent To modify and read the stop flag, the methods \code{store()} and \code{load()} can be
+used:
+
+\begin{cppcode}
+// Set the stop flag.
+stopFlag.store(true);
+
+// Check the stop flag.
+const bool stop{stopFlag.load()};
+\end{cppcode}
+
+\noindent Atomic stop flags are commonly used to stop multiple threads simultaneously.
+
+\begin{aside}
+Prefer \code{std::atomic} over a \code{volatile} variable; \code{volatile} gives no thread-safety
+guarantees in C++.
+\end{aside}
+
+\note
+\begin{itemize}
+  \item An atomic variable only protects a single variable.
+  \item If multiple variables must be updated together, a mutex is required, even if each
+    individual variable is atomic.
+  \item A mutex also provides memory synchronization between threads, ensuring that writes
+    performed within a critical section become visible to other threads once the lock is
+    released.
+\end{itemize}
+
+\subsection{Example: mutex with lock guard and atomic stop flag}
+\label{c6:sec:txrx}
+The example below demonstrates a typical embedded scenario:
+\begin{itemize}
+  \item A transmitter thread (TX) periodically produces messages.
+  \item A receiver thread (RX) reads and consumes new data.
+  \item A third thread stops program execution after a specified timeout.
+\end{itemize}
+
+\begin{cppcode}
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iostream>
+#include <mutex>
+#include <thread>
+
+namespace
+{
+/**
+ * @brief Shared memory used by TX and RX threads.
+ *
+ *        Access must be protected by mutex to avoid data races.
+ */
+struct SharedMem
+{
+    /** Shared data. */
+    std::uint16_t data{};
+
+    /** Indicate that new data is available (protected by a mutex, hence not atomic). */
+    bool newData{false};
+};
+
+/** Mutex to protect critical regions. */
+std::mutex mutex{};
+
+// -----------------------------------------------------------------------------
+void wait_ms(const std::size_t ms) noexcept
+{
+    // Sleep the calling thread for the given duration.
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+// -----------------------------------------------------------------------------
+void txThread(SharedMem& shared, const std::atomic<bool>& stop,
+              const std::size_t txInterval_ms) noexcept
+{
+    std::uint16_t counter{};
+
+    // Run the TX loop as long as the stop flag isn't set.
+    while (!stop.load())
+    {
+        // Enter critical section, lock the mutex to protect shared memory.
+        {
+            std::lock_guard<std::mutex> lock{mutex};
+
+            // Produce new data and mark it as available.
+            shared.data    = counter++;
+            shared.newData = true;
+            std::cout << "TX: Produced " << shared.data << "!\n";
+        }
+        wait_ms(txInterval_ms);
+    }
+}
+
+// -----------------------------------------------------------------------------
+void rxThread(SharedMem& shared, const std::atomic<bool>& stop,
+              const std::size_t rxInterval_ms) noexcept
+{
+    // Run the RX loop as long as the stop flag isn't set.
+    while (!stop.load())
+    {
+        // Enter critical section, lock the mutex to protect shared memory.
+        {
+            std::lock_guard<std::mutex> lock{mutex};
+
+            // Consume new data if available.
+            if (shared.newData)
+            {
+                std::cout << "RX: Consumed " << shared.data << "!\n";
+                shared.newData = false;
+            }
+        }
+        wait_ms(rxInterval_ms);
+    }
+}
+
+// -----------------------------------------------------------------------------
+void stopThread(std::atomic<bool>& stop, const std::size_t timeout_ms) noexcept
+{
+    // Wait for timeout, then signal all threads to stop.
+    wait_ms(timeout_ms);
+    stop.store(true);
+}
+} // namespace
+
+// -----------------------------------------------------------------------------
+int main()
+{
+    constexpr std::size_t txInterval_ms{1000U};
+    constexpr std::size_t rxInterval_ms{100U};
+    constexpr std::size_t threadTimeout_ms{10000U};
+
+    // Shared memory structure.
+    SharedMem sharedMem{};
+
+    // Atomic stop flag shared between threads.
+    // Atomic is sufficient here, since it protects a single variable.
+    std::atomic<bool> stopFlag{false};
+
+    // Create and run threads during ten seconds to simulate communication.
+    std::thread t1{txThread, std::ref(sharedMem), std::cref(stopFlag), txInterval_ms};
+    std::thread t2{rxThread, std::ref(sharedMem), std::cref(stopFlag), rxInterval_ms};
+    std::thread t3{stopThread, std::ref(stopFlag), threadTimeout_ms};
+
+    // Synchronize the threads.
+    t1.join();
+    t2.join();
+    t3.join();
+    return 0;
+}
+\end{cppcode}
+
+\subsection{Why is a mutex needed?}
+\label{c6:sec:whymutex}
+\code{SharedMem} contains resources shared between the TX and RX threads that belong together:
+\begin{itemize}
+  \item \code{data}: Data shared between the threads.
+  \item \code{newData}: Indicates that new data is available.
+\end{itemize}
+If TX and RX execute simultaneously without a mutex, RX may read the data while it is being
+updated. A mutex ensures that both fields are updated completely before another thread is allowed
+to read them.
+
+\subsection{\code{std::future} and \code{std::async}}
+\label{c6:sec:async}
+A \code{std::future} represents the result of an asynchronous operation, i.e., the return value
+from a task running in another thread. \code{std::async} is the simplest way to launch such a task;
+it returns a \code{std::future} bound to its result. No manual thread management is needed, making
+it convenient for one-shot background computations.
+
+\code{std::async} accepts an optional launch policy as its first argument:
+\begin{itemize}
+  \item \code{std::launch::async}: The task runs immediately in a new thread.
+  \item \code{std::launch::deferred}: The task is postponed and runs synchronously on the calling
+    thread the first time \code{future.get()} or \code{future.wait()} is called. No new thread is
+    created.
+\end{itemize}
+If no policy is specified, the implementation is free to choose either, which can lead to
+surprising behaviour. Prefer being explicit:
+
+\begin{cppcode}
+// Always run in a new thread.
+auto asyncFuture = std::async(std::launch::async, computeChecksum, frame, headerLen);
+
+// Run on the calling thread when deferredFuture.get() is called.
+auto deferredFuture = std::async(std::launch::deferred, computeChecksum, frame, headerLen);
+\end{cppcode}
+
+\noindent Below is an example of a checksum computation of a frame being performed while printing
+the frame content:
+
+\begin{cppcodedashes}
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <future>
+
+namespace
+{
+// -----------------------------------------------------------------------------
+[[nodiscard]] std::uint16_t computeChecksum(const std::uint8_t* buf, const std::size_t bufLen) noexcept
+{
+    // Check buffer, return 0 if invalid.
+    if ((nullptr == buf) || (0U == bufLen)) { return 0U; }
+    std::uint16_t chk{};
+
+    // Compute the checksum by adding each byte of the buffer.
+    for (std::size_t i{}; i < bufLen; ++i)
+    {
+        chk += buf[i];
+    }
+    return chk;
+}
+
+// -----------------------------------------------------------------------------
+void printBuf(const std::uint8_t* buf, const std::size_t bufLen) noexcept
+{
+    if ((nullptr == buf) || (0U == bufLen)) { return; }
+    std::printf("--------------------------------------------------------------------------------\n");
+    for (std::size_t i{}; i < bufLen; ++i) { std::printf("0x%02X ", buf[i]); }
+    std::printf("\n--------------------------------------------------------------------------------\n\n");
+}
+} // namespace
+
+// -----------------------------------------------------------------------------
+int main()
+{
+    constexpr std::size_t headerLen{8U};
+    constexpr std::size_t chkLen{2U};
+    constexpr std::size_t frameLen{headerLen + chkLen};
+    constexpr std::size_t chkOffset1{frameLen - 2U};
+    constexpr std::size_t chkOffset2{frameLen - 1U};
+    constexpr std::size_t shift{8U};
+
+    // Create a frame without checksum.
+    std::uint8_t frame[frameLen]{0xA5U, 0xF7U, 0x00U, 0x02U, 0x25U, 0x01U, 0xFAU, 0xABU};
+
+    // Compute the checksum asynchronously; print the frame during the computation.
+    auto future = std::async(std::launch::async, computeChecksum, frame, headerLen);
+    printBuf(frame, headerLen);
+
+    // Add the checksum to the frame, then print the frame again.
+    const auto chk = future.get();
+    frame[chkOffset1] = static_cast<std::uint8_t>(chk >> shift);
+    frame[chkOffset2] = static_cast<std::uint8_t>(chk);
+    printBuf(frame, frameLen);
+    return 0;
+}
+\end{cppcodedashes}
+
+\subsection{\code{std::condition_variable}: signalling between threads}
+\label{c6:sec:condvar}
+A condition variable lets a thread sleep until another signals it; no busy-waiting or polling
+required:
+\begin{itemize}
+  \item Condition variables are appropriate when one thread produces data and another consumes it.
+  \item In C++, a condition variable is implemented as shown below:
+\end{itemize}
+
+\begin{cppcode}
+#include <condition_variable>
+
+std::condition_variable condition{};
+\end{cppcode}
+
+\noindent The example below demonstrates a typical embedded scenario:
+\begin{itemize}
+  \item A transmitter thread (TX) periodically produces data and pushes it onto a shared queue.
+  \item A receiver thread (RX) waits for new data using a condition variable and pops it from the
+    queue.
+  \item A third thread stops program execution after a specified timeout by setting a stop flag
+    and notifying all waiting threads.
+\end{itemize}
+
+\begin{cppcode}
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
+
+namespace
+{
+/**
+ * @brief Shared data structure.
+ */
+struct Shared
+{
+    /** Mutex to protect access to queue. */
+    std::mutex mutex{};
+
+    /** Stop flag to signal all threads to terminate. */
+    std::atomic<bool> stop{false};
+
+    /** Condition variable to notify rxThread when new data is available. */
+    std::condition_variable condition{};
+
+    /** Queue of data shared between txThread and rxThread. */
+    std::queue<std::uint32_t> queue{};
+};
+
+// -----------------------------------------------------------------------------
+[[nodiscard]] bool isDataAvailable(const Shared& shared) noexcept
+{
+    // Return true if data is available or the stop flag is set.
+    return !shared.queue.empty() || shared.stop.load();
+}
+
+// -----------------------------------------------------------------------------
+void stopThread(Shared& shared, const std::uint16_t duration_ms) noexcept
+{
+    // Wait for the given duration to pass before setting the stop flag.
+    std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
+
+    // Set stop flag while holding the mutex, then wake up all threads for clean termination.
+    {
+        std::lock_guard<std::mutex> lock{shared.mutex};
+        shared.stop.store(true);
+    }
+    shared.condition.notify_all();
+}
+
+// -----------------------------------------------------------------------------
+void txThread(Shared& shared) noexcept
+{
+    constexpr std::uint8_t period_ms{100U};
+    std::uint32_t counter{};
+
+    // Run thread as long as the stop flag is not set.
+    while (!shared.stop.load())
+    {
+        // Enter critical section, lock the mutex to protect shared memory.
+        {
+            // Add number to queue.
+            std::lock_guard<std::mutex> lock{shared.mutex};
+            shared.queue.push(counter);
+            std::printf("Pushed number %u to shared queue!\n", counter++);
+        }
+        // Notify the RX thread that data is available.
+        shared.condition.notify_one();
+        std::this_thread::sleep_for(std::chrono::milliseconds(period_ms));
+    }
+}
+
+// -----------------------------------------------------------------------------
+void rxThread(Shared& shared) noexcept
+{
+    // Run thread as long as the stop flag is not set.
+    while (!shared.stop.load())
+    {
+        // Enter critical section, lock the mutex to protect shared memory.
+        {
+            // Wait for data to be available.
+            std::unique_lock<std::mutex> lock{shared.mutex};
+            auto predicate = [&shared] { return isDataAvailable(shared); };
+            shared.condition.wait(lock, predicate);
+
+            // Check if stop flag was set during the wait, terminate thread if true.
+            if (shared.stop.load()) { break; }
+
+            // Pop value from the queue when available.
+            if (!shared.queue.empty())
+            {
+                const auto num = shared.queue.front();
+                shared.queue.pop();
+                std::printf("Popped number %u from shared queue!\n", num);
+            }
+        }
+    }
+}
+} // namespace
+
+// -----------------------------------------------------------------------------
+int main()
+{
+    constexpr std::uint16_t duration_ms{2000U};
+
+    // Create shared data structure.
+    Shared shared{};
+
+    // Create threads.
+    std::thread t1{stopThread, std::ref(shared), duration_ms};
+    std::thread t2{txThread, std::ref(shared)};
+    std::thread t3{rxThread, std::ref(shared)};
+
+    // Synchronize threads.
+    t1.join();
+    t2.join();
+    t3.join();
+    return 0;
+}
+\end{cppcode}
+
+\needspace{5\baselineskip}
+\note[Notes]
+\begin{itemize}
+  \item \code{std::unique_lock} is used here instead of \code{std::lock_guard} because
+    \code{condition.wait()} needs to temporarily release the mutex while the thread is sleeping.
+  \item A lambda is used to wrap \code{isDataAvailable} together with the \code{shared} state it
+    depends on, since \code{condition.wait()} requires a predicate callable with no arguments. The
+    lambda captures \code{shared} by reference (\code{[&shared]}), so it can pass it into
+    \code{isDataAvailable(shared)} each time \code{wait()} re-checks the condition, without copying
+    the \code{Shared} struct (which wouldn't even compile, since it contains a non-copyable
+    \code{std::atomic}).
+  \item If \code{stopThread} only set \code{stop = true} without calling \code{notify_all()}, the RX
+    thread could get stuck indefinitely inside \code{condition.wait()}: once \code{stop} is set, TX
+    exits its loop and stops pushing values to the queue and calling \code{notify_one()}, so
+    nothing would wake the RX thread up. Calling \code{notify_all()} ensures any thread sleeping in
+    \code{wait()} is woken up. The \code{|| shared.stop.load()} clause in \code{isDataAvailable}
+    then makes the predicate return \code{true}, allowing \code{wait()} to return so the thread can
+    detect the stop flag and exit cleanly.
+  \item \code{stopThread} sets the stop flag while holding the mutex, even though \code{stop} is
+    atomic. \code{wait()} checks the predicate and goes to sleep while holding the mutex, so a
+    change made under the same mutex cannot land in between. Without the lock, \code{stop} could be
+    set, and \code{notify_all()} called, just after RX found the predicate \code{false} but before
+    it went to sleep; the notification would then be lost, and RX would sleep forever. Any variable
+    a predicate depends on must be modified while holding the mutex, atomic or not.
+\end{itemize}
+
+You can also invoke non-static member functions as thread entry points, rather than passing the
+shared struct by reference into free functions, as shown below:
+
+\begin{cppcode}
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
+
+namespace
+{
+/**
+ * @brief Shared data structure.
+ */
+struct Shared
+{
+    /** Mutex to protect access to queue. */
+    std::mutex mutex{};
+
+    /** Stop flag to signal all threads to terminate. */
+    std::atomic<bool> stop{false};
+
+    /** Condition variable to notify rxThread when new data is available. */
+    std::condition_variable condition{};
+
+    /** Queue of data shared between txThread and rxThread. */
+    std::queue<std::uint32_t> queue{};
+
+    // -------------------------------------------------------------------------
+    void stopThread(const std::uint16_t duration_ms) noexcept
+    {
+        // Wait for the given duration to pass before setting the stop flag.
+        std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
+
+        // Set stop flag while holding the mutex, then wake up all threads for clean termination.
+        {
+            std::lock_guard<std::mutex> lock{mutex};
+            stop.store(true);
+        }
+        condition.notify_all();
+    }
+
+    // -------------------------------------------------------------------------
+    void txThread() noexcept
+    {
+        constexpr std::uint8_t period_ms{100U};
+        std::uint32_t counter{};
+
+        // Run thread as long as the stop flag is not set.
+        while (!stop.load())
+        {
+            // Enter critical section, lock the mutex to protect shared memory.
+            {
+                // Add number to queue.
+                std::lock_guard<std::mutex> lock{mutex};
+                queue.push(counter);
+                std::printf("Pushed number %u to shared queue!\n", counter++);
+            }
+            // Notify the RX thread that data is available.
+            condition.notify_one();
+            std::this_thread::sleep_for(std::chrono::milliseconds(period_ms));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    void rxThread() noexcept
+    {
+        // Run thread as long as the stop flag is not set.
+        while (!stop.load())
+        {
+            // Enter critical section, lock the mutex to protect shared memory.
+            {
+                // Wait for data to be available.
+                std::unique_lock<std::mutex> lock{mutex};
+                auto predicate = [this] { return isDataAvailable(); };
+                condition.wait(lock, predicate);
+
+                // Check if stop flag was set during the wait, terminate thread if true.
+                if (stop.load()) { break; }
+
+                // Pop value from the queue when available.
+                if (!queue.empty())
+                {
+                    const auto num = queue.front();
+                    queue.pop();
+                    std::printf("Popped number %u from shared queue!\n", num);
+                }
+            }
+        }
+    }
+
+private:
+    // -------------------------------------------------------------------------
+    [[nodiscard]] bool isDataAvailable() noexcept
+    {
+        // Return true if data is available or the stop flag is set.
+        return !queue.empty() || stop.load();
+    }
+
+};
+} // namespace
+
+// -----------------------------------------------------------------------------
+int main()
+{
+    constexpr std::uint16_t duration_ms{2000U};
+
+    // Create shared data structure.
+    Shared shared{};
+
+    // Create threads.
+    std::thread t1{&Shared::stopThread, &shared, duration_ms};
+    std::thread t2{&Shared::txThread, &shared};
+    std::thread t3{&Shared::rxThread, &shared};
+
+    // Synchronize threads.
+    t1.join();
+    t2.join();
+    t3.join();
+    return 0;
+}
+\end{cppcode}
+
+\needspace{5\baselineskip}
+\note[Notes]
+\begin{itemize}
+  \item Since \code{isDataAvailable} and the thread functions now live inside \code{Shared}, they
+    have implicit access to all of \code{Shared}'s members through \code{this}. The lambda
+    therefore captures \code{[this]} instead of \code{[&shared]}, giving it access to the whole
+    enclosing object rather than one external reference. This also means that it can reach
+    \code{isDataAvailable()} even though it's \code{private}.
+  \item The same stuck-wait concern applies here as in the free-function version above:
+    \code{notify_all()} in \code{stopThread} is essential, and so is setting \code{stop} while
+    holding the mutex. Without either, the RX thread could remain blocked in
+    \code{condition.wait()} indefinitely once TX stops pushing new values.
+\end{itemize}
+
+\subsection{Priority inversion}
+\label{c6:sec:inversion}
+Priority inversion is a scheduling bug that can occur when threads of different priorities share a
+mutex. Here is what happens, step by step:
+\begin{enumerate}
+  \item A \textbf{low-priority thread} locks a mutex and begins a long operation.
+  \item A \textbf{high-priority thread} wakes up and tries to lock the same mutex. Since the mutex
+    is locked by the low-priority thread, the high-priority thread blocks and waits.
+  \item A \textbf{medium-priority thread} wakes up and preempts (forcibly takes the CPU from) the
+    low-priority thread, because it has higher priority. This thread does not use the mutex at
+    all; it is doing its own completely unrelated work. The scheduler simply gives it the CPU
+    because it outranks the currently running low-priority thread.
+  \item The medium-priority thread runs to completion, preventing the low-priority thread from
+    finishing and releasing the mutex.
+  \item The high-priority thread remains blocked, not because of its own work, but because the
+    medium-priority thread delayed the lock release.
+\end{enumerate}
+Only once the medium-priority thread has finished can the low-priority thread run again, complete
+its operation, and release the mutex; only then can the high-priority thread lock it and run. The
+high-priority task ends up waiting on the medium-priority one; an inversion of the intended
+scheduling order.
+
+Note that the preemption in step 3 is a normal scheduler decision:
+\begin{itemize}
+  \item The OS sees a higher-priority thread become runnable and gives it the CPU. The mutex plays
+    no role there.
+  \item The problem is that \code{std::mutex} has no way to prevent the inversion once it starts;
+    it does not support \textbf{priority inheritance}, a feature where the mutex temporarily boosts
+    the low-priority thread's priority (to match the blocked high-priority thread) so it can finish
+    and release the lock before any medium-priority thread cuts in. On an RTOS, this can be
+    addressed with a priority-inheritance mutex (see the notes below).
+\end{itemize}
+Priority inversion can be illustrated as shown in Figure~\ref{fig:priority_inversion}.
+
+\bookfigure{priority_inversion}{Priority inversion on one CPU. High blocks on the mutex Low holds
+(event 2), which is expected; then Medium, which never touches the mutex, preempts Low (event 3)
+and runs to completion. Only when Medium is done can Low finish and unlock (event 5), so High
+waits for the whole of Medium's work as well as Low's critical section.}{fig:priority_inversion}
+
+The following code shows a conceptual example of the same scenario:
+
+\begin{cppcode}
+// Mutex used to protect access of shared resources.
+std::mutex mutex{};
+
+// -----------------------------------------------------------------------------
+void lowPriorityTask() noexcept
+{
+    // Holds the mutex during a long operation, blocking highPriorityTask.
+    std::lock_guard<std::mutex> lock{mutex};
+    runLongOperation();
+}
+
+// -----------------------------------------------------------------------------
+void mediumPriorityTask() noexcept
+{
+    // Preempts lowPriorityTask, preventing it from releasing the mutex.
+    runCpuIntensiveWork();
+}
+
+// -----------------------------------------------------------------------------
+void highPriorityTask() noexcept
+{
+    // Blocks until lowPriorityTask releases the mutex.
+    std::lock_guard<std::mutex> lock{mutex};
+    resetWatchdog();
+}
+\end{cppcode}
+
+\begin{aside}
+\textbf{Notes:}
+\begin{itemize}
+  \item Priority inversion cannot be reliably demonstrated with standard C++ on a desktop OS.
+    \code{std::thread} assigns no priority by default, so the scheduler treats all threads equally.
+    The example above is a conceptual illustration only.
+  \item If you are mixing thread priorities on an RTOS, replace \code{std::mutex} with the
+    platform's native priority-inheritance mutex. \code{std::thread} itself is not the problem.
+\end{itemize}
+\end{aside}
+
+\subsection{Rule of thumb}
+\label{c6:sec:rules}
+\begin{itemize}
+  \item \code{std::atomic} is suitable for individual variables, such as stop flags.
+  \item \code{std::mutex} is required when multiple resources, such as variables, are shared
+    between threads.
+  \item \code{std::condition_variable} replaces polling loops when a thread must wait for an event
+    produced by another thread.
+  \item \code{std::async} / \code{std::future} is convenient for one-shot background tasks where
+    you need the result later.
+  \item Be aware of \textbf{priority inversion} whenever threads of mixed priority share a mutex.
+\end{itemize}
+
+\subsection{Summary}
+\label{c6:sec:threadsummary}
+In this section, we have seen:
+\begin{itemize}
+  \item The difference between concurrency and true parallelism.
+  \item How the scheduler decides which thread runs; time-slicing vs.\ cooperative.
+  \item How to create threads using \code{std::thread}.
+  \item How to protect shared data using \code{std::mutex}.
+  \item How to use \code{std::atomic} correctly.
+  \item The difference between atomic variables and mutexes.
+  \item How to signal between threads efficiently using \code{std::condition_variable}.
+  \item How to launch background tasks using \code{std::async} and \code{std::future}.
+  \item What priority inversion is and why it matters in embedded systems.
+\end{itemize}
+These concepts form the foundation of safe parallel programming in modern C++.

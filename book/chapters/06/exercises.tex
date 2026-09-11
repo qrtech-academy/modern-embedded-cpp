@@ -1,0 +1,594 @@
+% Section 6.3, from lectures/L06/appendix/b_exercises.md.
+
+\section{Exercises}
+\label{c6:sec:exercises}\label{c6:app:b}
+
+\begin{aside}
+\textbf{How to work these.} These exercises reinforce the concepts from \secref{c6:sec:threads}.
+Each set names the file or directory to work in; build it with the Makefile from
+\secref{c1:sec:makefile}, and add \code{-pthread} to the compiler flags
+(\code{CXX_FLAGS := -Wall -Werror -std=c++17 -pthread}). GCC requires it for programs that use
+\code{std::thread}; without it, the program may fail to link, or fail at runtime, on systems with a
+C library older than glibc 2.34.
+
+The solutions are in \secref{sol:sec:c6}, one program per set. Try each exercise yourself before
+looking at them.
+\end{aside}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Threads and Atomic Stop Flag}
+\label{c6:set:1}
+Create a file named \file{exercise1.cpp} to work in for this exercise set.
+
+\exercise{Creating a worker thread}{Code}
+\label{c6:ex:1.1}
+In this exercise you will create a simple worker function that runs in a separate thread.
+
+\task{Tasks}
+In \file{exercise1.cpp}, create a function named \code{workerThread()}.
+
+The function shall:
+\begin{itemize}
+  \item Take a \code{std::uint8_t} named \code{printCount}: The number of times to print.
+  \item Take a \code{std::uint16_t} named \code{printSpeed_ms}: The delay in milliseconds between
+    each print.
+  \item Return \code{void}.
+  \item Print \code{"Worker thread running!"} \code{printCount} times.
+  \item Sleep for \code{printSpeed_ms} milliseconds between each print using
+    \code{std::this_thread::sleep_for()} with \code{std::chrono::milliseconds}.
+\end{itemize}
+
+\exercise{Starting and joining the thread}{Code}
+\label{c6:ex:1.2}
+In \file{exercise1.cpp}:
+\begin{itemize}
+  \item Create a \code{std::thread} that runs \code{workerThread()}, passing \code{5U} as
+    \code{printCount} and \code{500U} as \code{printSpeed_ms}.
+  \item Print \code{"Main thread running!"} from \code{main()}.
+  \item Call \code{join()} on the worker thread before returning from \code{main()}.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item What happens if \code{join()} is not called?
+  \item Which thread prints first, the main thread or the worker thread?
+  \item Is the print order guaranteed?
+\end{itemize}
+
+\exercise{Atomic stop flag}{Code}
+\label{c6:ex:1.3}
+In this exercise you will modify the worker thread so that it runs until a stop flag is set.
+
+\task{Tasks}
+Create an atomic boolean variable in \code{main()}:
+
+\begin{cppcode}
+std::atomic<bool> stop{false};
+\end{cppcode}
+
+\noindent Modify \code{workerThread()} so that it:
+\begin{itemize}
+  \item Replaces the \code{printCount} parameter with a \code{const std::atomic<bool>&} named
+    \code{stop}, placed after \code{printSpeed_ms}.
+  \item Runs as long as \code{stop.load()} is \code{false}.
+  \item Prints \code{"Worker thread running!"} once every \code{printSpeed_ms} milliseconds.
+\end{itemize}
+In \code{main()}:
+\begin{itemize}
+  \item Start the worker thread.
+  \item Let the main thread sleep for \code{3000 ms}.
+  \item Set the stop flag using \code{stop.store(true)}.
+  \item Join the worker thread.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item Why is \code{std::atomic<bool>} suitable for this stop flag?
+  \item Would a normal \code{bool} be safe here?
+  \item Why is \code{load()} used when reading the flag?
+  \item Why is \code{store()} used when writing the flag?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Shared Counter with Data Race}
+\label{c6:set:2}
+Create a file named \file{exercise2.cpp} to work in for this exercise set.
+
+\exercise{Shared counter without synchronization}{Code}
+\label{c6:ex:2.1}
+In this exercise you will intentionally create a data race.
+
+\task{Tasks}
+Create a shared counter variable in \code{main()}:
+
+\begin{cppcode}
+std::uint32_t counter{};
+\end{cppcode}
+
+\noindent Create a function named \code{incrementCounter()}. The function shall:
+\begin{itemize}
+  \item Take a reference to the counter.
+  \item Take a number of iterations (\code{std::uint32_t}).
+  \item Increment the counter once per iteration.
+  \item Be marked \code{noexcept}.
+\end{itemize}
+In \code{main()}:
+\begin{itemize}
+  \item Create two threads that both call \code{incrementCounter()}.
+  \item Let each thread increment the counter \code{100000U} times.
+  \item Join both threads.
+  \item Print the final counter value.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item What final value do you expect?
+  \item Do you always get the expected value?
+  \item Why is this program unsafe?
+  \item Which condition makes this a data race?
+\end{itemize}
+
+\exercise{Protecting the counter with a mutex}{Code}
+\label{c6:ex:2.2}
+In this exercise you will fix the data race using \code{std::mutex}.
+
+\task{Tasks}
+Create a mutex in \code{main()}:
+
+\begin{cppcode}
+std::mutex mutex{};
+\end{cppcode}
+
+\noindent Modify \code{incrementCounter()} so that it:
+\begin{itemize}
+  \item Takes a reference to the mutex.
+  \item Locks the mutex before incrementing the counter.
+  \item Uses \code{std::lock_guard<std::mutex>}.
+  \item Unlocks automatically when the lock guard goes out of scope.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item What final counter value do you get now?
+  \item Why does the mutex solve the problem?
+  \item Why is \code{std::lock_guard} safer than manually calling \code{lock()} and
+    \code{unlock()}?
+\end{itemize}
+
+\exercise{Atomic counter}{Code}
+\label{c6:ex:2.3}
+In this exercise you will replace the mutex-protected counter with an atomic counter.
+
+\task{Tasks}
+Replace the counter with:
+
+\begin{cppcode}
+std::atomic<std::uint32_t> counter{};
+\end{cppcode}
+
+\noindent Modify \code{incrementCounter()} so that it:
+\begin{itemize}
+  \item Takes a reference to the atomic counter.
+  \item Increments it once per iteration.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item What final counter value do you get?
+  \item Why is \code{std::atomic<std::uint32_t>} sufficient in this exercise?
+  \item Would an atomic counter still be sufficient if several related variables had to be updated
+    together?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Shared Data Protected by Mutex}
+\label{c6:set:3}
+Create a file named \file{exercise3.cpp} to work in for this exercise set.
+
+\exercise{Shared memory structure}{Code}
+\label{c6:ex:3.1}
+In this exercise you will create shared data that must be protected by a mutex.
+
+\task{Tasks}
+In \file{exercise3.cpp}, create a structure named \code{SharedMem} with the following members:
+\begin{itemize}
+  \item \code{data}: A 16-bit unsigned value.
+  \item \code{newData}: True if new data is available, false otherwise.
+\end{itemize}
+The structure represents data shared between a transmitter thread and a receiver thread.
+
+\exercise{Transmitter thread}{Code}
+\label{c6:ex:3.2}
+In \file{exercise3.cpp}, create a function named \code{txThread()}.
+
+The function shall:
+\begin{itemize}
+  \item Take a reference to \code{SharedMem}.
+  \item Take a reference to \code{std::mutex}.
+  \item Take a reference to \code{const std::atomic<bool>} named \code{stop}.
+  \item Run until the stop flag is set.
+  \item Produce an incrementing \code{std::uint16_t} value.
+  \item Store the value in \code{shared.data}.
+  \item Set \code{shared.newData} to \code{true}.
+  \item Sleep for \code{1000 ms} between transmissions.
+\end{itemize}
+The update of \code{shared.data} and \code{shared.newData} shall be protected using a lock guard.
+
+\exercise{Receiver thread}{Code}
+\label{c6:ex:3.3}
+In \file{exercise3.cpp}, create a function named \code{rxThread()}.
+
+The function shall:
+\begin{itemize}
+  \item Take a reference to \code{SharedMem}.
+  \item Take a reference to \code{std::mutex}.
+  \item Take a reference to \code{const std::atomic<bool>} named \code{stop}.
+  \item Run until the stop flag is set.
+  \item Check whether new data is available.
+  \item Print the received data if \code{shared.newData} is \code{true}.
+  \item Set \code{shared.newData} to \code{false} after consuming the data.
+  \item Sleep for \code{100 ms} between receive attempts.
+\end{itemize}
+The check and update of \code{shared.data} and \code{shared.newData} shall be protected by the same
+mutex.
+
+\exercise{Running TX and RX threads}{Code}
+\label{c6:ex:3.4}
+In \file{exercise3.cpp}:
+\begin{itemize}
+  \item Create one \code{SharedMem} object.
+  \item Create one \code{std::mutex}.
+  \item Create one atomic stop flag.
+  \item Start one TX thread.
+  \item Start one RX thread.
+  \item Let the main thread sleep for \code{10000 ms}.
+  \item Set the stop flag.
+  \item Join both threads.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item Why must \code{data} and \code{newData} be protected by the same mutex?
+  \item Why is \code{newData} not atomic in this design?
+  \item What could happen if TX updated \code{data} and \code{newData} without locking the mutex?
+  \item Why is the stop flag atomic instead of mutex-protected?
+  \item Could \code{std::atomic<SharedMem>} be used instead of a mutex? Why or why not?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Thread-Safe Stub Driver}
+\label{c6:set:4}
+Create the following directory structure to work in for this exercise set:
+
+\begin{console}
+Makefile
+include/
+    driver/
+        counter/
+            interface.hpp
+            stub.hpp
+source/
+    main.cpp
+\end{console}
+
+\note When a class overrides a method that is marked \code{[[nodiscard]]} in the interface, repeat
+the attribute on the overriding method as well. The attribute is not inherited; see
+\secref{c3:app:b}.
+
+\exercise{Counter driver interface}{Code}
+\label{c6:ex:4.1}
+In this exercise you will design an interface named \code{driver::counter::Interface}.
+
+The interface represents a generic counter driver.
+
+\task{Tasks}
+Design a class named \code{driver::counter::Interface}.
+
+All methods except the destructor shall be pure virtual (\code{= 0}).
+
+\task{a) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Virtual.
+  \item Marked \code{noexcept}.
+  \item Implemented using \code{= default}.
+\end{itemize}
+
+\task{b) Checking initialization state}
+Add a pure virtual method \code{isInitialized()} that:
+\begin{itemize}
+  \item Returns \code{true} if the driver is initialized, \code{false} otherwise.
+  \item Does not modify the object.
+  \item Is marked \code{noexcept} and \code{[[nodiscard]]}.
+\end{itemize}
+
+\task{c) Reading the counter}
+Add a pure virtual method \code{value()} that:
+\begin{itemize}
+  \item Returns the current counter value as \code{std::uint32_t}.
+  \item Does not modify the object.
+  \item Is marked \code{noexcept} and \code{[[nodiscard]]}.
+\end{itemize}
+
+\task{d) Incrementing the counter}
+Add a pure virtual method \code{increment()} that:
+\begin{itemize}
+  \item Increments the counter by one.
+  \item Does not return a value.
+  \item Is marked \code{noexcept}.
+\end{itemize}
+
+\task{e) Resetting the counter}
+Add a pure virtual method \code{reset()} that:
+\begin{itemize}
+  \item Resets the counter to zero.
+  \item Does not return a value.
+  \item Is marked \code{noexcept}.
+\end{itemize}
+
+\exercise{Thread-safe stub counter}{Code}
+\label{c6:ex:4.2}
+In this exercise you will implement \code{driver::counter::Stub}.
+
+The class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::counter::Interface}.
+  \item Be marked \code{final}.
+  \item Be safe to use from multiple threads (via a mutex).
+\end{itemize}
+
+\task{a) Member variables}
+Add two private member variables:
+\begin{itemize}
+  \item \code{myMutex}:
+  \begin{itemize}
+    \item Type: \code{std::mutex}.
+    \item Protects access to \code{myValue} below.
+    \item Must be marked \code{mutable} because \code{value()} is a \code{const} method but still
+      needs to lock the mutex.
+  \end{itemize}
+  \item \code{myValue}:
+  \begin{itemize}
+    \item Type: \code{std::uint32_t}.
+    \item Stores the counter value.
+  \end{itemize}
+\end{itemize}
+
+\task{b) Constructor}
+Add a default constructor that:
+\begin{itemize}
+  \item Initializes the counter to zero.
+  \item Is marked \code{noexcept}.
+\end{itemize}
+
+\task{c) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Public.
+  \item Marked \code{noexcept}.
+  \item Declared with \code{override}.
+  \item Implemented using \code{= default}.
+\end{itemize}
+
+\task{d) Implement interface methods}
+Implement all methods required by the interface:
+\begin{itemize}
+  \item \code{isInitialized()} shall return \code{true}.
+  \item \code{value()} shall:
+  \begin{itemize}
+    \item Lock the mutex using \code{std::lock_guard<std::mutex>}.
+    \item Return \code{myValue}.
+  \end{itemize}
+  \item \code{increment()} shall:
+  \begin{itemize}
+    \item Lock the mutex using \code{std::lock_guard<std::mutex>}.
+    \item Increment \code{myValue}.
+  \end{itemize}
+  \item \code{reset()} shall:
+  \begin{itemize}
+    \item Lock the mutex using \code{std::lock_guard<std::mutex>}.
+    \item Set \code{myValue} to zero.
+  \end{itemize}
+\end{itemize}
+
+\task{e) Disable copy and move semantics}
+Delete the following functions in the public section of the class:
+\begin{itemize}
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+\exercise{Testing the thread-safe stub}{Code}
+\label{c6:ex:4.3}
+Create a function named \code{counterThread()}.
+
+The function shall:
+\begin{itemize}
+  \item Take a reference to \code{driver::counter::Interface}.
+  \item Take a \code{std::uint32_t} named \code{iterations}, which is the number of times to call
+    \code{increment()}.
+  \item Be marked \code{noexcept}.
+\end{itemize}
+In \file{main.cpp}:
+\begin{itemize}
+  \item Create one \code{driver::counter::Stub}.
+  \item Start two threads, both running \code{counterThread()} --- the first with \code{100U}
+    iterations, the second with \code{200U}.
+  \item Join both threads.
+  \item Print the final counter value using \code{value()}.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item Why does \code{value()} need to lock the mutex even though it only reads the value?
+  \item Why is \code{myMutex} marked \code{mutable}?
+  \item What would happen if \code{increment()} did not lock the mutex?
+  \item Could \code{std::atomic<std::uint32_t>} be used instead in this specific class?
+  \item Why might a mutex still be preferable in a more complex driver?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Atomic State and Mutex-Protected Data}
+\label{c6:set:5}
+
+\exercise{Driver state}{Code}
+\label{c6:ex:5.1}
+In this exercise you will extend the counter stub with an initialization state.
+
+\task{Tasks}
+Add a private member variable to \code{driver::counter::Stub}:
+
+\begin{cppcode}
+std::atomic<bool> myInitialized;
+\end{cppcode}
+
+\noindent Initialize it to \code{true} in the constructor.
+
+\exercise{Initialization methods}{Code}
+\label{c6:ex:5.2}
+Add a public method \code{setInitialized()} specific to the stub. The method shall:
+\begin{itemize}
+  \item Take a \code{bool} named \code{initialized}.
+  \item Write to \code{myInitialized} using \code{store()}.
+  \item Be marked \code{noexcept}.
+\end{itemize}
+Override \code{isInitialized()} from the interface so that it:
+\begin{itemize}
+  \item Reads \code{myInitialized} using \code{load()}.
+  \item Returns the current initialization state instead of always returning \code{true}.
+\end{itemize}
+
+\exercise{Guarding counter operations}{Code}
+\label{c6:ex:5.3}
+Modify \code{increment()}, \code{value()}, and \code{reset()}:
+\begin{itemize}
+  \item \code{increment()} shall do nothing if the driver is not initialized.
+  \item \code{value()} shall return \code{0U} if the driver is not initialized.
+  \item \code{reset()} shall do nothing if the driver is not initialized.
+\end{itemize}
+The counter value itself shall still be protected by the mutex.
+
+\task{Reflection}
+\begin{itemize}
+  \item Why is \code{myInitialized} suitable as an atomic variable?
+  \item Why is \code{myValue} still protected by a mutex?
+  \item Would it be safe to make both variables atomic if future requirements added more related
+    state?
+  \item What is the main design difference between a thread-safe flag and thread-safe shared data?
+  \item What could happen if \code{setInitialized(false)} is called between the initialization
+    check and the mutex lock in \code{increment()}? How would you fix this?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Condition Variable}
+\label{c6:set:6}
+Create a file named \file{exercise6.cpp} by copying \file{exercise3.cpp}. All modifications in
+this exercise set are made to that file.
+
+\exercise{Replacing polling with a condition variable}{Code}
+\label{c6:ex:6.1}
+In Exercise~\ref{c6:ex:3.3} the receiver thread checks for new data by polling in a loop with a
+\code{100 ms} sleep. In this exercise you will replace that pattern with a
+\code{std::condition_variable} so the receiver wakes up immediately when data is available.
+
+\task{Tasks}
+Add a \code{std::condition_variable} named \code{cv} alongside the existing mutex.
+
+Create a helper function named \code{hasNewData()} to use as the wake-up predicate. The function
+shall:
+\begin{itemize}
+  \item Take a \code{const SharedMem&}.
+  \item Take a \code{const std::atomic<bool>&} named \code{stop}.
+  \item Return \code{true} if \code{shared.newData} is \code{true} or the stop flag is set,
+    \code{false} otherwise.
+  \item Be marked \code{noexcept} and \code{[[nodiscard]]}.
+\end{itemize}
+Modify \code{txThread()} so that it calls \code{cv.notify_one()} after releasing the lock guard that
+protects the data update.
+
+Modify \code{rxThread()} so that instead of sleeping it:
+\begin{itemize}
+  \item Acquires a \code{std::unique_lock<std::mutex>}.
+  \item Calls \code{cv.wait()} with the lock and a predicate that calls \code{hasNewData()}.
+\end{itemize}
+\note The predicate is passed as a lambda; the \code{[&]} syntax captures \code{shared} and
+\code{stop} by reference so the predicate can access both. Lambdas are covered in
+\secref{c6:sec:condvar}.
+
+In \code{main()}, set the stop flag while holding the mutex (in a scope of its own with a
+\code{std::lock_guard<std::mutex>}), then call \code{cv.notify_all()} to wake the receiver thread
+so it can exit cleanly.
+
+\note The stop flag is atomic, but it is also part of the predicate, and a variable the predicate
+depends on must be modified while holding the mutex. Otherwise the flag could be set, and
+\code{notify_all()} called, just after the receiver found the predicate \code{false} but before it
+went to sleep. That notification would be lost, and the receiver would never wake up.
+
+\task{Reflection}
+\begin{itemize}
+  \item Why is \code{std::unique_lock} required here instead of \code{std::lock_guard}?
+  \item What is a spurious wake-up, and how does the predicate protect against it?
+  \item Why must the stop flag also be checked inside the predicate?
+  \item How does this design differ from the polling approach in Exercise~\ref{c6:ex:3.3}?
+  \item What would happen if \code{notify_all()} was not called after setting the stop flag?
+  \item Why is \code{notify_all()} used here instead of \code{notify_one()}?
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{\code{std::async} and \code{std::future}}
+\label{c6:set:7}
+Create a new \file{main.cpp} to work in for this exercise set.
+
+\exercise{Offloading a computation}{Code}
+\label{c6:ex:7.1}
+In this exercise you will use \code{std::async} to run a validation in the background while the
+main thread continues working.
+
+\task{Tasks}
+Create a function named \code{validateFirmware()}. The function shall:
+\begin{itemize}
+  \item Take a \code{const std::uint8_t*} named \code{buf} and a \code{std::uint16_t} named
+    \code{bufLen}.
+  \item Return \code{false} if \code{buf} is \code{nullptr} or \code{bufLen} is \code{0}.
+  \item Sleep for \code{2000 ms} to simulate a slow flash read before validating.
+  \item Iterate over all bytes in \code{buf}.
+  \item Return \code{false} if any byte has the value \code{0xFFU} (unprogrammed flash).
+  \item Return \code{true} if the image is valid.
+  \item Be marked \code{noexcept} and \code{[[nodiscard]]}.
+\end{itemize}
+In \code{main()}:
+\begin{itemize}
+  \item Create a buffer with some test data.
+  \item Launch \code{validateFirmware()} asynchronously using \code{std::async} with
+    \code{std::launch::async}, storing the result in a \code{std::future<bool>}.
+  \item Print \code{"Booting system while validating firmware..."} while validation is running.
+  \item Retrieve the result using \code{future.get()} and print whether the firmware is valid or
+    not.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item What does \code{std::launch::async} guarantee compared to omitting the launch policy?
+  \item At what point does the main thread block?
+  \item What would happen if \code{future.get()} was called immediately after \code{std::async}?
+\end{itemize}
+
+\exercise{Checking whether the result is ready}{Code}
+\label{c6:ex:7.2}
+Modify \code{main()} so that instead of calling \code{future.get()} directly, it polls in a loop:
+\begin{itemize}
+  \item Each iteration shall call \code{future.wait_for()} with
+    \code{std::chrono::milliseconds(200U)} and compare the result against
+    \code{std::future_status::ready}.
+  \item As long as the result is not ready, print \code{"Still waiting for firmware validation..."}.
+  \item Once the loop exits, retrieve the result using \code{future.get()}.
+\end{itemize}
+
+\task{Reflection}
+\begin{itemize}
+  \item How does \code{wait_for()} differ from \code{get()}?
+  \item Is it safe to call \code{get()} after \code{wait_for()} returns
+    \code{std::future_status::ready}?
+\end{itemize}

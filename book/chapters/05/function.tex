@@ -1,0 +1,145 @@
+% Section 5.1, from lectures/L05/appendix/a_function_templates.md.
+
+\section{Function Templates}
+\label{c5:sec:function}\label{c5:app:a}
+Templates allow functions to operate on multiple data types without duplicating code.
+
+In embedded systems, templates are often used to implement generic utilities without run-time
+overhead, while still allowing the compiler to optimize the code for each specific type.
+
+\subsection{Basic example}
+\label{c5:sec:basic}
+Consider a simple function template that adds two values:
+
+\begin{cppcode}
+/**
+ * @brief Add two numbers.
+ *
+ * @tparam T The numeric type.
+ *
+ * @param[in] x The first value.
+ * @param[in] y The second value.
+ *
+ * @return The sum of the two values.
+ */
+template<typename T>
+constexpr T add(const T x, const T y) noexcept
+{
+    return x + y;
+}
+\end{cppcode}
+
+\noindent The function can be used with different types:
+
+\begin{cppcode}
+const auto sum1 = add(1, 2);
+const auto sum2 = add(1.0, 2.0);
+\end{cppcode}
+
+\noindent The compiler generates a separate version of the function for each type.
+
+\subsection{Embedded example: bit manipulation}
+\label{c5:sec:bitexample}
+In embedded systems, templates are often used for low-level utilities.
+
+The example below sets a bit in a register of arbitrary integral type:
+
+\begin{cppcode}
+#include <cstdint>
+
+/**
+ * @brief Set bit in register.
+ *
+ * @tparam T The register type.
+ *
+ * @param[in, out] reg Register to write to.
+ * @param[in] bit The bit to set.
+ */
+template<typename T>
+constexpr void set(T& reg, const std::uint8_t bit) noexcept
+{
+    reg |= (static_cast<T>(1U) << bit);
+}
+\end{cppcode}
+
+\noindent Example usage:
+
+\begin{cppcode}
+std::uint8_t reg{};
+set(reg, 1U);
+set(reg, 2U);
+\end{cppcode}
+
+\noindent This allows the same function to be reused for different register sizes.
+
+\subsection{Template instantiation}
+\label{c5:sec:instantiation}
+Templates are instantiated at compile time.
+
+For example:
+
+\begin{cppcode}
+std::uint8_t reg1{};
+std::uint32_t reg2{};
+
+set(reg1, 1U);
+set(reg2, 12U);
+\end{cppcode}
+
+\noindent The compiler generates two separate functions:
+
+\begin{cppcode}
+set(std::uint8_t&, std::uint8_t)
+set(std::uint32_t&, std::uint8_t)
+\end{cppcode}
+
+\noindent Each version is compiled independently.
+
+\subsection{Code size considerations}
+\label{c5:sec:codesize}
+Templates are often described as zero-cost abstractions:
+\begin{itemize}
+  \item No run-time overhead.
+  \item Code is specialized for each type.
+\end{itemize}
+However, in embedded systems this also means:
+\begin{itemize}
+  \item Multiple instantiations $\rightarrow$ increased binary size.
+  \item More types $\rightarrow$ more generated code.
+\end{itemize}
+Therefore:
+\begin{itemize}
+  \item Use templates when they provide clear value.
+  \item Avoid unnecessary instantiations in resource-constrained systems.
+\end{itemize}
+
+\subsection{Function overloading vs templates}
+\label{c5:sec:overloading}
+C++ supports function overloading:
+
+\begin{cppcode}
+constexpr void set(std::uint8_t& reg, std::uint8_t bit) noexcept;
+constexpr void set(std::uint32_t& reg, std::uint8_t bit) noexcept;
+\end{cppcode}
+
+\noindent Templates provide a more scalable solution:
+
+\begin{cppcode}
+template<typename T>
+constexpr void set(T& reg, std::uint8_t bit) noexcept;
+\end{cppcode}
+
+\subsection{Summary}
+\label{c5:sec:functionsummary}
+\begin{itemize}
+  \item Function templates enable generic and reusable code.
+  \item Templates are instantiated at compile time.
+  \item Each type results in a separate generated function.
+  \item Templates provide no run-time overhead, but may increase code size.
+  \item Templates are especially useful for:
+  \begin{itemize}
+    \item Bit manipulation.
+    \item Utility functions.
+    \item Hardware abstraction helpers.
+  \end{itemize}
+\end{itemize}

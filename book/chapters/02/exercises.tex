@@ -1,0 +1,590 @@
+% Section 2.4, from lectures/L02/appendix/c_exercises.md.
+
+\section{Exercises}
+\label{c2:sec:exercises}\label{c2:app:c}
+
+\begin{aside}
+\textbf{How to work these.} These exercises reinforce the concepts from \secref{c2:sec:classes1} and
+\secref{c2:sec:classes2}. Build each program with a Makefile like the one in
+\secref{c1:sec:makefile}; for a class split across header and source files, use the
+\file{include}/\file{source} layout and Makefile from \secref{c1:sec:tips}. Check your output against
+the example output each exercise gives.
+
+The solutions are in \secref{sol:sec:c2}, one program per set. Try each exercise yourself before
+looking at them.
+\end{aside}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{First Class}
+\label{c2:set:1}
+
+\exercise{Simple LED class}{Code}
+\label{c2:ex:1.1}
+In a new program, create a class \code{Led} in the namespace \code{driver::gpio}:
+
+\begin{cppcode}
+namespace driver::gpio
+{
+class Led final
+{
+public:
+
+private:
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\task{Tasks}
+\begin{parts}
+  \item Add two private member variables:
+  \begin{itemize}
+    \item The first member variable shall:
+    \begin{itemize}
+      \item Be named \code{myPin}.
+      \item Represent the pin number to which the LED is connected.
+      \item Have the type \code{std::uint8_t}.
+      \item Be readable only after initialization.
+    \end{itemize}
+    \item The second member variable shall:
+    \begin{itemize}
+      \item Be named \code{myState}.
+      \item Represent the state of the LED (\code{true/false}).
+      \item Be \code{true} when the LED is enabled.
+    \end{itemize}
+  \end{itemize}
+  \item Add a constructor that:
+  \begin{itemize}
+    \item Takes a pin number (\code{std::uint8_t}).
+    \item Takes an initial state (\code{bool}) with the default value \code{false}.
+    \item Uses an initialization list to initialize the member variables.
+    \item Is marked \code{explicit} and \code{noexcept}.
+  \end{itemize}
+  \item Add a destructor and mark it \code{noexcept} and \code{default}.
+  \item Implement the following methods directly in the class:
+  \begin{itemize}
+    \item The method \code{isOn()} shall:
+    \begin{itemize}
+      \item Return \code{true} if the LED is enabled, otherwise \code{false}.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{on()} shall:
+    \begin{itemize}
+      \item Take no parameters.
+      \item Set the LED state to \code{true}.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{off()} shall:
+    \begin{itemize}
+      \item Take no parameters.
+      \item Set the LED state to \code{false}.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{toggle()} shall:
+    \begin{itemize}
+      \item Toggle the LED state.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+  \end{itemize}
+  \item Delete the following methods:
+  \begin{itemize}
+    \item The default constructor.
+    \item The copy constructor.
+    \item The move constructor.
+    \item The copy assignment operator.
+    \item The move assignment operator.
+  \end{itemize}
+  \item Create an instance of the class:
+\begin{cppcode}
+constexpr std::uint8_t ledPin{13U};
+driver::gpio::Led led{ledPin};
+\end{cppcode}
+  Test the class by:
+  \begin{itemize}
+    \item Printing the state.
+    \item Calling \code{on()}.
+    \item Printing again.
+    \item Calling \code{toggle()}.
+    \item Printing once more.
+  \end{itemize}
+  Use \code{std::printf()} from \code{<cstdio>} for the output.
+\end{parts}
+Example output:
+
+\begin{console}
+Initial state: Off
+After on(): On
+After toggle(): Off
+\end{console}
+
+\exercise{Button class}{Code}
+\label{c2:ex:1.2}
+In the same program, create a class \code{Button} in the namespace \code{driver::gpio}:
+
+\begin{cppcode}
+namespace driver::gpio
+{
+class Button final
+{
+public:
+
+private:
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\task{Tasks}
+\begin{parts}
+  \item Add two private member variables:
+  \begin{itemize}
+    \item The first member variable shall:
+    \begin{itemize}
+      \item Be named \code{myPin}.
+      \item Represent the pin number to which the button is connected.
+      \item Have the type \code{std::uint8_t}.
+      \item Be readable only after initialization.
+    \end{itemize}
+    \item The second member variable shall:
+    \begin{itemize}
+      \item Be named \code{myPressed}.
+      \item Represent the state of the button (\code{true/false}).
+      \item Be \code{true} when the button is pressed.
+    \end{itemize}
+  \end{itemize}
+  \item Add a constructor that:
+  \begin{itemize}
+    \item Takes a pin number (\code{std::uint8_t}).
+    \item Uses an initialization list to initialize the member variables.
+    \item Is marked \code{explicit} and \code{noexcept}.
+  \end{itemize}
+  \item Add a destructor and mark it \code{noexcept} and \code{default}.
+  \item Implement the following methods directly in the class:
+  \begin{itemize}
+    \item The method \code{pin()} shall:
+    \begin{itemize}
+      \item Return the pin number.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{isPressed()} shall:
+    \begin{itemize}
+      \item Return \code{true} if the button is pressed, otherwise \code{false}.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{setPressed()} shall:
+    \begin{itemize}
+      \item Take an argument of type \code{bool}.
+      \item Update the internal state of the button.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+  \end{itemize}
+  \item Delete the following methods:
+  \begin{itemize}
+    \item The default constructor.
+    \item The copy constructor.
+    \item The move constructor.
+    \item The copy assignment operator.
+    \item The move assignment operator.
+  \end{itemize}
+  \item Create an instance:
+\begin{cppcode}
+constexpr std::uint8_t buttonPin{2U};
+driver::gpio::Button button{buttonPin};
+\end{cppcode}
+  Simulate a button press:
+\begin{cppcode}
+button.setPressed(true);
+\end{cppcode}
+  Print the pin number and whether the button is pressed using \code{std::printf()} from
+  \code{<cstdio>}.
+\end{parts}
+Example output:
+
+\begin{console}
+Button pin: 2
+Pressed: Yes
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Interaction Between Classes}
+\label{c2:set:2}
+
+\exercise{Control LED with a button}{Code}
+\label{c2:ex:2.1}
+Use the classes from the previous exercises.
+
+\task{Tasks}
+\begin{parts}
+  \item Create an LED on pin \code{13}.
+  \item Create a button on pin \code{2}.
+  \item If the button is not pressed, the LED should be off.
+  \item If the button is pressed, the LED should turn on.
+  \item Print the LED state.
+\end{parts}
+Example output:
+
+\begin{console}
+Button released -> LED: Off
+Button pressed  -> LED: On
+\end{console}
+
+\exercise{Blink function}{Code}
+\label{c2:ex:2.2}
+Create a loop that toggles the LED state.
+
+\task{Tasks}
+\begin{parts}
+  \item Turn the LED off, then run a loop for six iterations.
+  \item In each iteration:
+  \begin{itemize}
+    \item Call \code{toggle()}.
+    \item Print the LED state.
+  \end{itemize}
+\end{parts}
+Example output:
+
+\begin{console}
+Blink 1: On
+Blink 2: Off
+Blink 3: On
+Blink 4: Off
+Blink 5: On
+Blink 6: Off
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Class Split Across Multiple Files}
+\label{c2:set:3}
+
+\exercise{Buzzer class}{Code}
+\label{c2:ex:3.1}
+In this exercise, you will create a class \code{Buzzer} in the namespace \code{driver}. The class
+should be split across multiple files. Therefore, create the following directory structure:
+
+\begin{console}
+Makefile
+include/
+    driver/
+        buzzer.hpp
+source/
+    driver/
+        buzzer.cpp
+    main.cpp
+\end{console}
+
+\note
+\begin{itemize}
+  \item All method declarations shall be written in \file{driver/buzzer.hpp}.
+  \item All method definitions shall be implemented in \file{driver/buzzer.cpp}.
+\end{itemize}
+
+In the header file \file{driver/buzzer.hpp}, the class shall be declared according to the structure
+below:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+namespace driver
+{
+class Buzzer final
+{
+public:
+
+private:
+};
+} // namespace driver
+\end{cppcode}
+
+\task{Tasks}
+\begin{parts}
+  \item Add two private member variables:
+  \begin{itemize}
+    \item The first member variable shall:
+    \begin{itemize}
+      \item Represent the pin number to which the buzzer is connected.
+      \item Have the type \code{std::uint8_t}.
+      \item Be named \code{myPin}.
+      \item Be readable only after initialization.
+    \end{itemize}
+    \item The second member variable shall:
+    \begin{itemize}
+      \item Represent the state of the buzzer (\code{true}/\code{false}).
+      \item Be named \code{myEnabled}.
+      \item Be \code{true} when the buzzer is enabled.
+    \end{itemize}
+  \end{itemize}
+  \item Add a constructor in the header file that:
+  \begin{itemize}
+    \item Takes a pin number (\code{std::uint8_t}).
+    \item Takes an initial state (\code{bool}) with the default value \code{false}.
+    \item Is marked \code{explicit} and \code{noexcept}.
+  \end{itemize}
+  \item Add a destructor in the header file:
+  \begin{itemize}
+    \item Mark it \code{noexcept}.
+    \item Implement it in \file{driver/buzzer.cpp} so that the output below is generated when the
+      buzzer is destroyed:
+  \end{itemize}
+\begin{console}
+Releasing resources allocated for buzzer at pin 8!
+\end{console}
+  \note In the example output above, it is assumed that the buzzer is connected to pin 8.
+  \item Declare the following methods in the header file and implement them in
+    \file{driver/buzzer.cpp}:
+  \begin{itemize}
+    \item The method \code{pin()} shall:
+    \begin{itemize}
+      \item Return the pin number to which the buzzer is connected.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{isEnabled()} shall:
+    \begin{itemize}
+      \item Return \code{true} if the buzzer is enabled, otherwise \code{false}.
+      \item Take no parameters.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{enable()} shall:
+    \begin{itemize}
+      \item Set the buzzer state to \code{true}.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{disable()} shall:
+    \begin{itemize}
+      \item Set the buzzer state to \code{false}.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{toggle()} shall:
+    \begin{itemize}
+      \item Toggle the buzzer state.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+  \end{itemize}
+  \item Delete the following methods in the header file:
+  \begin{itemize}
+    \item The default constructor.
+    \item The copy constructor.
+    \item The move constructor.
+    \item The copy assignment operator.
+    \item The move assignment operator.
+  \end{itemize}
+  \item In \file{main.cpp}, create an instance of the class:
+\begin{cppcode}
+constexpr std::uint8_t buzzerPin{8U};
+driver::Buzzer buzzer{buzzerPin};
+\end{cppcode}
+  Test the class by:
+  \begin{itemize}
+    \item Printing the state.
+    \item Calling \code{enable()}.
+    \item Printing again.
+    \item Calling \code{toggle()}.
+    \item Printing again.
+  \end{itemize}
+  Use \code{std::printf()} from \code{<cstdio>} for the output.
+\end{parts}
+Example output:
+
+\begin{console}
+Initial state: Disabled
+After enable(): Enabled
+After toggle(): Disabled
+Releasing resources allocated for buzzer at pin 8!
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Timer Class}
+\label{c2:set:4}
+
+\exercise{Timer}{Code}
+\label{c2:ex:4.1}
+In this exercise, you will create a class \code{Timer} in the namespace \code{driver}.
+
+The class should be split across multiple files. Therefore, create the following files in the same
+project as the previous exercise:
+
+\begin{console}
+include/driver/timer.hpp
+source/driver/timer.cpp
+\end{console}
+
+\note
+\begin{itemize}
+  \item All method declarations shall be written in \file{driver/timer.hpp}.
+  \item All method definitions shall be implemented in \file{driver/timer.cpp}.
+\end{itemize}
+
+In the header file, the class shall be declared according to the structure below:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+namespace driver
+{
+class Timer final
+{
+public:
+
+private:
+};
+} // namespace driver
+\end{cppcode}
+
+\task{Tasks}
+\begin{parts}
+  \item Add four private member variables:
+  \begin{itemize}
+    \item The first member variable shall:
+    \begin{itemize}
+      \item Be named \code{myTimeout_ms}.
+      \item Represent the timeout duration in milliseconds.
+      \item Have the type \code{std::uint32_t}.
+      \item Be readable only after initialization.
+    \end{itemize}
+    \item The second member variable shall:
+    \begin{itemize}
+      \item Be named \code{myCounter_ms}.
+      \item Represent the internal timer counter.
+      \item Have the type \code{std::uint32_t}.
+    \end{itemize}
+    \item The third member variable shall:
+    \begin{itemize}
+      \item Be named \code{myRunning}.
+      \item Represent whether the timer is active or not (\code{true/false}).
+      \item Be \code{true} when the timer is running.
+    \end{itemize}
+    \item The fourth member variable shall:
+    \begin{itemize}
+      \item Be named \code{myInitialized}.
+      \item Represent whether the timer is initialized or not (\code{true/false}).
+      \item Be \code{true} when the timer is initialized.
+    \end{itemize}
+  \end{itemize}
+  \item Add a constructor in the header file that:
+  \begin{itemize}
+    \item Takes a timeout value in milliseconds (\code{std::uint32_t}).
+    \item Uses an initialization list to initialize the member variables.
+    \item Initializes the counter to \code{0}.
+    \item Initializes the timer as stopped.
+    \item Marks the timer as initialized if the timeout value is valid (\code{> 0}).
+    \item Is marked \code{explicit} and \code{noexcept}.
+  \end{itemize}
+  \item Add a destructor in the header file:
+  \begin{itemize}
+    \item Mark it \code{noexcept}.
+    \item Implement it in \file{driver/timer.cpp} so that:
+    \begin{itemize}
+      \item The timer is stopped if it was running.
+      \item If the timer was running and is stopped, the output below should be printed:
+    \end{itemize}
+  \end{itemize}
+\begin{console}
+Stopping timer before deletion!
+\end{console}
+  \item Declare the following methods in the header file and implement them in
+    \file{driver/timer.cpp}:
+  \begin{itemize}
+    \item The method \code{timeout_ms()} shall:
+    \begin{itemize}
+      \item Return the configured timeout in milliseconds.
+      \item Take no parameters.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{isRunning()} shall:
+    \begin{itemize}
+      \item Return \code{true} if the timer is running, otherwise \code{false}.
+      \item Take no parameters.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{isInitialized()} shall:
+    \begin{itemize}
+      \item Return \code{true} if the timer is initialized, otherwise \code{false}.
+      \item Take no parameters.
+      \item Be marked \code{const}, \code{noexcept}, and \code{[[nodiscard]]}.
+    \end{itemize}
+    \item The method \code{start()} shall:
+    \begin{itemize}
+      \item Start the timer if the timer is initialized.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{stop()} shall:
+    \begin{itemize}
+      \item Stop the timer if the timer is initialized.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{toggle()} shall:
+    \begin{itemize}
+      \item Toggle the timer if the timer is initialized.
+      \item Take no parameters.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{tick()} shall:
+    \begin{itemize}
+      \item Simulate that 1 millisecond has passed.
+      \item Increment the counter if the timer is running; otherwise do nothing.
+      \item Return no value.
+      \item Be marked \code{noexcept}.
+    \end{itemize}
+    \item The method \code{hasTimedOut()} shall:
+    \begin{itemize}
+      \item Return \code{true} when the counter has reached the timeout value, otherwise
+        \code{false}.
+      \item Reset the counter to \code{0} when a timeout occurs.
+      \item Be marked \code{noexcept} and \code{[[nodiscard]]}.
+    \end{itemize}
+  \end{itemize}
+  \item Delete the following methods:
+  \begin{itemize}
+    \item The default constructor.
+    \item The copy constructor.
+    \item The move constructor.
+    \item The copy assignment operator.
+    \item The move assignment operator.
+  \end{itemize}
+  \item In \file{main.cpp}, create an instance of the class:
+\begin{cppcode}
+constexpr std::uint32_t timeout_ms{1000U};
+driver::Timer timer{timeout_ms};
+\end{cppcode}
+  Test the class by:
+  \begin{itemize}
+    \item Starting the timer.
+    \item Running a loop for 3000 iterations. In each iteration:
+    \begin{itemize}
+      \item Call \code{tick()}.
+      \item Check \code{hasTimedOut()}.
+      \item Print a message if a timeout has occurred:
+    \end{itemize}
+  \end{itemize}
+\begin{console}
+Timeout after 1000 ms!
+\end{console}
+  \note In the example output above, it is assumed that the timeout is set to 1000 milliseconds.
+
+  Use \code{std::printf()} from \code{<cstdio>} for the output above.
+\end{parts}
+Example output:
+
+\begin{console}
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Stopping timer before deletion!
+\end{console}

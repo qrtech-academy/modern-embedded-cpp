@@ -1,0 +1,96 @@
+% Priority inversion as a timeline: three threads sharing one CPU, and who holds it when.
+%
+% Redrawn from lectures/L06/appendix/images/priority_inversion.png, which is rendered from this
+% file (see the comment at the end). The sequence follows §6.1: Low locks the mutex, High
+% blocks on it, Medium preempts Low and runs to completion, and only then can Low finish and
+% unlock, which is the first moment High can run.
+%
+% \circled{n} numbers the events in the order they happen; the first three are steps 1 to 3 of
+% the list in §6.1, and the last two are how the inversion ends.
+\providecommand{\circled}[1]{\tikz[baseline=(c.base)]\node[circle, draw=ink, fill=white,
+  line width=0.5pt, inner sep=0.5pt, minimum size=1.15em, font=\tiny\bfseries, text=ink] (c) {#1};}
+\begin{tikzpicture}[
+    x=1cm, y=1cm, font=\footnotesize,
+    bar/.style={minimum height=0.56cm, inner sep=0pt, outer sep=0pt, rectangle},
+    run/.style={bar, draw=#1, fill=fill#1, line width=0.6pt},
+    wait/.style={bar, draw=#1, fill=fill#1!35, line width=0.6pt, dash pattern=on 2.5pt off 1.5pt},
+    idle/.style={draw=muted!70, line width=0.5pt, dash pattern=on 1.5pt off 1.5pt},
+    lane/.style={align=right, anchor=east, font=\footnotesize\bfseries, text=#1},
+    event/.style={align=center, anchor=south, font=\scriptsize, text width=1.85cm,
+      inner sep=1pt},
+  ]
+  % Time points. t5 is only where the drawing stops.
+  \def\tzero{2.0} \def\tone{3.9} \def\ttwo{5.9} \def\tthree{8.2} \def\tfour{10.2}
+  \def\tfive{12.45}
+  % Lane centres.
+  \def\yh{-0.95} \def\ym{-1.8} \def\yl{-2.65} \def\ycpu{-3.75}
+
+  % The time axis, its ticks, and what happens at each tick.
+  \draw[-{Latex[length=2mm]}, line width=0.6pt, ink] (\tzero-0.35, 0) -- (\tfive+0.15, 0)
+    node[right, font=\scriptsize\scshape, text=ink] {time};
+  \foreach \t/\n in {\tzero/0, \tone/1, \ttwo/2, \tthree/3, \tfour/4} {
+    \draw[line width=0.6pt, ink] (\t, -0.09) -- (\t, 0.09);
+    \draw[rule, line width=0.4pt, dash pattern=on 1pt off 1.5pt] (\t, -0.09) -- (\t, \ycpu-0.28);
+    \node[font=\scriptsize, text=ink, anchor=north] at (\t, -0.07) {$t_{\n}$};
+  }
+  \node[event] at (\tzero, 0.16) {\circled{1}\\Low locks\\the mutex};
+  \node[event] at (\tone, 0.16) {\circled{2}\\High tries to\\lock it, blocks};
+  \node[event] at (\ttwo, 0.16) {\circled{3}\\Medium\\preempts Low};
+  \node[event] at (\tthree, 0.16) {\circled{4}\\Medium done,\\Low resumes};
+  \node[event] at (\tfour, 0.16) {\circled{5}\\Low unlocks,\\High locks it};
+
+  % Lane labels.
+  \node[lane=accent] at (\tzero-0.45, \yh) {High\\[-0.3ex]\mdseries\scriptsize priority H};
+  \node[lane=accent2] at (\tzero-0.45, \ym) {Medium\\[-0.3ex]\mdseries\scriptsize priority M};
+  \node[lane=accent3] at (\tzero-0.45, \yl) {Low\\[-0.3ex]\mdseries\scriptsize priority L};
+  \node[lane=ink] at (\tzero-0.45, \ycpu) {Who has\\[-0.3ex]the CPU?};
+
+  % A bar from time A to time B in lane Y: \bar{style}{A}{B}{Y}{label}.
+  \newcommand{\lanebar}[5]{%
+    \node[#1, minimum width={(#3-#2)*1cm - 0.06cm}, anchor=west] at (#2+0.03, #4) {#5};}
+
+  % High: not ready, then blocked on the mutex for the whole of t1..t4, then running.
+  \draw[idle] (\tzero, \yh) -- (\tone, \yh);
+  \node[font=\scriptsize, text=muted, above] at ({(\tzero+\tone)/2}, \yh-0.05) {not ready};
+  \lanebar{wait=accent}{\tone}{\tfour}{\yh}{\textcolor{accent}{blocked, waiting for the mutex}}
+  \lanebar{run=accent}{\tfour}{\tfive}{\yh}{running}
+
+  % Medium: not ready, then its own unrelated work, then done.
+  \draw[idle] (\tzero, \ym) -- (\ttwo, \ym);
+  \node[font=\scriptsize, text=muted, above] at ({(\tzero+\tone)/2}, \ym-0.05) {not ready};
+  \lanebar{run=accent2}{\ttwo}{\tthree}{\ym}{unrelated work}
+  \draw[idle] (\tthree, \ym) -- (\tfive, \ym);
+  \node[font=\scriptsize, text=muted, above] at ({(\tthree+\tfive)/2}, \ym-0.05) {finished};
+
+  % Low: holds the mutex from t0 to t4, but is only allowed to run for part of it.
+  \lanebar{run=accent3}{\tzero}{\ttwo}{\yl}{running, holds the mutex}
+  \lanebar{wait=accent3}{\ttwo}{\tthree}{\yl}{\textcolor{accent3!80!black}{preempted}}
+  \lanebar{run=accent3}{\tthree}{\tfour}{\yl}{finishes}
+  \draw[idle] (\tfour, \yl) -- (\tfive, \yl);
+  \node[font=\scriptsize, text=muted, above] at ({(\tfour+\tfive)/2}, \yl-0.05) {finished};
+
+  % The CPU, one thread at a time.
+  \draw[rule, line width=0.4pt] (0.2, {(\yl+\ycpu)/2+0.05}) -- (\tfive+0.15, {(\yl+\ycpu)/2+0.05});
+  \lanebar{run=accent3}{\tzero}{\ttwo}{\ycpu}{Low}
+  \lanebar{run=accent2}{\ttwo}{\tthree}{\ycpu}{Medium}
+  \lanebar{run=accent3}{\tthree}{\tfour}{\ycpu}{Low}
+  \lanebar{run=accent}{\tfour}{\tfive}{\ycpu}{High}
+
+  % The inversion itself: High is waiting on a thread of lower priority that does not even use
+  % the mutex.
+  \draw[decorate, decoration={brace, mirror, amplitude=4pt}, line width=0.6pt, accent]
+    (\ttwo+0.03, \ycpu-0.38) -- (\tthree-0.03, \ycpu-0.38)
+    node[midway, below=5pt, align=center, font=\scriptsize, text=accent]
+      {priority inversion:\\High waits\\for Medium};
+  \draw[decorate, decoration={brace, mirror, amplitude=4pt}, line width=0.6pt, muted]
+    (\tone+0.03, \ycpu-0.38) -- (\ttwo-0.03, \ycpu-0.38)
+    node[midway, below=5pt, align=center, font=\scriptsize, text=muted]
+      {High waits\\for Low};
+  \draw[decorate, decoration={brace, mirror, amplitude=4pt}, line width=0.6pt, muted]
+    (\tthree+0.03, \ycpu-0.38) -- (\tfour-0.03, \ycpu-0.38)
+    node[midway, below=5pt, align=center, font=\scriptsize, text=muted]
+      {High waits\\for Low};
+\end{tikzpicture}
+
+% The lecture's PNG is this drawing: `make -C book png` redraws
+% lectures/L06/appendix/images/priority_inversion.png from it, through figures/png.tex.

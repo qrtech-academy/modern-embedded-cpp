@@ -1,0 +1,38 @@
+% Chapter 3, typeset from lectures/L03: the README is the opener and the closing review, each
+% appendix is a section, in the same order and with the same subsections, and the C++ interface
+% example under lectures/L03/examples is a section of its own before the review.
+
+\chapter{Inheritance and Interfaces}
+\label{c3:ch:interfaces}
+
+{\large\itshape One interface, many drivers, and code that does not care which one it has.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item Inheritance, for creating classes that build upon existing classes.
+  \item Interfaces (abstract classes), for defining a common set of methods that different classes
+    can implement in different ways.
+  \item A complete example: one LED interface, implemented for two different microcontrollers and
+    used by a single function that works with both.
+\end{itemize}
+\end{chapterbox}
+
+This chapter is about object-oriented design for embedded systems. After it, you should be able to
+create classes that inherit from other classes, create interfaces, and understand how several
+different implementations can be used through the same interface. The chapter assumes basic
+familiarity with C++ classes, constructors and \code{const}, which is what
+Chapter~\ref{c2:ch:classes} covered.
+
+Read about inheritance in \secref{c3:sec:inheritance} and about interfaces in
+\secref{c3:sec:interfaces}. \Secref{c3:sec:example} then walks through a complete program built
+around an interface. If you want to see how interfaces work ``under the hood'', there is also an
+implementation of the same idea in C, from the previous embedded C course:
+\url{https://github.com/qrtech-academy/embedded-c/blob/main/lectures/L10/interface_demo/README.md}.
+The exercises in \secref{c3:sec:exercises} are where you design an interface and its
+implementations yourself. Their solutions are in \secref{sol:sec:c3}.
+
+\input{chapters/03/inheritance}
+\input{chapters/03/interfaces}
+\input{chapters/03/example}
+\input{chapters/03/summary}
+\input{chapters/03/exercises}

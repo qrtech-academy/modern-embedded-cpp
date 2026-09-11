@@ -1,0 +1,308 @@
+% Appendix, from exam/paper_b.md: Paper B, questions only.
+
+\chapter{Self-Assessment Paper B}
+\label{exb:ch:paper}
+
+\noindent\textbf{Time:} 3 hours. \textbf{Closed book.} No compiler and no reference material.
+\textbf{Total: 100 marks.}
+
+\medskip
+This paper exists to test your own skills and knowledge. It is not a qualification and it gates
+nothing. It draws on all six chapters, so \textbf{it is meant to be taken once you have finished the
+book}. The model answers are in Appendix~\ref{ansb:ch:answers}.
+
+\section*{Rubric}
+\textbf{C++17} is assumed throughout. Standard headers may be assumed included unless a question
+asks you to name them.
+
+\textbf{Code is marked on semantics, not on syntax.} A missing semicolon, a forgotten
+\code{#include} or a brace in the wrong column costs nothing. A missing \code{virtual} on a
+destructor costs everything.
+
+\textbf{Where a question says ``in the book's style''}, it means the conventions used in the
+chapters:
+\begin{itemize}
+  \item \code{camelCase} for functions and methods, type names with a leading capital.
+  \item Private member variables prefixed \code{my}, private static members prefixed \code{our}.
+  \item \code{static constexpr} members named with a leading capital, e.g.\ \code{MaxInstances}.
+  \item Brace initialization, \code{noexcept} on driver methods, \code{[[nodiscard]]} on queries and
+    repeated on overriding methods.
+  \item Copy and move operations deleted on a class that represents a unique hardware resource.
+\end{itemize}
+
+\textbf{Where a question says ``state the consequence''}, naming the defect earns half the marks and
+saying what it does to the running program earns the other half. ``This is wrong'' scores nothing.
+
+\textbf{Where a question asks you to write a class}, documentation comments are not required and
+are not marked. Write the code.
+
+\begin{narrowtable}{@{}lcccccccc@{}}
+  \thead{Question} & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+  \midrule
+  \thead{Marks} & 12 & 12 & 12 & 13 & 13 & 13 & 12 & 13 \\
+\end{narrowtable}
+
+% ------------------------------------------------------------------------------------------
+\question{The vocabulary}{12}
+\label{exb:q:1}
+
+\qpart{a} State what difference the extension \code{.h} or \code{.hpp} makes to the compiler, and
+what actually decides whether a file is compiled as C or as C++. State what each extension signals
+by convention, and say which of the two a vendor's register-definition header should carry, with the
+reason. \worth{3}
+
+\qpart{b} State what an anonymous namespace does and name the C construct it replaces. Then state
+the purpose of a nested namespace such as \code{driver::gpio}, and write it in both the pre-C++17
+form and the compact modern form. \worth{3}
+
+\qpart{c} Give three reasons references are usually preferred over pointers when a function must
+modify its argument. Then name one thing a pointer can do that a reference cannot, and give an
+example from the book where that matters. \worth{3}
+
+\qpart{d} Complete the function template below so that it sets every bit in the pack, using a C++17
+fold expression rather than a loop. State what the compiler generates for the call
+\code{set(reg, 1U, 2U, 3U)}. \worth{3}
+
+\begin{cppcode}
+template<typename T, typename... Bits>
+constexpr void set(T& reg, const Bits... bits) noexcept
+{
+    static_assert(std::is_integral<T>::value,
+        "Failed to set bit in register: T must be of integral type!");
+    // Your code here.
+}
+\end{cppcode}
+
+% ------------------------------------------------------------------------------------------
+\question{The same driver, twice}{12}
+\label{exb:q:2}
+Below is a PWM driver as it would be written in C.
+
+\begin{ccode}
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+typedef struct
+{
+    uint8_t pin;
+    uint16_t period_ms;
+    bool enabled;
+} pwm_t;
+
+void pwm_init(pwm_t* self, const uint8_t pin, const uint16_t period_ms)
+{
+    if (NULL == self) { return; }
+    self->pin       = pin;
+    self->period_ms = period_ms;
+    self->enabled   = false;
+}
+
+void pwm_set_enabled(pwm_t* self, const bool enabled)
+{
+    if (NULL == self) { return; }
+    self->enabled = enabled;
+}
+
+bool pwm_is_enabled(const pwm_t* self)
+{
+    return NULL != self ? self->enabled : false;
+}
+\end{ccode}
+
+\qpart{a} Rewrite it as a single-header C++ driver in the book's style. It shall:
+\begin{itemize}
+  \item live in namespace \code{driver::pwm}, as a class named \code{Pwm} that cannot be inherited
+    from;
+  \item replace \code{pwm_init} with a constructor that cannot be used for implicit conversions and
+    whose period defaults to \code{20U};
+  \item keep the pin and the period unchangeable after construction;
+  \item expose \code{pin()}, \code{period_ms()}, \code{isEnabled()} and \code{setEnabled()}, with the
+    query methods marked so that ignoring their result warns;
+  \item be impossible to copy or move.
+\end{itemize}
+\noindent\worth{6}
+
+\qpart{b} Name \textbf{four} distinct failure modes that exist in the C version and cannot occur in
+your C++ version, and state for each what removes it. \worth{4}
+
+\qpart{c} Your header and the vendor's C register header sit in the same project. State which
+extension each should carry, and what must be added to the vendor's header before your driver can
+call into it. \worth{2}
+
+% ------------------------------------------------------------------------------------------
+\question{Enumerations, files, and lifetime}{12}
+\label{exb:q:3}
+
+\qpart{a} Write the enumeration class \code{Direction} from Chapter~2 in namespace
+\code{driver::gpio}, with the enumerators \code{Input}, \code{InputPullup} and \code{Output}, a fixed
+underlying type, and whatever is needed to support the validity check below. Then write that check.
+
+\begin{cppcode}
+[[nodiscard]] constexpr bool isDirectionValid(Direction direction) noexcept;
+\end{cppcode}
+
+\noindent Give three reasons to prefer an enumeration class over a plain \code{enum}, and state what
+fixing the underlying type buys on an embedded target. \worth{5}
+
+\qpart{b} A class is split into \file{driver/gpio/gpio.hpp} and \file{driver/gpio/gpio.cpp}. For
+each of the following, state whether it belongs in the header, in the source file, or in both, and
+why:
+
+\code{explicit}, a default argument, \code{[[nodiscard]]}, the trailing \code{const} on a query
+method, \code{noexcept}, \code{= default} and \code{= delete}. \worth{4}
+
+\qpart{c} State when the constructor runs and when the destructor runs for each of:
+\begin{enumerate}
+  \item a local object inside a function;
+  \item an object at namespace scope;
+  \item an object created with \code{new}.
+\end{enumerate}
+For the second, name the hazard this creates in an embedded program. \worth{3}
+
+% ------------------------------------------------------------------------------------------
+\question{What the compiler writes for you}{13}
+\label{exb:q:4}
+
+\qpart{a} The \code{Gpio} class from Chapter~2 declares its pin as \code{const std::uint8_t myPin;}.
+A copy \emph{constructor} that makes a complete copy can be written for this class; a copy
+\emph{assignment operator} that does so cannot. Explain why, and state what the compiler does about
+the copy assignment operator when you do not declare one. \worth{4}
+
+\qpart{b} A class \code{Buffer} owns a heap block through two members:
+
+\begin{cppcode}
+std::uint8_t* myData;
+std::size_t mySize;
+\end{cppcode}
+
+\noindent Write its move constructor. Then state the one thing a move \emph{assignment operator} must
+do that a move \emph{constructor} need not, and explain why the constructor is exempt. \worth{4}
+
+\qpart{c} State what \code{= default} and \code{= delete} each mean. Give the block of operations a
+driver class representing a unique hardware resource should delete, and the design reason.
+
+Then answer this: writing \code{~Gpio() noexcept = default;} is often described as costing nothing,
+because the compiler would have generated the same destructor anyway. State what it nevertheless
+changes about the rest of the class. \worth{5}
+
+% ------------------------------------------------------------------------------------------
+\question{Designing against an abstraction}{13}
+\label{exb:q:5}
+
+\qpart{a} Write the interface \code{driver::serial::Interface} in the book's style. It shall support
+initializing the port with a baud rate, writing a null-terminated string, and querying whether the
+port has been initialized.
+
+Then state, for four of the conventions \secref{c3:app:b} applies to an interface, what each is and
+why it is there. \worth{5}
+
+\qpart{b} State the difference between \code{private} and \code{protected} members. Name the three
+kinds of inheritance in C++, state what each does to the access level of inherited members, and
+state which one a concrete driver uses to implement an interface, and why. \worth{4}
+
+\qpart{c} A colleague writes:
+
+\begin{cppcode}
+void sendGreeting(driver::serial::Interface serial) noexcept
+{
+    serial.write("Hello!\n");
+}
+\end{cppcode}
+
+\noindent State what happens when this is compiled, and why. Then state what \emph{would} have
+happened had the base class not been abstract, and name the mechanism. Give the corrected signature,
+and state one reason not to make it \code{const}. \worth{4}
+
+% ------------------------------------------------------------------------------------------
+\question{Factories}{13}
+\label{exb:q:6}
+
+\qpart{a} Draw or describe the dependency graph of the four layers in the Chapter~4 example: system
+logic, factory interface, concrete factories, concrete drivers. State which dependency is the one
+that makes the system testable without hardware, and why. \worth{3}
+
+\qpart{b} Write the stub factory \code{driver::factory::Stub} for the smart-pointer version of the
+factory interface
+
+\begin{cppcode}
+[[nodiscard]] virtual std::unique_ptr<gpio::Interface> gpio(std::uint8_t pin) noexcept = 0;
+\end{cppcode}
+
+\noindent including whatever is needed to keep the compiler quiet about the unused pin. \worth{4}
+
+\qpart{c} Give four differences between a raw \code{gpio::Interface*} and a
+\code{std::unique_ptr<gpio::Interface>} as the return type of \code{gpio()}. State where
+\code{std::move} becomes necessary once the logic class stores one, and what the source pointer holds
+afterwards. \worth{4}
+
+\qpart{d} Name one cost the factory pattern imposes on an embedded system, and describe the
+alternative shown in Chapter~4 that avoids it entirely. \worth{2}
+
+% ------------------------------------------------------------------------------------------
+\question{A container with its size in the type}{12}
+\label{exb:q:7}
+
+\qpart{a} Write a class template \code{container::Array<T, Size>} in namespace \code{container}, in a
+single header, providing:
+\begin{itemize}
+  \item a default constructor;
+  \item \code{push(const T& element)}, returning \code{false} if the array is already full;
+  \item \code{size()} and \code{capacity()};
+  \item \code{operator[]} in both a modifiable and a read-only form;
+  \item a compile-time check rejecting a size of zero, with a message.
+\end{itemize}
+The class shall not allocate memory. \worth{6}
+
+\qpart{b} State why this class cannot have its method definitions placed in \file{array.cpp}, and
+what the build would report if you tried. Then state how many distinct types the following three
+declarations produce, with the reason, and what that means for the size of the binary. \worth{4}
+
+\begin{cppcode}
+container::Array<std::uint8_t, 8U> a{};
+container::Array<std::uint8_t, 16U> b{};
+container::Array<std::uint16_t, 8U> c{};
+\end{cppcode}
+
+\qpart{c} State one advantage \code{container::Array<T, Size>} has over the heap-based
+\code{container::Vector<T>} from \secref{c5:app:c} on a target where dynamic allocation is
+forbidden, and one thing you give up by putting the capacity in the type. \worth{2}
+
+% ------------------------------------------------------------------------------------------
+\question{Sharing state between threads}{13}
+\label{exb:q:8}
+
+\qpart{a} State the three conditions that together constitute a data race. State what the standard
+says the program then does, and why that is a stronger statement than ``the value may be wrong''.
+\worth{3}
+
+\qpart{b} The TX and RX threads in Chapter~6 share this structure under a mutex:
+
+\begin{cppcode}
+struct SharedMem
+{
+    std::uint16_t data{};
+    bool newData{false};
+};
+\end{cppcode}
+
+\noindent A colleague deletes the mutex and writes instead:
+
+\begin{cppcode}
+struct SharedMem
+{
+    std::atomic<std::uint16_t> data{};
+    std::atomic<bool> newData{false};
+};
+\end{cppcode}
+
+\noindent State whether the data race is gone. State whether the program is correct, and justify
+your answer with a specific interleaving. Then state the two things a mutex provides that a pair of
+atomics does not. \worth{4}
+
+\qpart{c} Name the two launch policies of \code{std::async} and state what each does. State what
+happens when no policy is passed, and describe the failure this produces in code written as ``start
+the work, do something else, collect the result later''. \worth{3}
+
+\qpart{d} Describe priority inversion as a sequence of events involving three threads. State why
+\code{std::mutex} cannot prevent it, and name what does. \worth{3}

@@ -1,0 +1,36 @@
+% Chapter 4, typeset from lectures/L04: the README is the opener and the closing review, and
+% each appendix is a section, in the same order and with the same subsections.
+
+\chapter{The Factory Pattern}
+\label{c4:ch:factory}
+
+{\large\itshape Letting a factory choose the hardware, so the logic never has to.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item The motivation behind the factory pattern, specifically the Abstract Factory pattern.
+  \item Implementing factories using raw and smart pointers.
+  \item How system logic uses factories to create drivers.
+\end{itemize}
+\end{chapterbox}
+
+This chapter is about what the factory pattern is and why it is used. A factory is what lets the
+same system logic run on real drivers or on stubs: the logic creates its drivers through the
+factory, depends only on their interfaces, and never names a concrete driver type. By the end of
+the chapter you should be able to read and follow a simple factory example, and say who owns the
+objects it creates.
+
+It builds directly on Chapters~\ref{c2:ch:classes} and~\ref{c3:ch:interfaces}. You need the
+classes and interfaces from those chapters, and the ideas of a stub and of system logic, which
+this chapter puts to work.
+
+Work the chapter in order. \Secref{c4:sec:raw} builds a factory that returns raw pointers, which
+makes plain what is allocated and who must delete it; \secref{c4:sec:smart} replaces those raw
+pointers with \code{std::unique_ptr} and arrives at a simplified Abstract Factory. The exercises
+in \secref{c4:sec:exercises} build the same design for a serial driver, first with raw pointers and
+then with smart ones. Their solutions are in \secref{sol:sec:c4}.
+
+\input{chapters/04/raw}
+\input{chapters/04/smart}
+\input{chapters/04/summary}
+\input{chapters/04/exercises}

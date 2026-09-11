@@ -1,0 +1,129 @@
+% Solutions to Chapter 5, from lectures/L05/appendix/solutions: the README's prose, and every
+% source file typeset straight from the repository.
+
+\section{Chapter 5: Templates}
+\label{sol:sec:c5}
+Reference implementations for the exercises in \secref{c5:sec:exercises}. Each set is one program
+in \file{lectures/L05/appendix/solutions}, built and run with \code{make} in its directory.
+
+\note Try to solve the exercises yourself before looking at the solutions.
+
+\subsection{Function template solution}
+\label{sol:set:c5.1}
+Exercises~\ref{c5:ex:1.1} and~\ref{c5:ex:1.2} (Exercise Set~1), in
+\file{function_template/main.cpp}: the bit utility function templates \code{clear()} and
+\code{toggle()}.
+
+The function template solution implements two generic bit operations:
+\begin{itemize}
+  \item \code{clear(T& reg, std::uint8_t bit)}
+  \item \code{toggle(T& reg, const Bits... bits)}
+\end{itemize}
+Both templates use \code{static_assert()} to verify that the register type is integral.
+
+The solution demonstrates how parameter packs and compile-time type constraints can make bit
+operations reusable for different integral register types.
+
+\cppfile{lectures/L05/appendix/solutions/function_template/main.cpp}
+
+\noindent Exercise Set~2 has no program to write, and so no reference implementation: the answers
+to Exercise~\ref{c5:ex:2.1} are the subject of \secref{c5:sec:staticassert} and
+\secref{c5:sec:whycompiletime}.
+
+\subsection{Class template solution}
+\label{sol:set:c5.3}
+Exercises~\ref{c5:ex:3.1} and~\ref{c5:ex:3.2} (Exercise Set~3), in \file{class_template}: the class
+template \code{driver::timer::Timer} in \file{include/driver/timer/timer.hpp}, with a primary stub
+implementation and a specialization for \code{driver::timer::Type::Stm32}, and a demonstration
+program in \file{source/main.cpp}.
+
+The class template solution demonstrates compile-time selection of timer implementations using
+template specialization.
+
+\subsubsection{What is implemented}
+\begin{itemize}
+  \item \code{driver::timer::Type} enum class with values \code{Stm32} and \code{Stub}.
+  \item Primary template \code{template<Type T = Type::Stub> class Timer final} for the stub timer
+    implementation.
+  \item Full specialization \code{template<> class Timer<Type::Stm32> final} for the STM32 timer
+    implementation.
+\end{itemize}
+
+\subsubsection{Shared public interface}
+Both timer variants provide the same public API:
+\begin{itemize}
+  \item \code{timeout_ms()}
+  \item \code{isRunning()}
+  \item \code{isInitialized()}
+  \item \code{start()}
+  \item \code{stop()}
+  \item \code{toggle()}
+  \item \code{tick()}
+  \item \code{hasTimedOut()}
+\end{itemize}
+
+\subsubsection{Main demo program}
+The solution demo uses:
+\begin{itemize}
+  \item A stub timer with a \code{500 ms} timeout.
+  \item An STM32 timer with a \code{1500 ms} timeout.
+\end{itemize}
+Both timers are run for \code{2000 ms}. A message is printed every time a timer times out.
+
+This shows how the same API can work for both stub and STM32 timer implementations without
+runtime polymorphism (i.e.\ interfaces).
+
+\cppfile{lectures/L05/appendix/solutions/class_template/include/driver/timer/timer.hpp}
+\cppfile{lectures/L05/appendix/solutions/class_template/source/main.cpp}
+
+\subsubsection{Answers to the reflection questions}
+These answer Exercise~\ref{c5:ex:3.2}.
+
+\task{a) Why is the timer type selected at compile time?}
+\begin{itemize}
+  \item The timer type is selected at compile time so the compiler generates concrete code for the
+    chosen implementation.
+  \item This avoids runtime overhead from virtual dispatch and allows the compiler to optimize each
+    concrete timer class.
+\end{itemize}
+
+\task{b) What is a template specialization?}
+\begin{itemize}
+  \item A template specialization is a custom implementation of a template for a specific template
+    argument.
+  \item In this exercise, the primary \code{Timer} template provides the stub timer, and the
+    specialization provides the STM32 timer.
+\end{itemize}
+
+\task{c) What advantages does this design provide compared to using inheritance and virtual
+functions?}
+\begin{itemize}
+  \item It avoids runtime polymorphism overhead, such as vtable lookups and virtual function calls.
+  \item Each implementation is compiled separately, allowing more aggressive optimization.
+  \item The same public interface is preserved while behavior is selected at compile time.
+\end{itemize}
+
+\task{d) When would inheritance be a better choice?}
+\begin{itemize}
+  \item Inheritance is better when the concrete implementation must be selected at runtime.
+  \item It is useful for plugin-style architectures or when many interchangeable implementations
+    must be handled through a common base pointer/reference.
+\end{itemize}
+
+\task{e) What happens if the specialization for \code{Type::Stm32} is removed and a
+\code{Timer<Type::Stm32>} instance is created?}
+\begin{itemize}
+  \item If the specialization is removed, the compiler will use the primary template
+    implementation for \code{Timer<Type::Stm32>}.
+  \item That means the instance would behave like the stub timer rather than a true STM32 timer.
+\end{itemize}
+
+\task{f) Why might a template specialization be preferred over a virtual interface in a small
+microcontroller system?}
+\begin{itemize}
+  \item Because it removes runtime dispatch overhead and eliminates the need for a vtable.
+  \item It keeps code paths explicit and allows the compiler to optimize the code for the target
+    hardware.
+  \item This is often better for resource-constrained microcontrollers where performance and code
+    size matter.
+\end{itemize}

@@ -1,0 +1,74 @@
+% Section A.1, from lectures/L01/appendix/solutions.
+
+\section{Chapter 1: Modern Embedded C++ Concepts}
+\label{sol:sec:c1}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 1: Default Arguments and Functions}
+\label{sol:set:c1.1}
+Exercises~\ref{c1:ex:1.1} and~\ref{c1:ex:1.2}, in \file{lectures/L01/appendix/solutions/exercise1}.
+Both functions are \code{noexcept}, and both have a default argument, so
+\code{debug::log("System started")} logs at level 0 and \code{app::delay_ms()} would wait one
+millisecond's worth of loop.
+
+\cppfile{lectures/L01/appendix/solutions/exercise1/main.cpp}
+
+\noindent Output:
+
+\begin{console}
+System started, log level = 0
+Sensor failure, log level = 2
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 2: Struct Driver}
+\label{sol:set:c1.2}
+Exercise~\ref{c1:ex:2.1}, in \file{lectures/L01/appendix/solutions/exercise2}. The driver is a
+header, \file{driver/timer.hpp}, included by \file{main.cpp}.
+
+\cppfile{lectures/L01/appendix/solutions/exercise2/driver/timer.hpp}
+\cppfile{lectures/L01/appendix/solutions/exercise2/main.cpp}
+
+\noindent Output:
+
+\begin{console}
+Creating timer!
+Starting timer!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Timeout after 1000 ms!
+Stopping timer!
+Destroying timer!
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 3: References}
+\label{sol:set:c1.3}
+Exercise~\ref{c1:ex:3.1}, in \file{lectures/L01/appendix/solutions/exercise3}.
+
+\cppfile{lectures/L01/appendix/solutions/exercise3/main.cpp}
+
+\noindent Output:
+
+\begin{console}
+Before swap: a = 3, b = 10
+After swap: a = 10, b = 3
+\end{console}
+
+% ------------------------------------------------------------------------------------------
+\subsection{Exercise Set 4: Bit Manipulation Templates}
+\label{sol:set:c1.4}
+Exercises~\ref{c1:ex:4.1} and~\ref{c1:ex:4.2}, in \file{lectures/L01/appendix/solutions/exercise4}.
+Both templates reject a non-integral register type at compile time, and \code{toggle()} iterates
+over the parameter pack through a braced initializer list, as \secref{c1:sec:templates} does for
+\code{set()}.
+
+\cppfile{lectures/L01/appendix/solutions/exercise4/main.cpp}
+
+\noindent Output:
+
+\begin{console}
+Register content: 10101110
+\end{console}

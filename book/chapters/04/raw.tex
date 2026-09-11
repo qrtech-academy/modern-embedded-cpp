@@ -1,0 +1,629 @@
+% Section 4.1, from lectures/L04/appendix/a_factory_raw_pointers.md.
+
+\section{A Simple Driver Factory with Raw Pointers}
+\label{c4:sec:raw}\label{c4:app:a}
+This section shows a simplified example of how a factory can be used to create drivers in an
+embedded system.
+
+The purpose is to demonstrate:
+\begin{itemize}
+  \item What a factory is.
+  \item Why we use it.
+  \item How it makes the system logic independent of hardware.
+\end{itemize}
+
+\subsection{Raw pointers and dynamic memory allocation}
+\label{c4:sec:rawpointers}
+In this example, so-called raw pointers are used to clarify what happens. Raw pointers are
+obtained when we use the operators \code{new} and \code{delete} to allocate and free objects
+respectively:
+\begin{itemize}
+  \item These operators serve a similar function to \code{malloc()} and \code{free()} in C, but in
+    C++ \code{new} also calls the object's constructor and \code{delete} its destructor.
+  \item Just as when using \code{malloc()} and \code{free()}, we are responsible for freeing
+    allocated resources ourselves.
+  \item In modern C++, smart pointers are used instead, which ensure that resources are released
+    via the pointer's destructor when it goes out of scope, preventing memory leaks.
+  \item Smart pointers are discussed in \secref{c4:sec:smart}, where these raw pointers are replaced
+    with \code{std::unique_ptr}.
+\end{itemize}
+
+\subsection{Background}
+\label{c4:sec:background}
+Assume that we have implemented the following drivers as classes:
+\begin{itemize}
+  \item GPIO: \code{driver::gpio::Interface} with the following concrete implementations:
+  \begin{itemize}
+    \item \code{driver::gpio::Esp32s3}: GPIO driver for the ESP32-S3 microcontroller.
+    \item \code{driver::gpio::Stub}: GPIO stub driver.
+  \end{itemize}
+\end{itemize}
+Assume that we have created the following class \code{app::logic::Logic} to handle the system
+logic:
+\begin{itemize}
+  \item The system logic uses an LED and a button, where the LED is toggled on the rising edge of
+    the push button.
+  \item Interfaces are used so that the hardware used can be selected generically, i.e.\ the
+    concrete types are chosen by the user.
+  \item The method \code{run()} is used to execute the system logic continuously.
+\end{itemize}
+
+\begin{cppcode}
+namespace app::logic
+{
+class Logic final
+{
+public:
+    explicit Logic(driver::gpio::Interface& led,
+                   driver::gpio::Interface& button) noexcept
+        : myLed{led}
+        , myButton{button}
+    {}
+
+    ~Logic() noexcept
+    {
+        myLed.write(false);
+    }
+
+    void run() noexcept
+    {
+        bool buttonPrev{false};
+
+        while (1)
+        {
+            const bool buttonCurrent{myButton.read()};
+            if (buttonCurrent && !buttonPrev)
+            {
+                myLed.toggle();
+            }
+            buttonPrev = buttonCurrent;
+        }
+    }
+
+    Logic()                        = delete;
+    Logic(const Logic&)            = delete;
+    Logic(Logic&&)                 = delete;
+    Logic& operator=(const Logic&) = delete;
+    Logic& operator=(Logic&&)      = delete;
+
+private:
+    driver::gpio::Interface& myLed;
+    driver::gpio::Interface& myButton;
+};
+} // namespace app::logic
+\end{cppcode}
+
+\noindent The example above can be implemented by creating drivers of any concrete types before the
+system logic is created, as shown below:
+
+\begin{cppcode}
+int main()
+{
+    constexpr std::uint8_t ledPin{2U};
+    constexpr std::uint8_t buttonPin{3U};
+
+    // Create ESP32-S3 drivers (ignoring data direction for simplicity).
+    driver::gpio::Esp32s3 led{ledPin};
+    driver::gpio::Esp32s3 button{buttonPin};
+
+    // Create and run system logic.
+    app::logic::Logic logic{led, button};
+    logic.run();
+}
+\end{cppcode}
+
+\noindent The method above is very efficient when dynamic memory allocation should be limited.
+
+However, it is often desirable to create multiple drivers of the same type, for example drivers
+for a specific microcontroller. For this reason, it is common to implement classes that create
+such instances. Such a class is called a \textbf{factory}, and its sole purpose is to create
+objects.
+
+Assume that the following factories have been implemented:
+\begin{itemize}
+  \item \code{driver::factory::Interface} with the following concrete implementations:
+  \begin{itemize}
+    \item \code{driver::factory::Esp32s3}: Creates ESP32-S3 instances.
+    \item \code{driver::factory::Stub}: Creates stub instances.
+  \end{itemize}
+\end{itemize}
+Assume that the constructor for \code{app::logic::Logic} had taken a reference to an arbitrary
+factory:
+
+\begin{cppcode}
+explicit Logic(driver::factory::Interface& factory,
+               const std::uint8_t ledPin,
+               const std::uint8_t buttonPin) noexcept;
+\end{cppcode}
+
+\noindent Assuming that the member variables had been implemented as pointers instead of
+references:
+
+\begin{cppcode}
+driver::gpio::Interface* myLed;
+driver::gpio::Interface* myButton;
+\end{cppcode}
+
+\noindent and the factory had created raw pointers, the instances could be created as shown below:
+
+\begin{cppcode}
+explicit Logic(driver::factory::Interface& factory,
+               const std::uint8_t ledPin,
+               const std::uint8_t buttonPin) noexcept
+        : myLed{factory.gpio(ledPin)}
+        , myButton{factory.gpio(buttonPin)}
+    {}
+\end{cppcode}
+
+\noindent As an example, \code{Esp32s3} instances could be created by passing a
+\code{driver::factory::Esp32s3} to the system logic when it is created:
+
+\begin{cppcode}
+    constexpr std::uint8_t ledPin{2U};
+    constexpr std::uint8_t buttonPin{3U};
+
+    // Create ESP32-S3 factory.
+    driver::factory::Esp32s3 factory{};
+
+    // Create and run system logic.
+    app::logic::Logic logic{factory, ledPin, buttonPin};
+    logic.run();
+\end{cppcode}
+
+\noindent This moves the creation of drivers away from the system logic. Instead, the factory is
+responsible for selecting and creating the correct concrete implementation. The system logic can
+therefore operate on interfaces without knowing the underlying hardware.
+
+\subsection{Dynamic memory allocation in the factory}
+\label{c4:sec:dynamic}
+When instances are created in this way, they normally need to be allocated dynamically, unless the
+factory instead returns a reference to a singleton class.
+
+This can be done using either:
+\begin{itemize}
+  \item Raw pointers (\code{new} and \code{delete}).
+  \item Smart pointers (\code{std::make_unique()}).
+\end{itemize}
+Instead of allocating an instance of \code{driver::gpio::Esp32s3} dynamically ourselves:
+
+\begin{cppcode}
+auto* gpio = new driver::gpio::Esp32s3(pin);
+\end{cppcode}
+
+\noindent we let a factory perform this task:
+
+\begin{cppcode}
+auto* gpio = factory.gpio(pin);
+\end{cppcode}
+
+\noindent This means that:
+\begin{itemize}
+  \item The system logic does not know which concrete class is used.
+  \item It only knows that it receives an object that satisfies a certain interface.
+\end{itemize}
+
+\subsection{Why do we use a factory?}
+\label{c4:sec:whyfactory}
+In many embedded systems, a factory plays a role similar to a hardware abstraction layer (HAL) or a
+board support package (BSP); it centralizes the creation of hardware-specific objects.
+
+In an embedded system we often want to be able to:
+
+\begin{narrowtable}{@{}ll@{}}
+  \thead{Situation} & \thead{What we want to do} \\
+  \midrule
+  Real hardware & Use real drivers \\
+  Testing/simulation & Use stubs \\
+  New platform & Replace drivers \\
+\end{narrowtable}
+
+\noindent If the system logic creates drivers itself:
+
+\begin{cppcode}
+auto* led = new driver::gpio::Esp32s3(pin);
+\end{cppcode}
+
+\noindent then:
+\begin{itemize}
+  \item The logic is tied to ESP32-S3.
+  \item The system cannot be tested without hardware.
+\end{itemize}
+With a factory:
+
+\begin{cppcode}
+auto* led = factory.gpio(pin);
+\end{cppcode}
+
+\noindent we can switch between:
+
+\begin{cppcode}
+driver::factory::Esp32s3 factory{};
+\end{cppcode}
+
+\noindent and:
+
+\begin{cppcode}
+driver::factory::Stub factory{};
+\end{cppcode}
+
+\noindent without changing the system logic.
+
+This is called \emph{dependency injection via factory}.
+
+\subsection{Overview of the architecture in a typical embedded system}
+\label{c4:sec:architecture}
+Assume that we have an embedded system where the software is divided into four layers:
+
+\begin{console}
+app::logic::Logic
+        |
+        v
+driver::factory::Interface
+        |
+        +------------+
+        |            |
+        v            v
+factory::Esp32s3   factory::Stub
+        |            |
+        v            v
+gpio::Esp32s3      gpio::Stub
+\end{console}
+
+\noindent The system logic therefore does not know whether it is running on real hardware or on
+stubs. It only knows about the interfaces.
+
+\subsection{Example implementation using a factory}
+\label{c4:sec:rawexample}
+
+\subsubsection{Step 1: Interface for GPIO}
+We create a simple GPIO interface in a file \file{driver/gpio/interface.hpp}, as shown below:
+
+\begin{cppcode}
+#pragma once
+
+namespace driver::gpio
+{
+class Interface
+{
+public:
+    virtual ~Interface() noexcept = default;
+    [[nodiscard]] virtual bool read() const noexcept = 0;
+    virtual void write(bool state) noexcept = 0;
+    virtual void toggle() noexcept = 0;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\subsubsection{Step 2: Real driver}
+We create a GPIO driver for the ESP32-S3 in a file \file{driver/gpio/esp32s3.hpp}, as shown below:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+#include "driver/gpio/interface.hpp"
+
+namespace driver::gpio
+{
+class Esp32s3 final : public Interface
+{
+public:
+    explicit Esp32s3(const std::uint8_t pin) noexcept
+        : myPin{pin}
+    {
+        // ESP-specific initialization here!
+    }
+
+    ~Esp32s3() noexcept override
+    {
+        // ESP-specific cleanup here!
+    }
+
+    [[nodiscard]] bool read() const noexcept override
+    {
+        // ESP-specific code here!
+        return false;
+    }
+
+    void write(const bool state) noexcept override
+    {
+        // ESP-specific code here!
+        (void) (state);
+    }
+
+    void toggle() noexcept override
+    {
+        // ESP-specific code here!
+    }
+
+    Esp32s3()                          = delete;
+    Esp32s3(const Esp32s3&)            = delete;
+    Esp32s3(Esp32s3&&)                 = delete;
+    Esp32s3& operator=(const Esp32s3&) = delete;
+    Esp32s3& operator=(Esp32s3&&)      = delete;
+
+private:
+    const std::uint8_t myPin;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\subsubsection{Step 3: Stub}
+We create a GPIO stub in a file \file{driver/gpio/stub.hpp}, as shown below:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+#include "driver/gpio/interface.hpp"
+
+namespace driver::gpio
+{
+class Stub final : public Interface
+{
+public:
+    Stub() noexcept
+        : myState{false}
+    {}
+    ~Stub() noexcept override = default;
+
+    [[nodiscard]] bool read() const noexcept override { return myState; }
+    void write(const bool state) noexcept override { myState = state; }
+    void toggle() noexcept override { myState = !myState; }
+
+    Stub(const Stub&)            = delete;
+    Stub(Stub&&)                 = delete;
+    Stub& operator=(const Stub&) = delete;
+    Stub& operator=(Stub&&)      = delete;
+
+private:
+    bool myState;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\subsubsection{Step 4: Factory interface}
+We create a factory interface in a file \file{driver/factory/interface.hpp} in order to implement
+separate factories:
+\begin{itemize}
+  \item A factory for creating instances for ESP32-S3.
+  \item A factory for creating stub instances.
+\end{itemize}
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+namespace driver
+{
+/** GPIO driver interface. */
+namespace gpio { class Interface; }
+} // namespace driver
+
+namespace driver::factory
+{
+class Interface
+{
+public:
+    virtual ~Interface() noexcept = default;
+    [[nodiscard]] virtual gpio::Interface* gpio(std::uint8_t pin) noexcept = 0;
+};
+} // namespace driver::factory
+\end{cppcode}
+
+\noindent Note that \code{gpio()} is marked \code{[[nodiscard]]}: it allocates a new object with
+\code{new} and hands ownership to the caller. Discarding the returned pointer would lose the only
+reference to that object, leaking it --- there would be no way to \code{delete} it later.
+
+\subsubsection{Step 5: Real factory}
+We then create an ESP32-S3 factory in a file \file{driver/factory/esp32s3.hpp} in order to
+construct ESP32 instances:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+#include "driver/factory/interface.hpp"
+#include "driver/gpio/esp32s3.hpp"
+
+namespace driver::factory
+{
+class Esp32s3 final : public Interface
+{
+public:
+    Esp32s3() noexcept = default;
+    ~Esp32s3() noexcept override = default;
+
+    [[nodiscard]] gpio::Interface* gpio(const std::uint8_t pin) noexcept override
+    {
+        return new gpio::Esp32s3(pin);
+    }
+
+    Esp32s3(const Esp32s3&)            = delete;
+    Esp32s3(Esp32s3&&)                 = delete;
+    Esp32s3& operator=(const Esp32s3&) = delete;
+    Esp32s3& operator=(Esp32s3&&)      = delete;
+};
+} // namespace driver::factory
+\end{cppcode}
+
+\subsubsection{Step 6: Stub factory}
+We also create a stub factory in a file \file{driver/factory/stub.hpp} in order to construct stub
+instances:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+#include "driver/factory/interface.hpp"
+#include "driver/gpio/stub.hpp"
+
+namespace driver::factory
+{
+class Stub final : public Interface
+{
+public:
+    Stub() noexcept = default;
+    ~Stub() noexcept override = default;
+
+    [[nodiscard]] gpio::Interface* gpio(const std::uint8_t pin) noexcept override
+    {
+        // Ignore the pin number since it is not used by the stub.
+        (void) (pin);
+        return new gpio::Stub();
+    }
+
+    Stub(const Stub&)            = delete;
+    Stub(Stub&&)                 = delete;
+    Stub& operator=(const Stub&) = delete;
+    Stub& operator=(Stub&&)      = delete;
+};
+} // namespace driver::factory
+\end{cppcode}
+
+\subsubsection{Step 7: System logic using a factory}
+We then create a logic class that uses a given factory to create instances, in a file
+\file{app/logic/logic.hpp}:
+\begin{itemize}
+  \item In the constructor we allocate memory for the GPIO instances \code{myLed} and
+    \code{myButton} via the factory.
+  \item In the destructor we free the allocated resources, i.e.\ the GPIO instances --- since we
+    have allocated memory using raw pointers we are responsible for doing this ourselves.
+  \item In the method \code{run()}, \code{myLed} is toggled on the rising edge of the push button.
+  \item Because \code{myLed} and \code{myButton} are pointers, the arrow operator \code{->} is used
+    to call their methods.
+  \item The copy and move operations are deleted. This is particularly important here, because
+    \code{Logic} owns two raw pointers and deletes them in its destructor. Had we not deleted them,
+    the compiler would have generated a copy constructor that copies the two \emph{pointer values},
+    so a copy would refer to the exact same two GPIO objects. Both objects would then delete them
+    when destroyed, which means each GPIO object would be deleted twice; a \textbf{double
+    deletion}, which is undefined behavior, would occur. The same applies to the copy assignment
+    operator.
+\end{itemize}
+
+\note This is a general rule, and it is sometimes referred to as the \emph{rule of three}: a class
+that needs a destructor almost always needs its copy operations written or deleted as well. For a
+class such as \code{Logic}, which represents one system with one set of drivers, deleting them is
+the right choice.
+
+In this example, the system logic owns the driver objects. The pointers returned by the factory are
+therefore owned by \code{Logic}, which means that the system logic is also responsible for deleting
+them in the destructor:
+
+\begin{cppcode}
+#pragma once
+
+#include <cstdint>
+
+#include "driver/factory/interface.hpp"
+#include "driver/gpio/interface.hpp"
+
+namespace app::logic
+{
+class Logic final
+{
+public:
+    explicit Logic(driver::factory::Interface& factory,
+                   const std::uint8_t ledPin, const std::uint8_t buttonPin) noexcept
+        : myLed{factory.gpio(ledPin)}
+        , myButton{factory.gpio(buttonPin)}
+    {}
+
+    ~Logic() noexcept
+    {
+        delete myLed;
+        delete myButton;
+    }
+
+    void run() noexcept
+    {
+        bool buttonPrev{false};
+
+        while (1)
+        {
+            // Read the current button input.
+            const bool buttonCurrent{myButton->read()};
+
+            // Toggle the LED on pressdown (rising edge).
+            if (buttonCurrent && !buttonPrev)
+            {
+                myLed->toggle();
+            }
+            // Store the current button input for next comparison.
+            buttonPrev = buttonCurrent;
+        }
+    }
+
+    // Deleting the copy operations is essential here: a copy would hold the same two pointers,
+    // and both objects would delete the same GPIO instances (double deletion).
+    Logic()                        = delete; // No default constructor.
+    Logic(const Logic&)            = delete; // No copy constructor.
+    Logic(Logic&&)                 = delete; // No move constructor.
+    Logic& operator=(const Logic&) = delete; // No copy assignment.
+    Logic& operator=(Logic&&)      = delete; // No move assignment.
+
+private:
+    driver::gpio::Interface* myLed;
+    driver::gpio::Interface* myButton;
+};
+} // namespace app::logic
+\end{cppcode}
+
+\subsubsection{Step 8: \code{main}}
+In the function \code{main}, we create a factory and pass it to the system logic to create the
+objects.
+
+Below is an example of how a factory could be used to run the system logic on an ESP32-S3 by
+passing an instance of \code{driver::factory::Esp32s3} to the system logic, followed by calling the
+method \code{run()}:
+
+\begin{cppcode}
+#include <cstdint>
+
+#include "driver/factory/esp32s3.hpp"
+#include "app/logic/logic.hpp"
+
+int main()
+{
+    constexpr std::uint8_t ledPin{2U};
+    constexpr std::uint8_t buttonPin{3U};
+
+    // Create system logic and initialize the system.
+    driver::factory::Esp32s3 factory{};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
+
+    // Run the system continuously.
+    logic.run();
+    return 0;
+}
+\end{cppcode}
+
+\noindent To run with stub drivers, it is sufficient to switch to the stub factory
+\code{driver::factory::Stub}, as shown below. This is well suited for testing and will be
+demonstrated in a later QAcademy course on software testing:
+
+\begin{cppcode}
+#include <cstdint>
+
+#include "driver/factory/stub.hpp"
+#include "app/logic/logic.hpp"
+
+int main()
+{
+    constexpr std::uint8_t ledPin{2U};
+    constexpr std::uint8_t buttonPin{3U};
+
+    // Create system logic and initialize the system.
+    driver::factory::Stub factory{};
+    app::logic::Logic logic{factory, ledPin, buttonPin};
+
+    // Run the system continuously.
+    logic.run();
+    return 0;
+}
+\end{cppcode}

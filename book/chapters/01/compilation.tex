@@ -1,0 +1,308 @@
+% Section 1.1, from lectures/L01/appendix/a_compilation.md.
+
+\section{Compiling and Executing Code in Linux}
+\label{c1:sec:compilation}\label{c1:app:a}
+If you are using a Linux environment, you can use \code{make} to compile and execute your code.
+This section describes how to install \textbf{WSL} in order to build and run code in a Linux
+environment on a Windows computer.
+
+\subsection{Installation}
+\label{c1:sec:wsl}
+WSL (\emph{Windows Subsystem for Linux}) allows running a Linux distribution in a terminal
+environment directly inside Windows, without using a virtual machine. This book uses the Linux
+distribution \textbf{Ubuntu}.
+
+WSL is used here to:
+\begin{itemize}
+  \item Build, store, and run code examples.
+  \item Compile and execute C and C++ programs.
+  \item Work in a Linux environment using standard development tools such as \code{gcc},
+    \code{g++}, \code{make}, and \code{cmake}.
+\end{itemize}
+
+\subsubsection{Installing WSL and Ubuntu}
+\begin{enumerate}
+  \item Open \textbf{Windows PowerShell as Administrator}.
+  \item Run the following commands:
+\end{enumerate}
+
+\begin{shell}
+wsl --install
+wsl --set-default-version 2
+\end{shell}
+
+\noindent Alternatively, Ubuntu can be installed directly using:
+
+\begin{shell}
+wsl --install -d Ubuntu
+\end{shell}
+
+\note If the system asks for a restart, restart the computer before continuing.
+
+Verify the installation with:
+
+\begin{shell}
+wsl --status
+\end{shell}
+
+\noindent Ensure that \textbf{Default Version: 2} is displayed.
+
+\subsubsection{If Ubuntu was not installed automatically}
+\begin{enumerate}
+  \item Open \textbf{Microsoft Store}.
+  \item Search for \code{Ubuntu}.
+  \item Select the latest LTS version (currently \code{Ubuntu 24.04 LTS}).
+  \item Click \textbf{Install}.
+\end{enumerate}
+
+\subsubsection{Starting Ubuntu}
+\begin{enumerate}
+  \item Type \code{Ubuntu} in the Windows search bar.
+  \item Launch the distribution.
+\end{enumerate}
+At the first startup:
+\begin{itemize}
+  \item Choose a short and clear username (for example your first name).
+  \item Choose a password.
+  \item Store the password safely.
+\end{itemize}
+\note The password is used only inside the Linux environment.
+
+\subsubsection{Installing basic development tools}
+After Ubuntu has started, update the system and install the necessary tools:
+
+\begin{shell}
+sudo apt -y update
+sudo apt -y upgrade
+sudo apt -y install build-essential cmake
+\end{shell}
+
+\noindent This installs:
+\begin{itemize}
+  \item \code{gcc} and \code{g++}.
+  \item \code{make}.
+  \item Various development libraries.
+  \item \code{cmake}.
+\end{itemize}
+Verify the installation:
+
+\begin{shell}
+gcc --version
+g++ --version
+\end{shell}
+
+\subsection{Creating a new program}
+\label{c1:sec:newprogram}
+For each program, create a new directory, for example \file{example-dir}:
+
+\begin{shell}
+mkdir example-dir
+cd example-dir
+\end{shell}
+
+\noindent Inside this directory, create a file called \file{Makefile}:
+
+\begin{shell}
+touch Makefile
+\end{shell}
+
+\subsection{A simple Makefile}
+\label{c1:sec:makefile}
+In this Makefile, add the following content:
+
+\begin{makecode}
+# Build and run the application as default.
+default: build run
+
+# Build the application.
+build:
+	@g++ main.cpp -o main -Wall -Werror -std=c++17
+
+# Run the application.
+run:
+	@./main
+
+# Clean the application.
+clean:
+	@rm -f main
+\end{makecode}
+
+\note
+\begin{itemize}
+  \item The indentation under the targets \code{build}, \code{run}, and \code{clean} must consist of
+    \textbf{tabs}, not spaces.
+  \item This Makefile builds an executable named \code{main}.
+  \item Regarding the compiler flags:
+  \begin{itemize}
+    \item \code{-Wall} enables most compiler warnings.
+    \item \code{-Werror} converts warnings into errors, which helps prevent subtle bugs.
+    \item \code{-std=c++17} sets the C++ version to C++17.
+  \end{itemize}
+  \item To see the compilation commands executed by \code{make}, remove the \code{@} prefix.
+\end{itemize}
+
+\subsection{A simple Makefile with parameters}
+\label{c1:sec:makeparams}
+It is also possible to use parameters to make the Makefile easier to maintain, especially when the
+number of source files increases:
+
+\begin{makecode}
+# Target application.
+TARGET := main
+
+# C++ compiler.
+CXX_COMPILER := g++
+
+# C++ compiler flags.
+CXX_FLAGS := -Wall -Werror -std=c++17
+
+# Source files.
+SRC_FILES := main.cpp
+
+# Build and run the application as default.
+default: build run
+
+# Build the application.
+build:
+	@$(CXX_COMPILER) $(SRC_FILES) -o $(TARGET) $(CXX_FLAGS)
+
+# Run the application.
+run:
+	@./$(TARGET)
+
+# Clean the application.
+clean:
+	@rm -f $(TARGET)
+\end{makecode}
+
+\subsection{Tips}
+\label{c1:sec:tips}
+For compilation to work correctly:
+\begin{itemize}
+  \item Place all header and source files (\code{.hpp} and \code{.cpp} files) directly in this
+    directory.
+  \item Make sure to include all source files (\code{.cpp} files) between \code{g++} and \code{-o}
+    in the build target.
+  \item For simple examples, all source files can be placed in the same directory.
+\end{itemize}
+
+\subsubsection{Embedded project structure}
+In larger embedded projects, source files are typically organized in separate directories such
+as:
+
+\begin{console}
+include/
+    driver/
+        gpio.hpp
+source/
+    driver/
+        gpio.cpp
+    main.cpp
+Makefile
+\end{console}
+
+\noindent The Makefile can then be extended to support these directories:
+\begin{itemize}
+  \item The \file{include} directory is included via the compiler flags.
+  \item The source files are listed one per line using line continuation (\code{\\}).
+\end{itemize}
+
+\begin{makecode}
+# Target application.
+TARGET := main
+
+# C++ compiler.
+CXX_COMPILER := g++
+
+# C++ compiler flags.
+CXX_FLAGS := -Wall -Werror -std=c++17 -Iinclude
+
+# Source files.
+SRC_FILES := source/driver/gpio.cpp \
+                source/main.cpp \
+
+# Build and run the application as default.
+default: build run
+
+# Build the application.
+build:
+	@$(CXX_COMPILER) $(SRC_FILES) -o $(TARGET) $(CXX_FLAGS)
+
+# Run the application.
+run:
+	@./$(TARGET)
+
+# Clean the application.
+clean:
+	@rm -f $(TARGET)
+\end{makecode}
+
+\subsection{Compiling a test program}
+\label{c1:sec:testprogram}
+You can compile and run your program using the following command:
+
+\begin{shell}
+make
+\end{shell}
+
+\noindent You can also build the program without running it:
+
+\begin{shell}
+make build
+\end{shell}
+
+\noindent You can run the program without compiling first:
+
+\begin{shell}
+make run
+\end{shell}
+
+\noindent You can remove compiled files:
+
+\begin{shell}
+make clean
+\end{shell}
+
+\noindent Create and run the following test program in a file named \file{main.cpp}:
+
+\begin{cppcode}
+#include <cstdio>
+
+int main()
+{
+    std::printf("Hello to C++!\n");
+    return 0;
+}
+\end{cppcode}
+
+\noindent Run the program using:
+
+\begin{shell}
+make
+\end{shell}
+
+\noindent Expected output:
+
+\begin{console}
+Hello to C++!
+\end{console}
+
+\subsection{Notes}
+\label{c1:sec:compilenotes}
+\begin{itemize}
+  \item We begin by including the standard header \code{<cstdio>}, which is the C++ version of the
+    C header \code{<stdio.h>} and contains functionality for input and output operations.
+  \item Most functionality in the C++ standard library exists inside the namespace \code{std}
+    (\emph{standard}).
+  \item A namespace works somewhat like a directory in a filesystem and helps prevent naming
+    conflicts.
+  \item When using something from the standard library we therefore prefix it with \code{std::},
+    for example:
+  \begin{itemize}
+    \item \code{std::uint8_t}
+    \item \code{std::size_t}
+    \item \code{std::vector}
+  \end{itemize}
+  \item \code{std::printf} is the C++ version of the C function \code{printf} and is used to print
+    text to the terminal.
+\end{itemize}

@@ -1,0 +1,286 @@
+% Section 3.5, from lectures/L03/appendix/c_exercises.md.
+
+\section{Exercises}
+\label{c3:sec:exercises}\label{c3:app:c}
+
+\begin{aside}
+\textbf{How to work these.} These exercises reinforce the concepts from
+\secref{c3:sec:inheritance} and \secref{c3:sec:interfaces}. Unlike the earlier chapters, all four
+sets build \emph{one} program: an interface, two drivers implementing it, and a \code{main()} that
+uses both through the interface. Build it with the Makefile from \secref{c1:sec:tips}, listing the
+three source files and adding \code{-Iinclude} to the compiler flags.
+
+The solution is in \secref{sol:sec:c3}. Try each exercise yourself before looking at it.
+\end{aside}
+
+Create the following directory structure:
+
+\begin{console}
+Makefile
+include/
+    driver/
+        serial/
+            console.hpp
+            interface.hpp
+            stub.hpp
+source/
+    driver/
+        serial/
+            console.cpp
+            stub.cpp
+    main.cpp
+\end{console}
+
+\note When a class overrides a method that is marked \code{[[nodiscard]]} in the interface, repeat
+the attribute on the overriding method as well. The attribute is not inherited; see
+\secref{c3:sec:structure}.
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Serial Interface}
+\label{c3:set:1}
+
+\exercise{Interface for serial communication}{Code}
+\label{c3:ex:1.1}
+In this exercise you will design an interface \code{driver::serial::Interface} representing a
+generic serial communication driver.
+
+\task{Tasks}
+In \file{driver/serial/interface.hpp}, design a class named \code{driver::serial::Interface} that
+represents a generic serial driver.
+
+All methods except the destructor shall be purely virtual (\code{= 0}).
+
+\task{a) Destructor}
+Add a destructor that is:
+\begin{itemize}
+  \item Virtual.
+  \item Marked \code{noexcept}.
+  \item Implemented using \code{= default}.
+\end{itemize}
+
+\task{b) Initialization status}
+Add a pure virtual method \code{isInitialized()} that:
+\begin{itemize}
+  \item Indicates whether the driver has been initialized (\code{true/false}).
+  \item Does not modify the object (\code{const}).
+  \item Cannot throw exceptions.
+  \item Generates a warning if the return value is discarded (\code{[[nodiscard]]}).
+\end{itemize}
+
+\task{c) Transmitting data}
+Add a pure virtual method \code{write()} that:
+\begin{itemize}
+  \item Transmits one byte of data.
+  \item Takes a parameter of type \code{std::uint8_t}.
+  \item Does not return a value.
+  \item Cannot throw exceptions.
+\end{itemize}
+
+\task{d) Receiving data}
+Add a pure virtual method \code{read()} that:
+\begin{itemize}
+  \item Attempts to read one byte from the serial driver.
+  \item Takes a reference to a variable where the byte will be stored.
+  \item Returns \code{true} if a byte was received, otherwise \code{false}.
+  \item Cannot throw exceptions.
+  \item Lets the user discard the return value if desired (\code{[[nodiscard]]} omitted).
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Stub Implementation}
+\label{c3:set:2}
+
+\exercise{Serial stub}{Code}
+\label{c3:ex:2.1}
+In \file{driver/serial/stub.hpp}, implement a stub driver \code{driver::serial::Stub} for the
+serial interface.
+
+A stub driver simulates hardware behaviour and is useful for testing without real hardware.
+
+The class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::serial::Interface}.
+  \item Be marked \code{final}.
+\end{itemize}
+Method definitions shall be placed in \file{driver/serial/stub.cpp}.
+
+\task{a) Member variables}
+Add three private member variables:
+\begin{itemize}
+  \item The first member variable shall:
+  \begin{itemize}
+    \item Store the most recently transmitted byte.
+    \item Have the type \code{std::uint8_t}.
+    \item Be named \code{myLastByte}.
+  \end{itemize}
+  \item The second member variable shall:
+  \begin{itemize}
+    \item Indicate whether the driver is initialized.
+    \item Have the type \code{bool}.
+    \item Be named \code{myInitialized}.
+  \end{itemize}
+  \item The third member variable shall:
+  \begin{itemize}
+    \item Indicate whether a byte is available to read.
+    \item Have the type \code{bool}.
+    \item Be named \code{myHasData}.
+  \end{itemize}
+\end{itemize}
+
+\task{b) Constructor}
+Add a default constructor that:
+\begin{itemize}
+  \item Sets the driver as initialized.
+  \item Indicates that no data is available to read.
+\end{itemize}
+
+\task{c) Disable copy and move semantics}
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+\task{d) Implement interface methods}
+Implement all methods required by the interface:
+\begin{itemize}
+  \item The method \code{isInitialized()} shall:
+  \begin{itemize}
+    \item Return the value stored in \code{myInitialized}.
+  \end{itemize}
+  \item The method \code{write()} shall:
+  \begin{itemize}
+    \item Do nothing if \code{myInitialized} is \code{false}.
+    \item Otherwise store the transmitted byte in \code{myLastByte}, and set \code{myHasData} to
+      \code{true}.
+  \end{itemize}
+  \item The method \code{read()} shall:
+  \begin{itemize}
+    \item Return \code{false} if \code{myInitialized} is \code{false} or \code{myHasData} is
+      \code{false}.
+    \item Otherwise copy the stored byte (\code{myLastByte}) into the output argument, set
+      \code{myHasData} to \code{false}, and return \code{true}.
+  \end{itemize}
+\end{itemize}
+
+\task{e) Initialization method}
+Add an additional public method \code{setInitialized()} that is not part of the interface.
+
+This method shall:
+\begin{itemize}
+  \item Be used to simulate the initialization state.
+  \item Take the initialization state as input.
+  \item Not return a value.
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Singleton Driver}
+\label{c3:set:3}
+
+\exercise{Console serial driver}{Code}
+\label{c3:ex:3.1}
+In \file{driver/serial/console.hpp}, create a real driver implementation
+\code{driver::serial::Console} that writes transmitted bytes to the system console.
+
+This driver shall follow the so-called singleton pattern, i.e.\ there is only one instance of the
+class.
+
+The reason is that the system only has one console output device.
+
+This class shall:
+\begin{itemize}
+  \item Inherit from \code{driver::serial::Interface}.
+  \item Be marked \code{final}.
+\end{itemize}
+Method definitions shall be placed in \file{driver/serial/console.cpp}.
+
+\task{a) Private constructor}
+Add a private default constructor that prevents users from directly creating objects of the class.
+
+\task{b) Private destructor}
+Add a private destructor, mark it \code{noexcept} and \code{default}.
+
+\task{c) Prevent multiple instances}
+Ensure that only one instance of the class can exist.
+
+Delete the following functions (in the public section of the class):
+\begin{itemize}
+  \item Copy constructor.
+  \item Move constructor.
+  \item Copy assignment operator.
+  \item Move assignment operator.
+\end{itemize}
+
+\task{d) Singleton access method}
+Add a static public method \code{instance()} that returns a reference to the unique instance of the
+class.
+
+Requirements:
+\begin{itemize}
+  \item The method shall return the console driver as a reference to
+    \code{driver::serial::Interface} (even though the instance itself is of type
+    \code{driver::serial::Console}).
+  \item The method cannot throw exceptions.
+  \item In this method:
+  \begin{itemize}
+    \item Create a local static instance of the driver (\code{static driver::serial::Console}).
+    \item Initialize the instance using the default constructor.
+  \end{itemize}
+\end{itemize}
+
+\task{e) Implement interface methods}
+Implement all methods required by the interface:
+\begin{itemize}
+  \item The method \code{isInitialized()} shall:
+  \begin{itemize}
+    \item Always return \code{true}, since the console driver is always available.
+  \end{itemize}
+  \item The method \code{write()} shall:
+  \begin{itemize}
+    \item Cast the given byte to a character and print it to the console using
+      \code{std::printf()} from \code{<cstdio>}.
+  \end{itemize}
+  \item The method \code{read()} shall:
+  \begin{itemize}
+    \item Always return \code{false}, since the console does not support reading.
+  \end{itemize}
+\end{itemize}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{Using the Interface}
+\label{c3:set:4}
+
+\exercise{Sending a message}{Code}
+\label{c3:ex:4.1}
+\task{a) The \code{sendMessage()} function}
+In \file{source/main.cpp}, create a function \code{sendMessage()} that sends a message using the
+serial interface.
+
+The function shall:
+\begin{itemize}
+  \item Take a reference to \code{driver::serial::Interface}.
+  \item Transmit the string \code{"Transmitting data with a serial driver!"}.
+  \item Send the message one byte at a time.
+\end{itemize}
+
+\task{b) Testing the console driver}
+In function \code{main()}, test the console driver:
+\begin{itemize}
+  \item Obtain the singleton instance of the console driver.
+  \item Pass it to the \code{sendMessage()} function.
+  \item Verify that the program prints the following:
+\end{itemize}
+
+\begin{console}
+Transmitting data with a serial driver!
+\end{console}
+
+\task{c) Testing the stub driver}
+In function \code{main()}, test the stub driver:
+\begin{itemize}
+  \item Create an instance of the stub driver and pass it to the function \code{sendMessage()}.
+  \item Verify that the last transmitted byte \code{!} can later be read using the \code{read()}
+    method.
+\end{itemize}

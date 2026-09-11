@@ -1,0 +1,143 @@
+% Preface: the README's About, During the Course, Learning Outcomes and Written Papers sections,
+% the course plan from info/README.md, and L01's prerequisites, as the front matter of a book.
+
+\chapter{Preface}
+\markboth{Preface}{Preface}
+
+This book is for experienced C developers who want to learn how modern C++ can be used
+effectively in embedded systems. It covers the development of embedded systems in modern C++
+(C++17), with a focus on practical design techniques for resource-constrained systems.
+
+Unlike an introductory C++ text, it assumes strong prior experience with C, and it covers only the
+C++ concepts that are useful in embedded systems:
+\begin{itemize}
+  \item The transition from C to modern embedded C++.
+  \item Compile-time programming (\code{constexpr}, templates).
+  \item Deterministic embedded design (\code{noexcept}, controlled use of dynamic memory
+    allocation).
+  \item Structs and classes for hardware drivers.
+  \item Encapsulation and object-oriented design in embedded systems.
+  \item Interfaces and polymorphism.
+  \item Factory patterns and dependency management.
+  \item Templates and generic programming.
+  \item Copy and move semantics in embedded C++.
+  \item Template utilities for low-level programming.
+  \item Threading and synchronization primitives.
+  \item Designing reusable and testable driver libraries.
+\end{itemize}
+
+\textbf{Along the way you will write code, not just read it.} You will implement simple drivers
+using modern C++, apply compile-time techniques to low-level programming, refactor traditional C
+patterns into safer C++ constructs, and design modular embedded software using interfaces and
+factories, always with an eye on how C++ can improve modularity and code structure
+\emph{without} introducing runtime overhead. The examples and exercises stay close to typical
+embedded problems:
+\begin{itemize}
+  \item Bit manipulation utilities.
+  \item Register access helpers.
+  \item Simple driver abstractions.
+  \item Compile-time utilities for low-level code.
+  \item Interface-based driver design.
+  \item Template-based utilities.
+\end{itemize}
+
+\section*{What you should be able to do at the end}
+Having worked through the book, you should be able to:
+\begin{itemize}
+  \item Use modern C++ features effectively in embedded systems.
+  \item Write low-level code using templates and compile-time techniques.
+  \item Design simple hardware drivers using structs and classes.
+  \item Use interfaces to decouple system logic from hardware implementations.
+  \item Apply factory patterns to construct embedded components.
+  \item Use templates to build reusable embedded utilities.
+  \item Apply object-oriented design without sacrificing performance or determinism.
+  \item Understand how C++ abstractions translate to machine code in embedded environments.
+\end{itemize}
+
+\section*{What you are assumed to know}
+The subject of this book is \textbf{the C++ that pays its way on a microcontroller}, not embedded
+programming in general. You are expected to arrive already comfortable with:
+\begin{itemize}
+  \item C programming: functions, pointers, structs and the rest of the language.
+  \item Bit manipulation, and the embedded programming concepts it is used for.
+\end{itemize}
+None of that is taught from scratch. What the book does teach from nothing is every C++ feature it
+uses, starting in Chapter~1 with the difference between a \code{.h} and a \code{.hpp} file.
+
+\section*{How the book is organised}
+The book is typeset from a six-lecture course, and each chapter is one lecture. Its sections are
+the lecture's appendices, in the same order and with the same subsections, so a chapter here and a
+lecture directory in the repository can be read side by side:
+
+\begin{booktable}{@{}p{5.2em}p{3.6em}L@{}}
+  \thead{Chapter} & \thead{Lecture} & \thead{Topic} \\
+  \midrule
+  1 & \file{L01} & Modern embedded C++ concepts \\
+  2 & \file{L02} & Classes \\
+  3 & \file{L03} & Inheritance and interfaces \\
+  4 & \file{L04} & The factory pattern \\
+  5 & \file{L05} & Templates \\
+  6 & \file{L06} & Multithreading and synchronization \\
+\end{booktable}
+
+Every chapter opens with what is in it, works through the material, closes with a review of what
+you should now be able to explain, and ends with its exercises. The appendices hold the solutions
+to those exercises and the two written papers described below.
+
+\section*{What the exercises look like}
+The exercises come in \textbf{sets}. A set builds one small program, or one part of a larger
+one, and each exercise in a set adds a piece of it; the solutions in
+Appendix~\ref{sol:ch:solutions} follow the same grouping. Every exercise is labelled with its
+kind:
+
+\begin{booktable}{@{}p{7.4em}L@{}}
+  \thead{Kind} & \thead{What it asks of you} \\
+  \midrule
+  \kindtag{Code} & Write C++, compile it, and check its output against the one the exercise
+    gives. \\
+  \kindtag[fillaccent2]{Reflection} & Answer in prose: explain what your code does, or why one
+    design is better than another. \\
+\end{booktable}
+
+\textbf{Try each exercise before you read its solution.} The solutions are the reference
+implementations from the course repository, typeset straight from their source files so that the
+book and the code can never disagree. Where a solution has a design decision worth discussing, or
+a reflection question to answer, the discussion is printed beside the code.
+
+\section*{Two written papers, and what they are not}
+Nothing in the course this book comes from is marked. Assessment is the exercise set after every
+chapter, each with a published solution, and the questions in every chapter's review.
+
+Appendices~\ref{exam:ch:about} to \ref{ansb:ch:answers} hold two three-hour papers with worked
+solutions, and they check something else: \textbf{what you can reconstruct on paper, with nothing
+in front of you.} Eight questions each, mixing theory with C++ you either read and repair or write
+from scratch, and no compiler in the room to tell you which it is.
+
+\textbf{They exist purely so that you can test your own knowledge after working through the book.
+They gate nothing, they are not a qualification, and no part of the book requires them.}
+
+\textbf{Take one after the last chapter.} Both papers draw on all six chapters, so sitting one
+partway through examines material you have not read yet.
+
+\section*{Setting up}
+Everything in this book runs in a Linux terminal: on Linux itself, or on Windows through WSL. You
+need three things:
+\begin{itemize}
+  \item \textbf{GCC and G++}, to compile the example programs.
+  \item \textbf{Linux or WSL}, to compile and run them in a terminal environment.
+  \item \textbf{An editor}; Visual Studio Code is the one the course uses, available at
+    \url{https://code.visualstudio.com/download}.
+\end{itemize}
+\Secref{c1:sec:compilation} walks through installing WSL, Ubuntu and the compiler, and writing the
+Makefile every program in the book is built with. Then clone the companion repository:
+
+\begin{shell}
+git clone https://github.com/qrtech-academy/modern-embedded-cpp.git
+\end{shell}
+
+\noindent Two commands at its root cover everything the book asks of it:
+
+\begin{shell}
+make build               # Build every demo and solution that has a Makefile.
+make format-check        # Check the formatting of every C++ file.
+\end{shell}

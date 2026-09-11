@@ -1,0 +1,41 @@
+% Section 6.2, from lectures/L06/README.md: the objectives, the evaluation questions, and what
+% comes after the last lecture.
+
+\section{Review}
+\label{c6:sec:review}
+
+\needspace{6\baselineskip}
+\subsection*{What you should be able to do now}
+After this chapter, you should be able to:
+\begin{itemize}
+  \item Explain what a thread is and how it is created using \code{std::thread}.
+  \item Explain the difference between concurrency and parallelism.
+  \item Explain preemptive and cooperative scheduling.
+  \item Explain what a data race is and why it leads to \emph{undefined behavior}.
+  \item Use \code{std::mutex} and \code{std::lock_guard} correctly.
+  \item Explain when \code{std::atomic} is sufficient and when \code{std::mutex} is required.
+  \item Use \code{std::condition_variable} to signal between threads without busy-waiting.
+  \item Launch asynchronous tasks using \code{std::async} and retrieve results via
+    \code{std::future}.
+  \item Explain what priority inversion is and why \code{std::mutex} does not solve it on an RTOS.
+\end{itemize}
+
+\needspace{6\baselineskip}
+\subsection*{Questions to test yourself}
+You should be able to explain:
+\begin{enumerate}
+  \item What is the difference between a \code{mutex} and an \code{atomic}?
+  \item What is a data race?
+  \item What is the difference between concurrency and parallelism?
+  \item When would you use a \code{condition_variable} instead of polling in a loop?
+  \item What is priority inversion, and why should you be careful with \code{std::mutex} on an
+    RTOS?
+\end{enumerate}
+
+\needspace{6\baselineskip}
+\subsection*{Looking ahead}
+This is the last chapter, and with it the book's main text is complete. What remains is to work
+the exercises in \secref{c6:sec:exercises} and compare your programs with the solutions in
+Appendix~\ref{sol:ch:solutions}. After that, the two written papers in
+Appendices~\ref{exam:ch:about} to \ref{ansb:ch:answers} are there to test, on paper and without
+a compiler, how much of all six chapters you can reconstruct on your own.

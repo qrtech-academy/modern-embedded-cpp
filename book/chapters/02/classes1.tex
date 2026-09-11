@@ -1,0 +1,964 @@
+% Section 2.1, from lectures/L02/appendix/a_classes1.md.
+
+\section{Classes in C++}
+\label{c2:sec:classes1}\label{c2:app:a}
+
+\subsection{Background}
+\label{c2:sec:background}
+To maintain good structure in larger programs, there is an increasing need to group related data
+and related behavior into a single unit instead of spreading everything across multiple separate
+variables and functions. For example, it may be beneficial to represent a GPIO pin through a class
+that stores the pin number, direction, and current state, while the class also contains functions
+for writing, reading, and toggling the pin.
+
+In programming, the most common data structures used to store related data as a single unit are
+so-called structs and classes:
+\begin{itemize}
+  \item \textbf{Structs} are mainly used in C (the concept of classes does not exist at all in C).
+  \item \textbf{Classes} are used in many modern programming languages, such as C++, Java, and
+    Python.
+  \item In C++, both structs and classes are used.
+  \item Classes can be seen as a further development of structs, which are relatively simple. In
+    terms of structure, however, these data structures are very similar.
+\end{itemize}
+Languages that support classes are said to support object orientation, or OOP (\emph{Object
+Oriented Programming}). C is considered a procedural language because it is based on programming
+via functions. Through structs, however, some object-oriented principles can be mimicked, which
+will be demonstrated below.
+
+Some object-oriented languages, such as Java and C\#, are purely object-oriented, meaning that
+classes must be used. Other programming languages, such as C++ and Python, are said to be
+multi-paradigm languages, since it is possible to program both in an object-oriented way (as in
+Java) and in a procedural way (as in C), or a combination of both.
+
+\subsection{Terminology}
+\label{c2:sec:terminology}
+As mentioned earlier, classes are used instead of structs in most conventional programming
+languages created after C.
+
+In C++, however, structs are almost identical to classes; the only formal difference is that class
+members are private by default, whereas they are public by default in structs. Structs in C++ can
+therefore be used in the same way as classes.
+
+To reduce confusion in the rest of this section, however, we will use the following
+\textbf{convention in this book}:
+\begin{itemize}
+  \item \textbf{Struct} refers to simple data structures without member functions, for example:
+  \begin{itemize}
+    \item Pure C-style structs (sometimes called POD, \emph{Plain Old Data}).
+    \item Structs containing constants (\code{static constexpr}).
+  \end{itemize}
+  \item \textbf{Class} refers to a more advanced variant of the data structure we have seen so far.
+\end{itemize}
+
+\subsection{Differences between classes and structs}
+\label{c2:sec:differences}
+Classes can be seen as a further development of structs. Therefore, classes and structs are similar
+in terms of their fundamental structure, but classes offer much more functionality and flexibility.
+In this section, we will look at the most basic functionality that classes provide.
+
+Some of the most significant differences between classes and structs are:
+\begin{itemize}
+  \item \textbf{Classes support encapsulation,} which means that you can choose what is
+    accessible/visible outside the class. This allows secret data or information that is not
+    relevant outside the class (such as implementation details) to be hidden.
+  \item \textbf{Classes can contain functions,} which means we do not need to implement associated
+    functions using struct pointers, as shown previously.
+  \item \textbf{Classes offer functionality for inheritance,} which means a new class can obtain
+    the contents of a base class. This can significantly reduce the amount of code required.
+  \item \textbf{Classes can be implemented using so-called class templates} to make one or more
+    data types selectable, similar to the function templates we saw earlier. An example of a class
+    template in the standard library is \code{std::vector}, which allows us to choose what should
+    be stored in a given vector.
+\end{itemize}
+
+\subsection{Basic structure of a class}
+\label{c2:sec:structure}
+We implement a simple example of a GPIO driver in C++ using a class named \code{Gpio}. The class is
+placed in the namespace \code{driver::gpio}, which is common in larger C++ projects to organize
+code and avoid name collisions.
+
+We will use \code{camelCase} instead of \code{snake_case}, which means that:
+\begin{itemize}
+  \item We use capital letters instead of underscores in function and type names. So instead of a
+    function name such as \code{print_numbers()}, we will name this function
+    \code{printNumbers()}.
+  \item The same pattern is followed for types such as structs, classes, and enumerations. One
+    difference, however, is that type names begin with a capital letter, for example \code{Gpio}
+    instead of \code{gpio}, \code{Direction} instead of \code{direction}, and so on.
+\end{itemize}
+
+\subsubsection{Step 1: Add include directives}
+We begin by including the standard header \code{<cstdint>}, so that we have access to data types
+such as \code{std::uint8_t}:
+
+\begin{cppcode}
+#include <cstdint>
+\end{cppcode}
+
+\subsubsection{Step 2: Create namespace and enumeration class}
+\label{c2:sec:enumclass}
+Next, we create the namespace \code{driver::gpio} and the enumeration class \code{Direction} to
+describe the direction of a GPIO pin. We set the underlying data type of the enumeration to
+\code{std::uint8_t}, which makes the type compact and ensures that no negative values can be
+represented (which can simplify validation):
+
+\begin{cppcode}
+namespace driver::gpio
+{
+/**
+ * @brief GPIO direction configuration.
+ */
+enum class Direction : std::uint8_t
+{
+    Input,       ///< Input without pull-up.
+    InputPullup, ///< Input with pull-up enabled.
+    Output,      ///< Output.
+    Count,       ///< Number of supported directions.
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\noindent The enumeration class above is used to specify whether a pin should be:
+\begin{itemize}
+  \item \code{Input}
+  \item \code{InputPullup}
+  \item \code{Output}
+\end{itemize}
+We can also easily check whether a given enumerator \code{direction} is valid by ensuring that it
+has a numeric value that is less than \code{Direction::Count}:
+
+\begin{cppcode}
+[[nodiscard]] constexpr bool isDirectionValid(const Direction direction) noexcept
+{
+    return static_cast<std::uint8_t>(Direction::Count) > static_cast<std::uint8_t>(direction);
+}
+\end{cppcode}
+
+\noindent The primary reason we choose to implement \code{Direction} as an enumeration class
+instead of a traditional enumeration is that we do not need to use prefixes to avoid name
+collisions; instead, this is built into the language.
+
+Note above that the enumerators are now named
+\begin{itemize}
+  \item \code{Input},
+  \item \code{InputPullup}, and
+  \item \code{Output}
+\end{itemize}
+instead of, for example,
+\begin{itemize}
+  \item \code{GPIO_DIRECTION_INPUT},
+  \item \code{GPIO_DIRECTION_INPUT_PULLUP}, and
+  \item \code{GPIO_DIRECTION_OUTPUT}.
+\end{itemize}
+With the enumeration class above, we instead write
+\begin{itemize}
+  \item \code{Direction::Input},
+  \item \code{Direction::InputPullup}, and
+  \item \code{Direction::Output}.
+\end{itemize}
+
+In general, it is recommended to use enumeration classes instead of traditional enumerations when
+programming in modern C++, that is, C++11 and later.
+
+\subsubsection{Step 3: Define the class \code{Gpio}}
+Next, we define the class \code{Gpio} using the keyword \code{class}:
+
+\begin{cppcode}
+namespace driver::gpio
+{
+/**
+ * @brief GPIO driver.
+ */
+class Gpio final
+{
+public:
+
+private:
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\noindent We have added two keywords to the class, \code{public} and \code{private}:
+\begin{itemize}
+  \item Everything that falls under the keyword \code{public} belongs to the public section:
+  \begin{itemize}
+    \item The contents of this section are visible and accessible outside the class.
+    \item Everything that we want the ``user'' of the class to be able to see and use should be
+      declared here.
+    \item For example, this may include methods for writing to the pin, reading its state, and
+      toggling the output.
+  \end{itemize}
+  \item Everything that falls under the keyword \code{private} belongs to the private section:
+  \begin{itemize}
+    \item The contents of this section are not visible or accessible outside the class.
+    \item Here we place everything that we want to be inaccessible to the ``user'' of the class.
+    \item For example, this may include internal data or implementation details.
+  \end{itemize}
+\end{itemize}
+In our case, we place all member variables in the private section. We can also place methods that
+should only be used internally within the class here. Hiding information in this way is called
+\textbf{encapsulation}.
+
+Common practice for a class is the following:
+\begin{itemize}
+  \item Member variables are kept private.
+  \item The public section appears first in the class so that the ``user'' can easily see what
+    methods and other features are available if needed.
+  \item Implementation details are placed below in the private part of the class, and the idea is
+    that the user should not even need (or want) to read this far.
+\end{itemize}
+Usually, only the public part of the class is documented; the rest of the class consists of
+implementation details that are only of interest to the developer of the class and are therefore
+not documented. Since this is a pedagogical example, however, all code is documented.
+
+We have also added the keyword \code{final} after the class name. This means that the class may not
+be used as a base class. In other words, no other class may inherit from \code{Gpio}. In embedded
+contexts, this is often a reasonable design choice for small, concrete drivers where you want to
+keep the design simple and clear.
+
+\subsubsection{Step 4: Add member variables}
+Under the private section we add the member variables, that is, the variables in the class that
+store the pin number, direction, and current state. Note that:
+\begin{itemize}
+  \item We use the prefix \code{my} to avoid name collisions with methods that we will add later.
+  \item We mark member variables that should never change after initialization as \code{const}.
+\end{itemize}
+
+\begin{cppcode}
+namespace driver::gpio
+{
+/**
+ * @brief GPIO driver.
+ */
+class Gpio final
+{
+public:
+
+private:
+    /** GPIO pin number. */
+    const std::uint8_t myPin;
+
+    /** GPIO direction. */
+    const Direction myDirection;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\noindent The member variables are private so that the ``user'' cannot read and write them
+arbitrarily. Instead, we later provide methods such as \code{write()}, \code{read()}, and
+\code{toggle()} to control how the object is used.
+
+\subsubsection{Step 5: Add constructors and destructors}
+Before adding the remaining methods, we add constructors, which can be seen as initialization
+routines that are automatically called when an object of the class is created.
+
+First, we delete the so-called default constructor so that it is not possible to create a GPIO
+object without providing a pin number and direction:
+
+\begin{cppcode}
+public:
+    Gpio() = delete; // No default constructor.
+\end{cppcode}
+
+\noindent This constructor is called the default constructor because it has no input arguments.
+Therefore, it is not possible to create an empty object as shown below:
+
+\begin{cppcode}
+// Won't compile, since the default constructor is deleted.
+driver::gpio::Gpio gpio{};
+\end{cppcode}
+
+\noindent Normally, deleted functions, such as the default constructor above, are placed at the
+bottom of the public section.
+
+We can also add a destructor, which can be seen as a function that is automatically called just
+before an instance of the given class is destroyed.
+
+The destructor looks like the default constructor, with the difference that the tilde \code{~} is
+placed before the name of the class. If we do not need to do anything special before the object is
+destroyed, we can omit the destructor; the compiler will then create a default destructor for us.
+If we still want to create a destructor for clarity, we can explicitly set the destructor to default
+using the keyword \code{default}.
+
+\begin{cppcode}
+/**
+ * @brief Destructor.
+ */
+~Gpio() noexcept = default;
+\end{cppcode}
+
+\noindent In modern C++, the keyword \code{default} is often recommended, which will be used in this
+example. However, it would also be possible to implement a default destructor as shown below:
+
+\begin{cppcode}
+/**
+ * @brief Destructor.
+ */
+~Gpio() noexcept {}
+\end{cppcode}
+
+\noindent We want the user to specify the pin number, direction, and optionally the initial state
+directly when a GPIO object is created:
+\begin{itemize}
+  \item We therefore create a constructor that takes the pin number, direction, and an initial
+    state as input arguments.
+  \item We mark the constructor with \code{explicit} so that it is not used for unintended implicit
+    conversions.
+  \item See \secref{c2:sec:explicit} for additional information about the keyword \code{explicit}.
+\end{itemize}
+
+\begin{cppcode}
+/**
+ * @brief Create a new GPIO object.
+ *
+ * @param[in] pin GPIO pin number.
+ * @param[in] direction GPIO direction.
+ * @param[in] initialState Initial GPIO state (default = false).
+ */
+explicit Gpio(const std::uint8_t pin, const Direction direction,
+              const bool initialState = false) noexcept
+{}
+\end{cppcode}
+
+\noindent In the constructor above, we initialize the member variables so that:
+\begin{itemize}
+  \item \code{myPin} is assigned the pin number stored in the input argument \code{pin}.
+  \item \code{myDirection} is assigned the value stored in the input argument \code{direction}.
+  \item \code{myState} is assigned the value stored in the input argument \code{initialState}. By
+    default, \code{initialState} is set to \code{false}.
+\end{itemize}
+This is achieved by adding an initialization section between the function header and the function
+body (marked with curly braces \code{{}}). Note that we begin the initialization section with a
+colon, initialize using curly braces, and separate the initialization of each member variable with
+a comma.
+
+\begin{cppcode}
+/**
+ * @brief Create a new GPIO object.
+ *
+ * @param[in] pin GPIO pin number.
+ * @param[in] direction GPIO direction.
+ * @param[in] initialState Initial GPIO state (default = false).
+ */
+explicit Gpio(const std::uint8_t pin, const Direction direction,
+              const bool initialState = false) noexcept
+    : myPin{pin}
+    , myDirection{direction}
+    , myState{initialState}
+{}
+\end{cppcode}
+
+\noindent If we needed to perform additional actions after initializing the member variables, we
+could place this in the constructor's function body. In this case, however, we only want to
+initialize the member variables, so we do not need to add anything further.
+
+The constructor shown above can now be used to initialize GPIO objects. Below is an example showing
+how we initialize the object \code{led} to represent an output on pin 13 with an initial low
+state:
+
+\begin{cppcode}
+driver::gpio::Gpio led{13U, driver::gpio::Direction::Output, false};
+\end{cppcode}
+
+\noindent Since the default value for the input argument that stores the initial state is
+\code{false}, we can also omit this argument:
+
+\begin{cppcode}
+driver::gpio::Gpio led{13U, driver::gpio::Direction::Output};
+\end{cppcode}
+
+\noindent We can also use the constructor to initialize an object \code{button} to represent an
+input with pull-up on pin 2:
+
+\begin{cppcode}
+driver::gpio::Gpio button{2U, driver::gpio::Direction::InputPullup};
+\end{cppcode}
+
+\subsubsection{Step 6: Copy and move operations}
+\label{c2:sec:copymove1}
+In addition to regular constructors, C++ also provides special member functions for copying and
+moving. These are very important in modern C++, and it is useful to be familiar with them already
+when learning about classes.
+
+The most common operations are shown below:
+
+\begin{booktable}{@{}>{\raggedright\arraybackslash}p{7.6em}Ll@{}}
+  \thead{Operation} & \thead{Description} & \thead{Signature for class \code{Gpio}} \\
+  \midrule
+  \textbf{Copy constructor} & Creates a new object as a copy of another object.
+    & \code{Gpio(const Gpio& other)} \\
+  \textbf{Move constructor} & Creates a new object by moving resources from another object.
+    & \code{Gpio(Gpio&& other)} \\
+  \textbf{Copy assignment operator} & Assigns an already existing object from another object.
+    & \code{Gpio& operator=(const Gpio& other)} \\
+  \textbf{Move assignment operator} & Assigns an already existing object by moving resources from
+    another object. & \code{Gpio& operator=(Gpio&& other)} \\
+\end{booktable}
+
+In many real embedded systems, copying and moving are often completely disallowed, since an object
+frequently represents a unique hardware resource. In this way, it is ensured that each \code{Gpio}
+object represents exactly one physical GPIO pin and cannot be duplicated by mistake.
+
+For the class \code{Gpio}, copying and moving are deleted as shown below, normally placed at the
+bottom of the public section of the class.
+
+\begin{cppcode}
+Gpio(const Gpio&)            = delete; // No copy constructor.
+Gpio(Gpio&&)                 = delete; // No move constructor.
+Gpio& operator=(const Gpio&) = delete; // No copy assignment.
+Gpio& operator=(Gpio&&)      = delete; // No move assignment.
+\end{cppcode}
+
+\noindent See \secref{c2:sec:copymove2} for more information about copy and move operations.
+
+\subsubsection{Step 7: Add public methods}
+For a GPIO object, it is more natural to expose functionality in the form of behaviors rather than
+traditional getter and setter methods. We therefore add the following public methods:
+\begin{itemize}
+  \item \code{write(bool state)} to write a new state to the pin.
+  \item \code{read()} to read the current state of the pin.
+  \item \code{toggle()} to toggle the state of the pin.
+\end{itemize}
+Below is the method \code{write()}, which is used to write a new state to the GPIO instance:
+
+\begin{cppcode}
+/**
+ * @brief Write a new state to the GPIO pin.
+ *
+ * @param[in] state The state to write.
+ */
+void write(const bool state) noexcept
+{
+    if (myDirection == Direction::Output)
+    {
+        myState = state;
+    }
+}
+\end{cppcode}
+
+\noindent In the example above, we only allow writing if the pin is configured as an output. This is
+a simple way to illustrate that the class can protect its internal data and control how the object
+may be used.
+
+Below is the method \code{read()}, which returns the current state of the pin:
+
+\begin{cppcode}
+/**
+ * @brief Read the current GPIO state.
+ *
+ * @return Current GPIO state.
+ */
+[[nodiscard]] bool read() const noexcept { return myState; }
+\end{cppcode}
+
+\noindent Note that we write the keyword \code{const} directly after the function header, since we
+ensure that the class contents can only be read. This means that we cannot accidentally modify any
+of the class members.
+
+We could use the method above to read and print the state of an LED that was previously implemented
+in software through the object \code{led}. Here, \code{std::printf()} from \code{<cstdio>} is used
+to print the state:
+
+\begin{cppcode}
+int main()
+{
+    driver::gpio::Gpio led{13U, driver::gpio::Direction::Output};
+    std::printf("State:\t%s\n", led.read() ? "High" : "Low");
+    return 0;
+}
+\end{cppcode}
+
+\noindent The output becomes the following:
+
+\begin{console}
+State:  Low
+\end{console}
+
+\noindent We then add the method \code{toggle()} to allow toggling the state of the pin:
+
+\begin{cppcode}
+/**
+ * @brief Toggle the GPIO state.
+ */
+void toggle() noexcept
+{
+    if (myDirection == Direction::Output)
+    {
+        myState = !myState;
+    }
+}
+\end{cppcode}
+
+\noindent If, for example, we call \code{toggle()}, we ensure that the member variable
+\code{myState} switches between \code{false} and \code{true}, but only if the pin is configured as
+an output.
+
+We can first call \code{write(true)} to set the LED pin high, and then call \code{toggle()} to
+switch it back to a low level. We print the state both before and after the calls:
+
+\begin{cppcode}
+int main()
+{
+    driver::gpio::Gpio led{13U, driver::gpio::Direction::Output};
+    std::printf("Old state:\t%s\n", led.read() ? "High" : "Low");
+    led.write(true);
+    std::printf("After write:\t%s\n", led.read() ? "High" : "Low");
+    led.toggle();
+    std::printf("After toggle:\t%s\n", led.read() ? "High" : "Low");
+    return 0;
+}
+\end{cppcode}
+
+\noindent The output becomes the following:
+
+\begin{console}
+Old state:      Low
+After write:    High
+After toggle:   Low
+\end{console}
+
+\noindent After adding the methods, the class \code{Gpio} looks like this:
+
+\begin{cppcode}
+namespace driver::gpio
+{
+/**
+ * @brief GPIO driver.
+ */
+class Gpio final
+{
+public:
+    /**
+     * @brief Create a new GPIO object.
+     *
+     * @param[in] pin GPIO pin number.
+     * @param[in] direction GPIO direction.
+     * @param[in] initialState Initial GPIO state (default = false).
+     */
+    explicit Gpio(const std::uint8_t pin, const Direction direction,
+                  const bool initialState = false) noexcept
+        : myPin{pin}
+        , myDirection{direction}
+        , myState{initialState}
+    {}
+
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept = default;
+
+    /**
+     * @brief Write a new state to the GPIO pin.
+     *
+     * @param[in] state The state to write.
+     */
+    void write(const bool state) noexcept
+    {
+        if (myDirection == Direction::Output)
+        {
+            myState = state;
+        }
+    }
+
+    /**
+     * @brief Read the current GPIO state.
+     *
+     * @return Current GPIO state.
+     */
+    [[nodiscard]] bool read() const noexcept { return myState; }
+
+    /**
+     * @brief Toggle the GPIO state.
+     */
+    void toggle() noexcept
+    {
+        if (myDirection == Direction::Output)
+        {
+            myState = !myState;
+        }
+    }
+
+    Gpio()                       = delete; // No default constructor.
+    Gpio(const Gpio&)            = delete; // No copy constructor.
+    Gpio(Gpio&&)                 = delete; // No move constructor.
+    Gpio& operator=(const Gpio&) = delete; // No copy assignment.
+    Gpio& operator=(Gpio&&)      = delete; // No move assignment.
+
+private:
+    /** GPIO pin number. */
+    const std::uint8_t myPin;
+
+    /** GPIO direction. */
+    const Direction myDirection;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\subsubsection{Step 8: Splitting a class into header and source files}
+\label{c2:sec:split}
+Objects of many different classes are often used in a program. These classes are also often larger
+than the class we have seen here. It is therefore impractical to implement all classes in a single
+file.
+
+Typically, a header file dedicated to a specific class is created, including public enumeration
+classes. For example:
+\begin{itemize}
+  \item The class \code{Gpio} and the enumeration class \code{Direction} in the namespace
+    \code{driver::gpio} should be implemented via the header files \file{gpio.hpp} and
+    \file{direction.hpp} in the directory \file{driver/gpio}. The file paths would then be:
+  \begin{itemize}
+    \item \file{driver/gpio/direction.hpp}
+    \item \file{driver/gpio/gpio.hpp}
+  \end{itemize}
+\end{itemize}
+At the top of each header file, we place the directive \code{#pragma once}, which ensures that we
+do not accidentally define multiple copies of the contents of the header file if it is included in
+multiple files, in the same way that header guards work in C. It prevents the same header file from
+being included multiple times in the same translation unit (a source file together with all
+included header files):
+
+\begin{cppcode}
+#pragma once
+\end{cppcode}
+
+\noindent We also include \code{<cstdint>} to gain access to data types such as
+\code{std::uint8_t}:
+
+\begin{cppcode}
+#include <cstdint>
+\end{cppcode}
+
+\paragraph{File \code{driver/gpio/direction.hpp}}
+We implement the enumeration class \code{Direction} in this file:
+
+\begin{cppcode}
+/**
+ * @file GPIO direction configurations.
+ */
+#pragma once
+
+#include <cstdint>
+
+namespace driver::gpio
+{
+/**
+ * @brief GPIO direction configuration.
+ */
+enum class Direction : std::uint8_t
+{
+    Input,       ///< Input without pull-up.
+    InputPullup, ///< Input with pull-up enabled.
+    Output,      ///< Output.
+    Count,       ///< Number of supported directions.
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\paragraph{File \code{driver/gpio/gpio.hpp}}
+We implement the class \code{Gpio} in this file. Since the enumeration class \code{Direction} is
+used directly in this file, \file{driver/gpio/direction.hpp} is included:
+
+\begin{cppcode}
+/**
+ * @file GPIO driver implementation.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "driver/gpio/direction.hpp"
+
+namespace driver::gpio
+{
+/**
+ * @brief GPIO driver.
+ */
+class Gpio final
+{
+public:
+    /**
+     * @brief Create a new GPIO object.
+     *
+     * @param[in] pin GPIO pin number.
+     * @param[in] direction GPIO direction.
+     * @param[in] initialState Initial GPIO state (default = false).
+     */
+    explicit Gpio(const std::uint8_t pin, const Direction direction,
+                  const bool initialState = false) noexcept
+        : myPin{pin}
+        , myDirection{direction}
+        , myState{initialState}
+    {}
+
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept = default;
+
+    /**
+     * @brief Write a new state to the GPIO pin.
+     *
+     * @param[in] state The state to write.
+     */
+    void write(const bool state) noexcept
+    {
+        if (myDirection == Direction::Output)
+        {
+            myState = state;
+        }
+    }
+
+    /**
+     * @brief Read the current GPIO state.
+     *
+     * @return Current GPIO state.
+     */
+    [[nodiscard]] bool read() const noexcept { return myState; }
+
+    /**
+     * @brief Toggle the GPIO state.
+     */
+    void toggle() noexcept
+    {
+        if (myDirection == Direction::Output)
+        {
+            myState = !myState;
+        }
+    }
+
+    Gpio()                       = delete; // No default constructor.
+    Gpio(const Gpio&)            = delete; // No copy constructor.
+    Gpio(Gpio&&)                 = delete; // No move constructor.
+    Gpio& operator=(const Gpio&) = delete; // No copy assignment.
+    Gpio& operator=(Gpio&&)      = delete; // No move assignment.
+
+private:
+    /** GPIO pin number. */
+    const std::uint8_t myPin;
+
+    /** GPIO direction. */
+    const Direction myDirection;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\paragraph{Method definitions in the file \code{driver/gpio/gpio.cpp}}
+Class method definitions are often placed in a separate source file to keep the header file more
+readable. For example, to keep the file \file{driver/gpio/gpio.hpp} readable, we can place the
+method definitions in a source file named \file{driver/gpio/gpio.cpp}.
+
+At the top of this source file, we include the following header files:
+\begin{itemize}
+  \item \code{<cstdint>} to gain access to data types such as \code{std::uint8_t}.
+  \item \file{driver/gpio/gpio.hpp} to gain access to the class definition.
+  \item \file{driver/gpio/direction.hpp} to gain access to the enumeration class \code{Direction}.
+\end{itemize}
+\note Both \code{<cstdint>} and \file{driver/gpio/direction.hpp} are included indirectly via
+\file{driver/gpio/gpio.hpp}, but to follow good practice we should not rely on indirect
+dependencies.
+
+\begin{cppcode}
+#include <cstdint>
+
+#include "driver/gpio/direction.hpp"
+#include "driver/gpio/gpio.hpp"
+\end{cppcode}
+
+\noindent We then place the method definitions from the class \code{Gpio} in this file. We therefore
+copy all methods from the class \code{Gpio} into this file. It is worth noting that:
+\begin{itemize}
+  \item For the compiler to understand that each method belongs to the class \code{Gpio}, we must
+    use the prefix \code{Gpio}. For example, the method \code{write()} must be defined as
+    \code{Gpio::write()}.
+  \item Default values for input arguments should only be written in the method declaration in the
+    header file.
+  \item Keywords placed before method names, such as \code{explicit}, should not be included in the
+    method definition.
+  \item Attributes such as \code{[[nodiscard]]} should also only be written on the method
+    declaration in the header file --- the definition in the source file does not need to repeat
+    it.
+  \item Constructors, destructors, and similar functions marked with \code{default} or
+    \code{delete} do not need to be placed in the source file.
+\end{itemize}
+We begin with the method \code{write()}. In the header file \file{driver/gpio/gpio.hpp}, we keep the
+method header together with its documentation:
+
+\begin{cppcode}
+/**
+ * @brief Write a new state to the GPIO pin.
+ *
+ * @param[in] state The state to write.
+ */
+void write(const bool state) noexcept;
+\end{cppcode}
+
+\noindent In the source file \file{driver/gpio/gpio.cpp}, we then place the method definition:
+
+\begin{cppcode}
+// -----------------------------------------------------------------------------
+void Gpio::write(const bool state) noexcept
+{
+    if (myDirection == Direction::Output)
+    {
+        myState = state;
+    }
+}
+\end{cppcode}
+
+\noindent We implement the definitions for the remaining methods in the source file
+\file{driver/gpio/gpio.cpp}. We place a line of hyphens between each method to visually separate
+them now that the method documentation is not included.
+
+\paragraph{File \code{driver/gpio/gpio.cpp}}
+After adding all method definitions, the file \file{driver/gpio/gpio.cpp} looks like this:
+
+\begin{cppcode}
+/**
+ * @file GPIO driver implementation details.
+ */
+#include <cstdint>
+
+#include "driver/gpio/direction.hpp"
+#include "driver/gpio/gpio.hpp"
+
+namespace driver::gpio
+{
+// -----------------------------------------------------------------------------
+Gpio::Gpio(const std::uint8_t pin, const Direction direction, const bool initialState) noexcept
+    : myPin{pin}
+    , myDirection{direction}
+    , myState{initialState}
+{}
+
+// -----------------------------------------------------------------------------
+void Gpio::write(const bool state) noexcept
+{
+    if (myDirection == Direction::Output)
+    {
+        myState = state;
+    }
+}
+
+// -----------------------------------------------------------------------------
+bool Gpio::read() const noexcept { return myState; }
+
+// -----------------------------------------------------------------------------
+void Gpio::toggle() noexcept
+{
+    if (myDirection == Direction::Output)
+    {
+        myState = !myState;
+    }
+}
+} // namespace driver::gpio
+\end{cppcode}
+
+\paragraph{File \code{driver/gpio/gpio.hpp}}
+The readability of the header file \file{driver/gpio/gpio.hpp} now increases, since we have removed
+a large part of the implementation details by moving the method definitions:
+\begin{itemize}
+  \item However, we must still keep the method declarations and the definitions of the member
+    variables inside the class.
+  \item We remove the keyword \code{const} from parameters passed \emph{by value} to improve
+    readability; marking these as \code{const} only has an effect in the function definition.
+\end{itemize}
+
+\begin{cppcode}
+/**
+ * @file GPIO driver implementation.
+ */
+#pragma once
+
+#include <cstdint>
+
+#include "driver/gpio/direction.hpp"
+
+namespace driver::gpio
+{
+/**
+ * @brief GPIO driver.
+ */
+class Gpio final
+{
+public:
+    /**
+     * @brief Create a new GPIO object.
+     *
+     * @param[in] pin GPIO pin number.
+     * @param[in] direction GPIO direction.
+     * @param[in] initialState Initial GPIO state (default = false).
+     */
+    explicit Gpio(std::uint8_t pin, Direction direction, bool initialState = false) noexcept;
+
+    /**
+     * @brief Destructor.
+     */
+    ~Gpio() noexcept = default;
+
+    /**
+     * @brief Write a new state to the GPIO pin.
+     *
+     * @param[in] state The state to write.
+     */
+    void write(bool state) noexcept;
+
+    /**
+     * @brief Read the current GPIO state.
+     *
+     * @return Current GPIO state.
+     */
+    [[nodiscard]] bool read() const noexcept;
+
+    /**
+     * @brief Toggle the GPIO state.
+     */
+    void toggle() noexcept;
+
+    Gpio()                       = delete; // No default constructor.
+    Gpio(const Gpio&)            = delete; // No copy constructor.
+    Gpio(Gpio&&)                 = delete; // No move constructor.
+    Gpio& operator=(const Gpio&) = delete; // No copy assignment.
+    Gpio& operator=(Gpio&&)      = delete; // No move assignment.
+
+private:
+    /** GPIO pin number. */
+    const std::uint8_t myPin;
+
+    /** GPIO direction. */
+    const Direction myDirection;
+
+    /** GPIO state. */
+    bool myState;
+};
+} // namespace driver::gpio
+\end{cppcode}
+
+\subsection{Summary}
+\label{c2:sec:classes1summary}
+After going through this section, you as the reader should have enough knowledge to create a small
+class.
+
+You should be able to:
+\begin{itemize}
+  \item Control what is visible and not visible outside a class through encapsulation.
+  \item Create constructors to initialize objects of the class in question.
+  \item Understand what \code{explicit} is used for.
+  \item Understand what \code{final} is used for.
+  \item Recognize and write a destructor.
+  \item Recognize the copy constructor, copy assignment operator, move constructor, and move
+    assignment operator.
+  \item Use \code{= default} and \code{= delete} to control which operations should be allowed.
+  \item Add public methods that control how an object is used.
+  \item Create enumeration classes.
+  \item Place code in a namespace to structure projects and avoid name collisions.
+\end{itemize}

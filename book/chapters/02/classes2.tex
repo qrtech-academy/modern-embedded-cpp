@@ -1,0 +1,433 @@
+% Section 2.2, from lectures/L02/appendix/b_classes2.md.
+
+\section{Advanced Discussion on Classes}
+\label{c2:sec:classes2}\label{c2:app:b}
+
+\subsection{The keyword \code{explicit}}
+\label{c2:sec:explicit}
+Consider the simple class \code{Led} below:
+
+\begin{cppcode}
+#include <cstdint>
+
+class Led final
+{
+public:
+    Led(const std::uint8_t pin) noexcept
+        : myPin{pin}
+        , myState{false}
+    {}
+
+    void setEnabled(const bool state) noexcept { myState = state; }
+    [[nodiscard]] bool isEnabled() const noexcept { return myState; }
+
+private:
+    const std::uint8_t myPin;
+    bool myState;
+};
+\end{cppcode}
+
+\noindent Using the constructor above, we can create a \code{Led} instance and pass it as a copy
+(\emph{pass-by-value}) to a function \code{ledPrint}, as shown below. The output is printed using
+\code{std::printf()} from \code{<cstdio>}:
+
+\begin{cppcode}
+void ledPrint(const Led led) noexcept
+{
+    const char* state{led.isEnabled() ? "on" : "off"};
+    std::printf("The LED is %s!\n", state);
+}
+
+int main()
+{
+    Led led1{8U};
+    led1.setEnabled(true);
+    ledPrint(led1);
+    return 0;
+}
+\end{cppcode}
+
+\noindent The output appears as shown below:
+
+\begin{console}
+The LED is on!
+\end{console}
+
+\noindent We can also create a \code{Led} instance through copy initialization, as shown below. Note
+that in this case we have not created a \code{Led} instance --- instead, a pin number is passed (by
+mistake). This argument is implicitly converted into a \code{Led} instance:
+
+\begin{cppcode}
+void ledPrint(const Led led) noexcept
+{
+    const char* state{led.isEnabled() ? "on" : "off"};
+    std::printf("The LED is %s!\n", state);
+}
+
+int main()
+{
+    ledPrint(8U);
+    return 0;
+}
+\end{cppcode}
+
+\noindent The output appears as shown below:
+
+\begin{console}
+The LED is off!
+\end{console}
+
+\note In this example, \code{led} is passed as a copy (pass-by-value) to clearly demonstrate how an
+implicit conversion can occur through the constructor. For larger classes, a const reference is
+often used instead to avoid unnecessary copies.
+
+What happens in this case is that:
+\begin{itemize}
+  \item The compiler implicitly constructs a \code{Led} instance given from an unsigned integer used
+    as the pin number.
+  \item The compiler expected a \code{Led} instance, but since it received an unsigned integer
+    instead, which matches the class constructor, it implicitly invoked this constructor and
+    thereby created a \code{Led} instance.
+  \item This might be seen as efficient or elegant, but it can also lead to hard-to-detect bugs and
+    is therefore not recommended.
+  \item It is therefore good practice to ensure that implicit conversion of \code{Led} instances is
+    not allowed. This can be achieved by adding the keyword \code{explicit} before the
+    constructor, as shown below:
+\end{itemize}
+
+\begin{cppcode}
+#include <cstdint>
+
+class Led final
+{
+public:
+    explicit Led(const std::uint8_t pin) noexcept
+        : myPin{pin}
+        , myState{false}
+    {}
+
+    void setEnabled(const bool state) noexcept { myState = state; }
+    [[nodiscard]] bool isEnabled() const noexcept { return myState; }
+
+private:
+    const std::uint8_t myPin;
+    bool myState;
+};
+\end{cppcode}
+
+\noindent After marking the constructor \code{explicit}, the previous code example would have
+produced a compilation error.
+
+\subsection{\code{static} members}
+\label{c2:sec:static}
+So far, every method and member variable we have seen belongs to a specific object: \code{myPin}
+and \code{myState} each have a different value for every \code{Gpio} instance, and \code{read()}
+operates on one particular instance's state. The keyword \code{static} lets a member instead belong
+to the \emph{class itself}, shared by every instance rather than duplicated per object.
+
+In this section we continue using the class \code{Gpio}.
+
+\subsubsection{Static methods}
+A static method is called through the class name, using the scope resolution operator \code{::},
+rather than through an object:
+
+\begin{cppcode}
+Gpio::instanceCount();
+\end{cppcode}
+
+\noindent Because a static method has no associated object, it has no \code{this} pointer and
+therefore cannot access non-static (instance) members such as \code{myState}. It can only access
+other \code{static} members.
+
+We add a static method \code{instanceCount()} that reports how many \code{Gpio} instances currently
+exist:
+
+\begin{cppcode}
+/**
+ * @brief Get the number of currently active GPIO instances.
+ *
+ * @return Number of active GPIO instances.
+ */
+[[nodiscard]] static std::uint8_t instanceCount() noexcept { return ourInstanceCount; }
+\end{cppcode}
+
+\note A static method can technically also be called through an object, for example
+\code{led1.instanceCount()}, but this is discouraged; it misleadingly suggests that the result
+depends on \code{led1}, when it does not.
+
+\subsubsection{Static data members}
+A static data member is shared by all instances of the class, instead of each object storing its
+own copy. We use the prefix \code{our} for private static members, the same way \code{my} is used
+for private instance members; both exist to avoid name collisions with methods.
+
+\textbf{\code{static constexpr}} is used for a compile-time constant shared by the class, for
+example the maximum number of \code{Gpio} instances supported by the target MCU:
+
+\begin{cppcode}
+/** Maximum number of GPIO instances supported by this MCU. */
+static constexpr std::uint8_t MaxInstances{40U};
+\end{cppcode}
+
+\note Unlike regular \code{camelCase} members and methods, a \code{static constexpr} member is
+named starting with a capital letter, for example \code{MaxInstances} rather than
+\code{maxInstances}. Some C++ style guides instead use a \code{k} prefix for this
+(\code{kMaxInstances}); this book uses a leading capital letter.
+
+Since C++17, a \code{static constexpr} data member is implicitly \code{inline}. This means
+\code{MaxInstances} needs no separate definition in a source file. Unlike the plain \code{static}
+member shown next, it can be fully declared and initialized directly inside the class.
+
+A \textbf{plain \code{static}} member is used instead when the shared value must change at runtime,
+for example a counter tracking how many \code{Gpio} instances currently exist:
+
+\begin{cppcode}
+private:
+    static std::uint8_t ourInstanceCount;
+\end{cppcode}
+
+\noindent Unlike \code{static constexpr}, a plain \code{static} member must be defined exactly once
+in a source file, or the linker fails:
+
+\begin{cppcode}
+std::uint8_t Gpio::ourInstanceCount{0U};
+\end{cppcode}
+
+\noindent We update the constructor and destructor to keep \code{ourInstanceCount} accurate:
+
+\begin{cppcode}
+Gpio::Gpio(const std::uint8_t pin, const Direction direction, const bool initialState) noexcept
+    : myPin{pin}
+    , myDirection{direction}
+    , myState{initialState}
+{
+    ++ourInstanceCount;
+}
+
+Gpio::~Gpio() noexcept
+{
+    --ourInstanceCount;
+}
+\end{cppcode}
+
+\note This is more than a bookkeeping exercise. Recall from \secref{c2:sec:copymove1} that a
+\code{Gpio} object represents a unique physical pin --- \code{ourInstanceCount} combined with
+\code{MaxInstances} gives the constructor a way to actually enforce that limit, refusing to create
+more \code{Gpio} instances than the MCU has physical pins for.
+
+We can now query the shared instance count without needing any particular \code{Gpio} object:
+
+\begin{cppcode}
+int main()
+{
+    Gpio led{13U, Direction::Output};
+    std::printf("Active GPIO instances: %u\n", Gpio::instanceCount());
+    return 0;
+}
+\end{cppcode}
+
+\begin{console}
+Active GPIO instances: 1
+\end{console}
+
+\subsection{Copy and move operations}
+\label{c2:sec:copymove2}
+In addition to regular constructors, C++ also provides special member functions for copying and
+moving. These are very important in modern C++, and it is useful to become familiar with them when
+learning about classes.
+
+The most common ones are:
+\begin{itemize}
+  \item \textbf{Copy constructor}: creates a new object as a copy of another object.
+  \item \textbf{Copy assignment operator}: assigns an already existing object from another object.
+  \item \textbf{Move constructor}: creates a new object by moving resources from another object.
+  \item \textbf{Move assignment operator}: assigns an already existing object by moving resources
+    from another object.
+\end{itemize}
+In this section we continue using the class \code{Gpio}. This allows the same class to be used
+throughout the chapter while demonstrating the syntax for copy and move operations.
+
+The following implementations are mainly shown to illustrate the syntax. For a class such as
+\code{Gpio}, it is usually better to delete these operations entirely.
+
+We must keep in mind that the member variables \code{myPin} and \code{myDirection} are declared as
+\code{const}. This means that these values can only be set when the object is created and cannot be
+changed later. This affects how copy and move operations can be implemented.
+
+\subsubsection{Copy constructor}
+The copy constructor is used to create a new object as a copy of another object.
+
+\begin{cppcode}
+// Create led1.
+Gpio led1{13U, Direction::Output, false};
+
+// Create copy of led1.
+Gpio led2{led1};
+\end{cppcode}
+
+\noindent An explicit copy constructor can be implemented as follows:
+
+\begin{cppcode}
+/**
+ * @brief Copy constructor.
+ *
+ * @param[in] other GPIO instance to copy.
+ */
+Gpio(const Gpio& other) noexcept
+    : myPin{other.myPin}
+    , myDirection{other.myDirection}
+    , myState{other.myState}
+{}
+\end{cppcode}
+
+\noindent Here we initialize the member variables of the new instance with the values from the
+object \code{other}.
+
+\subsubsection{Move constructor}
+The move constructor is used to create a new object by moving resources from another object.
+
+For a simple class such as \code{Gpio}, where we only store small built-in types, there are actually
+no heavy resources to move. Despite this, it is still useful to demonstrate the syntax.
+
+\begin{cppcode}
+#include <utility>
+
+// Create led1.
+Gpio led1{13U, Direction::Output};
+
+// Move led1 into led2.
+Gpio led2{std::move(led1)};
+\end{cppcode}
+
+\note To invoke the move constructor, the function \code{std::move()} from \code{<utility>} is
+used.
+
+An explicit move constructor can be implemented as follows:
+
+\begin{cppcode}
+/**
+ * @brief Move constructor.
+ *
+ * @param[in, out] other GPIO instance to move from.
+ */
+Gpio(Gpio&& other) noexcept
+    : myPin{other.myPin}
+    , myDirection{other.myDirection}
+    , myState{other.myState}
+{
+    // Clear resources allocated by `other`
+    other.myState = false;
+}
+\end{cppcode}
+
+\note[Notes]
+\begin{itemize}
+  \item \code{other} is an \textbf{rvalue reference}, written as \code{Gpio&&}. This allows the
+    object's resources to be moved instead of copied.
+  \item We cannot modify \code{other.myPin} or \code{other.myDirection}, because these member
+    variables are declared as \code{const}.
+  \item For this class, moving is in practice identical to copying, since no resources are owned
+    dynamically.
+  \item If \code{other} had contained other resources, such as dynamically allocated memory,
+    ownership of these would have been transferred to the new object, and \code{other} would have
+    been left without them (for example with its pointer set to \code{nullptr}).
+\end{itemize}
+
+\subsubsection{Copy assignment operator}
+A copy assignment operator is used when an already existing object should be assigned from another
+object.
+
+\begin{cppcode}
+// Create led1 and led2.
+Gpio led1{13U, Direction::Output};
+Gpio led2{12U, Direction::Output};
+
+// Make led2 a copy of led1.
+led2 = led1;
+\end{cppcode}
+
+\noindent For the class \code{Gpio}, however, this is problematic. During assignment, an already
+existing object must be overwritten, but \code{myPin} and \code{myDirection} are constant and may
+not be changed after initialization.
+
+An otherwise simplified operator could have looked like this:
+
+\begin{cppcode}
+/**
+ * @brief Copy assignment operator.
+ *
+ * @param[in] other GPIO instance to copy from.
+ *
+ * @return Reference to this instance.
+ */
+Gpio& operator=(const Gpio& other) noexcept
+{
+    if (this != &other)
+    {
+        myState = other.myState;
+    }
+    return *this;
+}
+\end{cppcode}
+
+\noindent Note that we \textbf{cannot} write:
+
+\begin{cppcode}
+myPin       = other.myPin;
+myDirection = other.myDirection;
+\end{cppcode}
+
+\noindent since these are constant.
+
+\subsubsection{Move assignment operator}
+Similarly, there is a move assignment operator, which is used when an object is assigned from a
+temporary object or via \code{std::move} from \code{<utility>}:
+
+\begin{cppcode}
+#include <utility>
+
+Gpio led1{13U, Direction::Output};
+Gpio led2{12U, Direction::Output};
+
+led2 = std::move(led1);
+\end{cppcode}
+
+\noindent A simplified implementation could look like this:
+
+\begin{cppcode}
+/**
+ * @brief Move assignment operator.
+ *
+ * @param[in, out] other GPIO instance to move from.
+ *
+ * @return Reference to this instance.
+ */
+Gpio& operator=(Gpio&& other) noexcept
+{
+    if (this != &other)
+    {
+        myState       = other.myState;
+        other.myState = false;
+    }
+    return *this;
+}
+\end{cppcode}
+
+\noindent Here as well, however, we cannot move \code{myPin} or \code{myDirection}, since these are
+constant.
+
+\subsection{Recommendation}
+\label{c2:sec:recommendation}
+In many real embedded systems, copying and moving are often completely disallowed, since an object
+frequently represents a unique hardware resource.
+
+The deleted copy and move operations are normally placed at the bottom of the public section:
+
+\begin{cppcode}
+Gpio(const Gpio&)            = delete; // No copy constructor.
+Gpio(Gpio&&)                 = delete; // No move constructor.
+Gpio& operator=(const Gpio&) = delete; // No copy assignment.
+Gpio& operator=(Gpio&&)      = delete; // No move assignment.
+\end{cppcode}
+
+\noindent In this way, it is ensured that each \code{Gpio} object represents exactly one physical
+GPIO pin and cannot be duplicated by mistake.

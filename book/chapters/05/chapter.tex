@@ -1,0 +1,42 @@
+% Chapter 5, typeset from lectures/L05: the README is the opener and the closing review, and
+% each appendix is a section, in the same order and with the same subsections.
+
+\chapter{Templates}
+\label{c5:ch:templates}
+
+{\large\itshape Generic code the compiler writes for you, and what it costs in flash.\par}
+
+\begin{chapterbox}{In this chapter}
+\begin{itemize}
+  \item Motivation for templates in embedded systems.
+  \item Function templates.
+  \item Template instantiation (compile-time code generation).
+  \item Class templates.
+  \item Code size considerations in embedded systems.
+  \item Introduction to type traits and parameter packs.
+\end{itemize}
+\end{chapterbox}
+
+This chapter is about what templates are and why they are used. You will see how function
+templates enable generic code, and how class templates can be used for reusable components such
+as buffers and frames. Templates are instantiated at compile time and generate concrete types and
+functions, and that is exactly what makes them both free at run time and a cost in code size, so
+the chapter is as much about when templates are appropriate in an embedded system as about how to
+write them. By the end you should be able to read and follow simple template-based code, and use
+type traits for basic compile-time checks.
+
+The chapter assumes basic knowledge of functions and classes in C++ (Chapter~2), an understanding
+of interfaces and system architecture (Chapters~3 and~4), and a basic understanding of
+compilation. Function templates and type traits were first met in \secref{c1:sec:templates} and
+\secref{c1:sec:typetraits}; this chapter takes them further.
+
+Work the chapter in order. \Secref{c5:sec:function} introduces function templates,
+\secref{c5:sec:traits} type traits and constraints, and \secref{c5:sec:class} class templates. The
+exercises in \secref{c5:sec:exercises} are where you write the code yourself; their solutions are
+in \secref{sol:sec:c5}.
+
+\input{chapters/05/function}
+\input{chapters/05/traits}
+\input{chapters/05/class}
+\input{chapters/05/summary}
+\input{chapters/05/exercises}
