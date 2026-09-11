@@ -50,10 +50,15 @@ nothing outside that file can see. So the tests include your file:
 #undef main
 ```
 
-That makes `swap()` callable from the test, and your program runnable as `exercise3Main()`, whose
-output the test compares with the exercise's example output. Renaming `main` has one side effect:
-`main` is the only function allowed to leave out its `return`, so the test silences that one
-warning for your file.
+That makes `swap()` callable from the test. Renaming `main` has one side effect: `main` is the only
+function allowed to leave out its `return`, so the test silences that one warning for your file.
+
+**Your program is run as the program it is.** The suite also builds it on its own, with its own
+`main()`, and the test runs it as a separate process, the way you would: it must end normally,
+returning 0, and print exactly the expected output. A crash or a non-zero exit status is reported
+as one. The renamed `main` in the included copy is never called, and could not safely be: only the
+real `::main` may leave out its `return`, and renamed, the same code falls off the end of an
+ordinary function, which GCC compiles into a trap.
 
 ---
 

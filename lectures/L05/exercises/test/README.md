@@ -54,15 +54,19 @@ that file can see. So the tests include your file:
 #undef main
 ```
 
-That makes `clear()` and `toggle()` callable from the test, and your program runnable as
-`functionTemplateMain()`, whose output the test compares with the exercise's expected output.
-Renaming `main` has one side effect: `main` is the only function allowed to leave out its `return`,
-so the test silences that one warning for your file.
+That makes `clear()` and `toggle()` callable from the test. Renaming `main` has one side effect:
+`main` is the only function allowed to leave out its `return`, so the test silences that one warning
+for your file.
 
-The timer program of Exercise Set 3 is run the same way, with one more substitution: it sleeps
-1 ms on each of its 2000 iterations, which would make the test take two seconds without changing
-what it prints, so for your `main.cpp` alone `std::this_thread::sleep_for` becomes
-`std::this_thread::yield`.
+**Your program is run as the program it is.** The suite also builds it on its own, with its own
+`main()`, and the test runs it as a separate process, the way you would: it must end normally,
+returning 0, and print exactly the expected output. A crash or a non-zero exit status is reported
+as one. The renamed `main` in the included copy is never called, and could not safely be: only the
+real `::main` may leave out its `return`, and renamed, the same code falls off the end of an
+ordinary function, which GCC compiles into a trap.
+
+The timer program of Exercise Set 3 is run the same way, 1 ms sleeps and all, so its test takes
+about two seconds.
 
 ---
 

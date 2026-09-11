@@ -13,10 +13,9 @@
 #include "driver/gpio/led.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 using driver::gpio::Led;
-using support::captureOutput;
-
 /**
  * @brief Exercise 1.1 b): the constructor takes a pin and an optional state, and is explicit, so
  *        a pin number does not turn into an LED on its own.
@@ -142,27 +141,18 @@ TEST(Button, SetPressedUpdatesTheState)
     EXPECT_TRUE(noexcept(button.setPressed(true)));
 }
 
-#if __has_include("main.cpp")
-
-// Your program, with its main() renamed so this file can run it. A main() may leave out its
-// return statement and any other function may not, so that one warning is silenced here.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#define main exercise1Main
-#include "main.cpp"
-#undef main
-#pragma GCC diagnostic pop
+#ifdef PROGRAM
 
 /**
  * @brief Exercises 1.1 f) and 1.2 f): the program prints both example outputs, in order.
  */
 TEST(Program, PrintsTheExampleOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { exercise1Main(); }), "Initial state: Off\n"
-                                                          "After on(): On\n"
-                                                          "After toggle(): Off\n"
-                                                          "Button pin: 2\n"
-                                                          "Pressed: Yes\n");
+    EXPECT_PROGRAM_OUTPUT("Initial state: Off\n"
+                          "After on(): On\n"
+                          "After toggle(): Off\n"
+                          "Button pin: 2\n"
+                          "Pressed: Yes\n");
 }
 
 #endif

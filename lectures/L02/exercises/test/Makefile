@@ -9,19 +9,23 @@ language_NEEDS :=
 # Exercise Set 1: the Led and Button classes, header-only, and the program that uses them.
 exercise1_NEEDS    := exercise1/include/driver/gpio/led.hpp
 exercise1_INCLUDES := exercise1/include exercise1
+exercise1_PROGRAM  := exercise1/main.cpp
 
 # Exercise Set 2: the same classes, controlled and blinked by the program in main.cpp.
 exercise2_NEEDS    := exercise2/main.cpp
 exercise2_INCLUDES := exercise2/include exercise2
+exercise2_PROGRAM  := exercise2/main.cpp
 
 # Exercise Set 3: the Buzzer class, split into a header and a source file.
 exercise3_NEEDS    := exercise3/include/driver/buzzer.hpp exercise3/source/driver/buzzer.cpp
 exercise3_INCLUDES := exercise3/include exercise3/source
 exercise3_SOURCES  := exercise3/source/driver/*.cpp
+exercise3_PROGRAM  := exercise3/source/driver/*.cpp exercise3/source/main.cpp
 
 # Exercise Set 4: the Timer class, split into a header and a source file.
 exercise4_NEEDS    := exercise4/include/driver/timer.hpp exercise4/source/driver/timer.cpp
 exercise4_INCLUDES := exercise4/include exercise4/source
 exercise4_SOURCES  := exercise4/source/driver/*.cpp
+exercise4_PROGRAM  := exercise4/source/driver/*.cpp exercise4/source/main.cpp
 
 include ../../../../ci/suite.mk

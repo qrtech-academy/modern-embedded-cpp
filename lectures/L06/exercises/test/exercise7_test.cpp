@@ -15,6 +15,7 @@
 
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 #include "threads.hpp"
 
 // Your program, with its main() renamed. A main() may leave out its return statement and any
@@ -25,8 +26,6 @@
 #include "exercise7.cpp"
 #undef main
 #pragma GCC diagnostic pop
-
-using support::captureOutput;
 
 /**
  * @brief Exercise 7.1: no buffer, or an empty one, is not valid firmware. validateFirmware() is
@@ -63,6 +62,7 @@ TEST(Validate, RejectsUnprogrammedFlashAnywhere)
     EXPECT_FALSE(lastResult);
 }
 
+#ifdef PROGRAM
 /**
  * @brief Exercise 7.2: the program announces the boot, reports that it is still waiting at most
  *        once per 200 ms poll, and then prints the result.
@@ -70,7 +70,9 @@ TEST(Validate, RejectsUnprogrammedFlashAnywhere)
 TEST(Program, PollsWhileTheValidationRuns)
 {
     const auto start{std::chrono::steady_clock::now()};
-    const std::string output{captureOutput([] { exercise7Main(); })};
+    const support::ProgramResult result{support::runProgram(PROGRAM)};
+    EXPECT_CLEAN_EXIT(result);
+    const std::string& output{result.output};
     const long long elapsed_ms{l06::elapsedSince(start)};
 
     std::istringstream stream{output};
@@ -99,3 +101,4 @@ TEST(Program, PollsWhileTheValidationRuns)
     EXPECT_TRUE(polledAtMostOncePer200ms);
     EXPECT_TRUE(endedWithTheResult);
 }
+#endif

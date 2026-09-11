@@ -12,6 +12,7 @@
 #include "driver/timer.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 using driver::Timer;
 using support::captureOutput;
@@ -171,16 +172,7 @@ TEST(Timer, AnnouncesOnlyARunningTimerStoppedAtDeletion)
                   "");
 }
 
-#if __has_include("main.cpp")
-
-// Your program, with its main() renamed so this file can run it. A main() may leave out its
-// return statement and any other function may not, so that one warning is silenced here.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#define main exercise4Main
-#include "main.cpp"
-#undef main
-#pragma GCC diagnostic pop
+#ifdef PROGRAM
 
 /**
  * @brief Exercise 4.1 f): three timeouts in 3000 ticks of a 1000 ms timer, then the destructor's
@@ -188,10 +180,10 @@ TEST(Timer, AnnouncesOnlyARunningTimerStoppedAtDeletion)
  */
 TEST(Program, PrintsTheExampleOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { exercise4Main(); }), "Timeout after 1000 ms!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Stopping timer before deletion!\n");
+    EXPECT_PROGRAM_OUTPUT("Timeout after 1000 ms!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Stopping timer before deletion!\n");
 }
 
 #endif

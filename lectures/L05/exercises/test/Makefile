@@ -10,6 +10,7 @@ language_NEEDS :=
 # Exercise Set 1: the clear and toggle function templates, in main.cpp.
 function_template_NEEDS    := function_template/main.cpp
 function_template_INCLUDES := function_template
+function_template_PROGRAM  := function_template/main.cpp
 function_template_REJECTS  := function_template_rejects_float_clear.cpp \
                               function_template_rejects_float_toggle.cpp
 
@@ -17,5 +18,6 @@ function_template_REJECTS  := function_template_rejects_float_clear.cpp \
 # them once source/main.cpp exists too.
 class_template_NEEDS    := class_template/include/driver/timer/timer.hpp
 class_template_INCLUDES := class_template/include class_template/source
+class_template_PROGRAM  := class_template/source/main.cpp
 
 include ../../../../ci/suite.mk

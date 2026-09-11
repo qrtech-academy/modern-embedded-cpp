@@ -13,9 +13,16 @@
 #                    for the always-on binary.
 #   <b>_INCLUDES     Include directories, relative to the workspace.
 #   <b>_SOURCES      Source files to compile in, relative to the workspace; wildcards allowed.
-#                    main.cpp is always left out: a test that needs a program's main() includes
-#                    it under another name instead (see the lecture's README).
+#                    main.cpp is always left out, since the test binary has a main() of its own.
+#                    A test that needs functions from main.cpp includes it with main renamed, and
+#                    never calls that renamed main; the program itself is <b>_PROGRAM.
 #   <b>_FLAGS        Extra compiler flags, e.g. -pthread.
+#   <b>_PROGRAM      The source files of the set's program, main.cpp included, relative to the
+#                    workspace; wildcards allowed. Once they exist, the program is built on its
+#                    own, as build/<b>_program, and its path is passed to the tests as PROGRAM, so
+#                    a test can run it and check its output (support/program.hpp). A program is
+#                    run rather than its main() called, because only the real ::main may leave out
+#                    its return statement.
 #   <b>_REJECTS      Files, in this directory, that must NOT compile against your code, because
 #                    the exercise asks for a static_assert that rejects them.
 #
@@ -64,6 +71,24 @@ includes = $(addprefix -I$(WORK_DIR)/,$($(1)_INCLUDES))
 sources  = $(filter-out %/main.cpp,$(wildcard $(addprefix $(WORK_DIR)/,$($(1)_SOURCES))))
 compile  = $(CXX_COMPILER) $(CXX_FLAGS) $($(1)_FLAGS) $(call includes,$(1))
 
+# The same for a set's program: the files it needs (its wildcard entries aside, which may match
+# nothing yet), what is missing of them, and what it is built from.
+literal         = $(foreach f,$(1),$(if $(findstring *,$(f)),,$(f)))
+program_missing = $(filter-out $(wildcard $(addprefix $(WORK_DIR)/,$(call literal,$($(1)_PROGRAM)))),\
+                    $(addprefix $(WORK_DIR)/,$(call literal,$($(1)_PROGRAM))))
+program_sources = $(wildcard $(addprefix $(WORK_DIR)/,$($(1)_PROGRAM)))
+
+# Build a set's program, if it has one and its files exist, and leave the -DPROGRAM that tells the
+# tests where it is in $$program.
+build_program = program=""; \
+  $(if $($(1)_PROGRAM),$(if $(call program_missing,$(1)),\
+    echo "SKIP  $(1): its program test waits for $(call shown,$(firstword $(call program_missing,$(1))))";,\
+    if $(call compile,$(1)) $(call program_sources,$(1)) -o build/$(1)_program; then \
+      program='-DPROGRAM="$(abspath build)/$(1)_program"'; \
+    else \
+      echo "FAIL  $(1): your program does not compile on its own."; failed=1; \
+    fi;))
+
 # What to say when a binary does not compile. Kept out of the recipe because make would split the
 # messages at their commas.
 not_compiling = echo "FAIL  $(1): the tests do not compile against $(WORK_NAME)."; \
@@ -96,7 +121,8 @@ test: $(QACADEMY_TEST_LIB)
 	  echo "SKIP  $(b): $(call shown,$(firstword $(call missing,$(b)))) is not written yet.";) \
 	$(foreach b,$(ENABLED),\
 	  echo "TEST  $(b)"; \
-	  if $(call compile,$(b)) $(b)_test.cpp $(SUPPORT_DIR)/source/testsuite.cpp \
+	  $(call build_program,$(b)) \
+	  if $(call compile,$(b)) $$program $(b)_test.cpp $(SUPPORT_DIR)/source/testsuite.cpp \
 	       $(call sources,$(b)) -o build/$(b) $(LD_FLAGS); then \
 	    timeout $(TEST_TIMEOUT) ./build/$(b); status=$$?; \
 	    if [ $$status -eq 124 ]; then \

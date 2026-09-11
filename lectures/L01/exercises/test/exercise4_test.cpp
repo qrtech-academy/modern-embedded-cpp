@@ -13,6 +13,7 @@
 
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 // Your program, with its main() renamed. A main() may leave out its return statement and any
 // other function may not, so that one warning is silenced for your file alone.
@@ -22,8 +23,6 @@
 #include "main.cpp"
 #undef main
 #pragma GCC diagnostic pop
-
-using support::captureOutput;
 
 /**
  * @brief Exercise 4.1: clearing bit 2 of 0xFF gives 0b11111011, as in the expected output.
@@ -107,10 +106,9 @@ TEST(Toggle, WorksForWideRegisters)
     EXPECT_TRUE(noexcept(toggle(wide, 1U, 2U)));
 }
 
+#ifdef PROGRAM
 /**
- * @brief Exercise 4.2: the program prints the expected output.
+ * @brief Exercise 4.2: the program prints the expected output, and ends normally.
  */
-TEST(Program, PrintsTheExpectedOutput)
-{
-    EXPECT_OUTPUT(captureOutput([] { exercise4Main(); }), "Register content: 10101110\n");
-}
+TEST(Program, PrintsTheExpectedOutput) { EXPECT_PROGRAM_OUTPUT("Register content: 10101110\n"); }
+#endif

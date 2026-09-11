@@ -17,6 +17,7 @@ exercise1_FLAGS    := -pthread
 exercise2_NEEDS    := exercise2/exercise2.cpp
 exercise2_INCLUDES := exercise2
 exercise2_FLAGS    := -pthread
+exercise2_PROGRAM  := exercise2/exercise2.cpp
 
 # Exercise Set 3: SharedMem, txThread and rxThread, in exercise3.cpp.
 exercise3_NEEDS    := exercise3/exercise3.cpp
@@ -28,6 +29,7 @@ exercise4-5_NEEDS    := exercise4-5/include/driver/counter/interface.hpp \
                         exercise4-5/include/driver/counter/stub.hpp
 exercise4-5_INCLUDES := exercise4-5/include exercise4-5/source
 exercise4-5_FLAGS    := -pthread
+exercise4-5_PROGRAM  := exercise4-5/source/main.cpp
 
 # Exercise Set 6: the condition variable version of Set 3, in exercise6.cpp.
 exercise6_NEEDS    := exercise6/exercise6.cpp
@@ -38,5 +40,6 @@ exercise6_FLAGS    := -pthread
 exercise7_NEEDS    := exercise7/exercise7.cpp
 exercise7_INCLUDES := exercise7
 exercise7_FLAGS    := -pthread
+exercise7_PROGRAM  := exercise7/exercise7.cpp
 
 include ../../../../ci/suite.mk

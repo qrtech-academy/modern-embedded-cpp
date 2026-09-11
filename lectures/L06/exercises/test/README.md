@@ -67,7 +67,9 @@ correct program **guarantees**, however it is scheduled:
 
 Your `main()` functions sleep for three or ten seconds, so the tests do not run them; they start
 the threads themselves, and stop them the way the exercises say `main()` must. The exceptions are
-Sets 2, 4 and 7, whose programs finish quickly and print a result the tests can check.
+Sets 2, 4 and 7, whose programs finish quickly and print a result the tests can check: the suite
+builds each of those as the program it is, with its own `main()`, and the test runs it as a
+separate process, which must end normally, returning 0.
 
 **No test can hang the suite.** A failed check throws, and destroying a `std::thread` that was
 never joined terminates the program, so the tests check nothing while a thread is running: they
@@ -112,9 +114,9 @@ which nothing outside that file can see. So the tests include your file:
 #undef main
 ```
 
-That makes `rxThread()` callable from the test, and your program runnable as `exercise3Main()`.
-Renaming `main` has one side effect: `main` is the only function allowed to leave out its
-`return`, so the test silences that one warning for your file.
+That makes `rxThread()` callable from the test. Renaming `main` has one side effect: `main` is the
+only function allowed to leave out its `return`, so the test silences that one warning for your
+file, and the renamed `main` is never called.
 
 ---
 

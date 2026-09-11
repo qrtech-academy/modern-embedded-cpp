@@ -45,21 +45,14 @@ declares a destructor, because such a class gets no move constructor from the co
 
 ---
 
-## How the tests reach code in your `main.cpp`
+## How the tests run your program
 
-The programs' output is part of every exercise, so the tests include your `main.cpp`:
-
-```cpp
-#define main exercise1Main
-#include "main.cpp"
-#undef main
-```
-
-That makes your program runnable as `exercise1Main()`, whose output the test compares with the
-exercise's example output. For Exercise Sets 3 and 4 the suite adds `source/` to the include path,
-so the same line finds `source/main.cpp`, and compiles every other file in `source/driver/` into
-the test. Renaming `main` has one side effect: `main` is the only function allowed to leave out its
-`return`, so the test silences that one warning for your file.
+The programs' output is part of every exercise, so the suite builds each set's program on its own,
+the way your Makefile does: from `main.cpp`, and for Exercise Sets 3 and 4 from `source/main.cpp`
+and every file in `source/driver/`. The test runs it as a separate process: it must end normally,
+returning 0, and print exactly the example output. A crash or a non-zero exit status is reported as
+one. The classes themselves are tested directly, by including their headers and compiling
+`source/driver/` into the test.
 
 ---
 

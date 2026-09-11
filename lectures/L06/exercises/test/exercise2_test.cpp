@@ -15,6 +15,7 @@
 
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 // Your program, with its main() renamed. A main() may leave out its return statement and any
 // other function may not, so that one warning is silenced for your file alone.
@@ -24,8 +25,6 @@
 #include "exercise2.cpp"
 #undef main
 #pragma GCC diagnostic pop
-
-using support::captureOutput;
 
 /**
  * @brief Exercise 2.3: one call increments the counter once per iteration, and is noexcept.
@@ -71,12 +70,16 @@ TEST(Counter, ManyThreadsCountExactly)
     EXPECT_EQ(counter.load(), 200000U);
 }
 
+#ifdef PROGRAM
 /**
  * @brief Exercise 2.3: the program prints the final value, which is 200000.
  */
 TEST(Program, PrintsTheFinalValue)
 {
-    const std::string output{captureOutput([] { exercise2Main(); })};
+    const support::ProgramResult result{support::runProgram(PROGRAM)};
+    EXPECT_CLEAN_EXIT(result);
+    const std::string& output{result.output};
     const bool printedTheFinalValue{std::string::npos != output.find("200000")};
     EXPECT_TRUE(printedTheFinalValue);
 }
+#endif

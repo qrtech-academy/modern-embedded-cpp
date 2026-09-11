@@ -28,5 +28,6 @@ exercise4_NEEDS    := source/main.cpp \
                       source/driver/serial/console.cpp source/driver/serial/stub.cpp
 exercise4_INCLUDES := include source
 exercise4_SOURCES  := source/driver/serial/console.cpp source/driver/serial/stub.cpp
+exercise4_PROGRAM  := source/driver/serial/*.cpp source/main.cpp
 
 include ../../../../ci/suite.mk

@@ -13,17 +13,17 @@
 #include "driver/serial/stub.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
-// Your program, with its main() renamed. A main() may leave out its return statement and any
-// other function may not, so that one warning is silenced for your file alone.
+// Your program, with its main() renamed, for sendMessage(). The program itself is built by the
+// suite and run as a separate process. A main() may leave out its return statement and any other
+// function may not, so that one warning is silenced for your file alone.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"
 #define main exercise4Main
 #include "main.cpp"
 #undef main
 #pragma GCC diagnostic pop
-
-using support::captureOutput;
 
 namespace
 {
@@ -78,12 +78,15 @@ TEST(SendMessage, LeavesTheLastByteInTheStub)
     EXPECT_EQ(static_cast<char>(byte), '!');
 }
 
+#ifdef PROGRAM
 /**
  * @brief Exercise 4.1 b): the program prints the message through the console driver, as the first
  *        thing it prints. What follows it, from the stub test in c), is up to you.
  */
 TEST(Program, PrintsTheMessageThroughTheConsole)
 {
-    const std::string output{captureOutput([] { exercise4Main(); })};
-    EXPECT_OUTPUT(output.substr(0U, output.find('\n')), expectedMessage);
+    const support::ProgramResult result{support::runProgram(PROGRAM)};
+    EXPECT_CLEAN_EXIT(result);
+    EXPECT_OUTPUT(result.output.substr(0U, result.output.find('\n')), expectedMessage);
 }
+#endif

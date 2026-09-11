@@ -20,11 +20,10 @@
 #include "driver/counter/stub.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 using driver::counter::Interface;
 using driver::counter::Stub;
-using support::captureOutput;
-
 namespace
 {
 /** True if T has a setInitialized(bool) method, which Exercise 5.2 adds. */
@@ -247,14 +246,18 @@ TEST(CounterThread, IncrementsOncePerIteration)
     EXPECT_TRUE(noexcept(counterThread(stub, 1U)));
 }
 
+#ifdef PROGRAM
 /**
  * @brief Exercise 4.3: the program's two threads, of 100 and 200 iterations, end at 300.
  */
 TEST(Program, PrintsTheFinalValue)
 {
-    const std::string output{captureOutput([] { exercise45Main(); })};
+    const support::ProgramResult result{support::runProgram(PROGRAM)};
+    EXPECT_CLEAN_EXIT(result);
+    const std::string& output{result.output};
     const bool printedTheFinalValue{std::string::npos != output.find("300")};
     EXPECT_TRUE(printedTheFinalValue);
 }
+#endif
 
 #endif

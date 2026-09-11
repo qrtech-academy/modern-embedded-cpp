@@ -20,6 +20,7 @@
 #include "driver/timer/timer.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 using driver::timer::Timer;
 using driver::timer::Type;
@@ -289,45 +290,28 @@ TEST(StubTimer, CountsTicks) { expectCounting<Type::Stub>(); }
  */
 TEST(Stm32Timer, CountsTicks) { expectCounting<Type::Stm32>(); }
 
-#if __has_include("main.cpp")
-
-// Your program, with its main() renamed so this file can run it. A main() may leave out its
-// return statement and any other function may not, so that one warning is silenced here.
-//
-// The program sleeps 1 ms on each of its 2000 iterations, which only makes the test take two
-// seconds without changing what it prints, so for your file alone std::this_thread::sleep_for
-// becomes std::this_thread::yield. <thread> is already included above, so the standard library's
-// own sleep_for is untouched.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#define main classTemplateMain
-#define sleep_for(duration) yield()
-#include "main.cpp"
-#undef sleep_for
-#undef main
-#pragma GCC diagnostic pop
+#ifdef PROGRAM
 
 /**
  * @brief Part III: the program prints exactly the expected output, the timeouts interleaved in the
  *        order the two timers reach them, and the timers destroyed in the reverse order of their
- *        creation.
+ *        creation. It is run as the program it is, 1 ms sleeps and all, so this takes two seconds.
  */
 TEST(Program, PrintsTheExpectedOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { classTemplateMain(); }),
-                  "Created stub timer with timeout 500 ms!\n"
-                  "Created STM32 timer with timeout 1500 ms!\n"
-                  "Starting stub timer!\n"
-                  "Starting STM32 timer!\n"
-                  "Stub timer has timed out after 500 ms!\n"
-                  "Stub timer has timed out after 500 ms!\n"
-                  "Stub timer has timed out after 500 ms!\n"
-                  "STM32 timer has timed out after 1500 ms!\n"
-                  "Stub timer has timed out after 500 ms!\n"
-                  "Stopping STM32 timer!\n"
-                  "Destroying STM32 timer!\n"
-                  "Stopping stub timer!\n"
-                  "Destroying stub timer!\n");
+    EXPECT_PROGRAM_OUTPUT("Created stub timer with timeout 500 ms!\n"
+                          "Created STM32 timer with timeout 1500 ms!\n"
+                          "Starting stub timer!\n"
+                          "Starting STM32 timer!\n"
+                          "Stub timer has timed out after 500 ms!\n"
+                          "Stub timer has timed out after 500 ms!\n"
+                          "Stub timer has timed out after 500 ms!\n"
+                          "STM32 timer has timed out after 1500 ms!\n"
+                          "Stub timer has timed out after 500 ms!\n"
+                          "Stopping STM32 timer!\n"
+                          "Destroying STM32 timer!\n"
+                          "Stopping stub timer!\n"
+                          "Destroying stub timer!\n");
 }
 
 #endif

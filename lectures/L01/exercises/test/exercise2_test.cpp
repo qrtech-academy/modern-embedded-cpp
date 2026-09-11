@@ -1,6 +1,7 @@
 /**
  * @file Tests for Exercise Set 2: the software timer in exercise2/driver/timer.hpp, and, once
- *       exercise2/main.cpp exists too, the program that uses it.
+ *       exercise2/main.cpp exists too, the program that uses it, which the suite builds and this
+ *       file runs.
  *
  *       The timer prints as it goes, so every test that creates one captures the output: both to
  *       keep the report readable and because what it prints is part of the specification.
@@ -11,6 +12,7 @@
 #include "driver/timer.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 using support::captureOutput;
 
@@ -137,32 +139,23 @@ TEST(Timer, DoesNotCountWhileStopped)
         });
 }
 
-#if __has_include("main.cpp")
-
-// Your program, with its main() renamed so this file can run it. A main() may leave out its
-// return statement and any other function may not, so that one warning is silenced here.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#define main exercise2Main
-#include "main.cpp"
-#undef main
-#pragma GCC diagnostic pop
+#ifdef PROGRAM
 
 /**
- * @brief Exercise 2.1 e): the program prints exactly the example output: five timeouts in 5000
- *        ticks of a 1000 ms timer.
+ * @brief Exercise 2.1 e): the program prints exactly the example output, five timeouts in 5000
+ *        ticks of a 1000 ms timer, and ends normally.
  */
 TEST(Program, PrintsTheExampleOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { exercise2Main(); }), "Creating timer!\n"
-                                                          "Starting timer!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Timeout after 1000 ms!\n"
-                                                          "Stopping timer!\n"
-                                                          "Destroying timer!\n");
+    EXPECT_PROGRAM_OUTPUT("Creating timer!\n"
+                          "Starting timer!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Timeout after 1000 ms!\n"
+                          "Stopping timer!\n"
+                          "Destroying timer!\n");
 }
 
 #endif

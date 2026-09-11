@@ -13,8 +13,10 @@
 
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
-// Your program, with its main() renamed. A main() may leave out its return statement and any
+// Your program, with its main() renamed, for the templates in it; the program itself is built by
+// the suite and run as a separate process. A main() may leave out its return statement and any
 // other function may not, so that one warning is silenced for your file alone.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"
@@ -153,12 +155,13 @@ TEST(Templates, AreConstexpr)
     EXPECT_EQ(static_cast<unsigned>(atCompileTime()), 0xF4U);
 }
 
+#ifdef PROGRAM
 /**
  * @brief Exercise 1.2 e): the program prints the expected output.
  */
 TEST(Program, PrintsTheExpectedOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { functionTemplateMain(); }),
-                  "Register content after clearing bit 2: 0b11111011\n"
-                  "Register content after toggling bits 0-3: 0b11110100\n");
+    EXPECT_PROGRAM_OUTPUT("Register content after clearing bit 2: 0b11111011\n"
+                          "Register content after toggling bits 0-3: 0b11110100\n");
 }
+#endif

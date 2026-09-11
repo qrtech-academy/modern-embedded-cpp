@@ -2,13 +2,15 @@
  * @file Tests for Exercise Set 3: swap, in an anonymous namespace in exercise3/main.cpp.
  *
  *       An anonymous namespace is visible only inside its own file, so this file includes yours,
- *       with main() renamed, which makes swap() callable here and the program runnable.
+ *       with main() renamed, which makes swap() callable here. The program itself is built by the
+ *       suite and run as a separate process.
  */
 #include <cstdint>
 #include <string>
 
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 // Your program, with its main() renamed. A main() may leave out its return statement and any
 // other function may not, so that one warning is silenced for your file alone.
@@ -18,8 +20,6 @@
 #include "main.cpp"
 #undef main
 #pragma GCC diagnostic pop
-
-using support::captureOutput;
 
 namespace
 {
@@ -74,11 +74,12 @@ TEST(Swap, IsConstexprAndNoexcept)
     EXPECT_TRUE(noexcept(swap(a, b)));
 }
 
+#ifdef PROGRAM
 /**
- * @brief Exercise 3.1: the program prints the example output.
+ * @brief Exercise 3.1: the program prints the example output, and ends normally.
  */
 TEST(Program, PrintsTheExampleOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { exercise3Main(); }),
-                  "Before swap: a = 3, b = 10\nAfter swap: a = 10, b = 3\n");
+    EXPECT_PROGRAM_OUTPUT("Before swap: a = 3, b = 10\nAfter swap: a = 10, b = 3\n");
 }
+#endif

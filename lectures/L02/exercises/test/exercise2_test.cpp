@@ -8,30 +8,22 @@
  */
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
-// Your program, with its main() renamed so this file can run it. A main() may leave out its
-// return statement and any other function may not, so that one warning is silenced here.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#define main exercise2Main
-#include "main.cpp"
-#undef main
-#pragma GCC diagnostic pop
-
-using support::captureOutput;
-
+#ifdef PROGRAM
 /**
  * @brief Exercises 2.1 and 2.2: the LED follows the button, released and then pressed, and the
  *        blink loop starts from off, so the first of its six toggles turns the LED on.
  */
 TEST(Program, PrintsTheExampleOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { exercise2Main(); }), "Button released -> LED: Off\n"
-                                                          "Button pressed  -> LED: On\n"
-                                                          "Blink 1: On\n"
-                                                          "Blink 2: Off\n"
-                                                          "Blink 3: On\n"
-                                                          "Blink 4: Off\n"
-                                                          "Blink 5: On\n"
-                                                          "Blink 6: Off\n");
+    EXPECT_PROGRAM_OUTPUT("Button released -> LED: Off\n"
+                          "Button pressed  -> LED: On\n"
+                          "Blink 1: On\n"
+                          "Blink 2: Off\n"
+                          "Blink 3: On\n"
+                          "Blink 4: Off\n"
+                          "Blink 5: On\n"
+                          "Blink 6: Off\n");
 }
+#endif

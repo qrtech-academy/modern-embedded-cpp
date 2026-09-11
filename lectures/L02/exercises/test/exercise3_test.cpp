@@ -12,6 +12,7 @@
 #include "driver/buzzer.hpp"
 #include "qacademy/test/test.hpp"
 #include "support/output.hpp"
+#include "support/program.hpp"
 
 using driver::Buzzer;
 using support::captureOutput;
@@ -97,16 +98,7 @@ TEST(Buzzer, EnableDisableAndToggle)
         });
 }
 
-#if __has_include("main.cpp")
-
-// Your program, with its main() renamed so this file can run it. A main() may leave out its
-// return statement and any other function may not, so that one warning is silenced here.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreturn-type"
-#define main exercise3Main
-#include "main.cpp"
-#undef main
-#pragma GCC diagnostic pop
+#ifdef PROGRAM
 
 /**
  * @brief Exercise 3.1 f): the program prints the example output, ending with the destructor's
@@ -114,11 +106,10 @@ TEST(Buzzer, EnableDisableAndToggle)
  */
 TEST(Program, PrintsTheExampleOutput)
 {
-    EXPECT_OUTPUT(captureOutput([] { exercise3Main(); }),
-                  "Initial state: Disabled\n"
-                  "After enable(): Enabled\n"
-                  "After toggle(): Disabled\n"
-                  "Releasing resources allocated for buzzer at pin 8!\n");
+    EXPECT_PROGRAM_OUTPUT("Initial state: Disabled\n"
+                          "After enable(): Enabled\n"
+                          "After toggle(): Disabled\n"
+                          "Releasing resources allocated for buzzer at pin 8!\n");
 }
 
 #endif
