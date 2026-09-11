@@ -32,7 +32,7 @@ public:
     /**
      * @brief Create serial driver.
      *
-     * @param[in] txPin Transfer pin number.
+     * @param[in] txPin Transmit pin number.
      * @param[in] rxPin Receive pin number.
      *
      * @return Pointer to the serial device.

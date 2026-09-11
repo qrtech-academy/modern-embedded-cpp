@@ -174,7 +174,7 @@ Declare and implement the required interface methods.
 
 For this exercise, it is sufficient to use placeholder implementations:
 * `isInitialized()` may always return `true`.
-* `write()` shall print the transmitted byte in hexadecimal format. For example, transmitting byte `0xFF` on TX pin `17` shall print `Transmitting byte FF via TX pin 17`.
+* `write()` shall print the transmitted byte in hexadecimal format. For example, transmitting byte `0xFF` on TX pin `17` shall print `Transmitting byte 0xFF via TX pin 17!`.
 * `read()` may always return `false`.
 
 ### e) Disable copy and move semantics
@@ -413,8 +413,9 @@ Remove the destructor entirely.
 
 ### d) `run()` method  
 Keep the behavior the same as before:
-* Send the character `'A'`.
-* Attempt to read one byte.
+* Send an incrementing byte value (`0–255`), wrapping around to `0` after `255`.
+* Attempt to read one byte and print it if received.
+* Delay execution by `100 ms` at the end of each loop iteration.
 * Repeat forever.
 
 Remember that member access through a smart pointer still uses the arrow operator `->`.

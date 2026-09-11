@@ -26,6 +26,11 @@ public:
     {}
 
     /**
+     * @brief Destructor.
+     */
+    ~Button() noexcept = default;
+
+    /**
      * @brief Get the button pin.
      *
      * @return The button pin number.

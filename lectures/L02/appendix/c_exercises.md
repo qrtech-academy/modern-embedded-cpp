@@ -197,7 +197,7 @@ Button pressed  -> LED: On
 Create a loop that toggles the LED state.
 
 ### Tasks
-**a)** Run a loop for six iterations.  
+**a)** Turn the LED off, then run a loop for six iterations.  
 **b)** In each iteration:
 * Call `toggle()`.
 * Print the LED state.
@@ -407,7 +407,7 @@ private:
 * Mark it `noexcept`.
 * Implement it in `driver/timer.cpp` so that:
     * The timer is stopped if it was running.
-    * If the timer is stopped, the output below should be printed:
+    * If the timer was running and is stopped, the output below should be printed:
 
 ```text
 Stopping timer before deletion!

@@ -3,6 +3,10 @@
 ## Exercises
 These exercises reinforce the concepts from [Appendix A](./a_multithreading_synchronization.md).
 
+**Note:** Add `-pthread` to the compiler flags in your Makefile (`CXX_FLAGS := -Wall -Werror -std=c++17 -pthread`).
+GCC requires it for programs that use `std::thread`; without it, the program may fail to link, or fail
+at runtime, on systems with a C library older than glibc 2.34.
+
 ---
 
 # Exercise Set 1 – Threads and atomic stop flag
@@ -49,7 +53,7 @@ std::atomic<bool> stop{false};
 Modify `workerThread()` so that it:
 * Replaces the `printCount` parameter with a `const std::atomic<bool>&` named `stop`, placed after `printSpeed_ms`.
 * Runs as long as `stop.load()` is `false`.
-* Prints `"Worker thread running"` once every `printSpeed_ms` milliseconds.
+* Prints `"Worker thread running!"` once every `printSpeed_ms` milliseconds.
 
 In `main()`:
 * Start the worker thread.
@@ -434,7 +438,9 @@ Modify `rxThread()` so that instead of sleeping it:
 
 > **Note:** The predicate is passed as a lambda; the `[&]` syntax captures `shared` and `stop` by reference so the predicate can access both. Lambdas are covered in the associated appendix.
 
-In `main()`, after setting the stop flag, call `cv.notify_all()` to wake the receiver thread so it can exit cleanly.
+In `main()`, set the stop flag while holding the mutex (in a scope of its own with a `std::lock_guard<std::mutex>`), then call `cv.notify_all()` to wake the receiver thread so it can exit cleanly.
+
+> **Note:** The stop flag is atomic, but it is also part of the predicate, and a variable the predicate depends on must be modified while holding the mutex. Otherwise the flag could be set, and `notify_all()` called, just after the receiver found the predicate `false` but before it went to sleep. That notification would be lost, and the receiver would never wake up.
 
 ### Reflection
 * Why is `std::unique_lock` required here instead of `std::lock_guard`?

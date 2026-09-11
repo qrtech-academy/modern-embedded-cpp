@@ -31,7 +31,7 @@ protected:
     // Add GPIO-specific methods for initialization and such here.
     void init() noexcept;
 
-    /** The pin the GPIO is connected to.*/
+    /** The pin the GPIO is connected to. */
     std::uint8_t myPin;
 };
 } // namespace driver
@@ -44,9 +44,9 @@ Note that the keyword `protected` is used instead of `private` in this case:
 ### Types of inheritance
 There are three types of inheritance in C++:
 
-* **Public inheritance** The by far most common type. Public and protected members in the base class retain their access rights in the derived class. Used when the derived class is a specialization of the base class.
+* **Public inheritance:** The by far most common type. Public and protected members in the base class retain their access rights in the derived class. Used when the derived class is a specialization of the base class.
 * **Private inheritance:** All members of the base class become private in the derived class. Used when the base class should only be used internally within the derived class.
-* **Protected inheritance** Public and protected members in the base class become protected in the derived class. It therefore works like private inheritance, with the difference that potential subclasses of the current derived class also gain internal access to the base class.
+* **Protected inheritance:** Public and protected members in the base class become protected in the derived class. It therefore works like private inheritance, with the difference that potential subclasses of the current derived class also gain internal access to the base class.
 
 Below is an example of public inheritance, where a class named `driver::Led` inherits the GPIO functionality from the class `driver::Gpio`:
 * The functions `write` and `read` from the base class `driver::Gpio` can therefore be used by instances of the class `driver::Led`, i.e. LEDs.
@@ -91,7 +91,8 @@ In the same way, we could have created a derived class named `driver::Button` in
 In this case, a method has been added to enable/disable interrupts when the push button is pressed.
 A corresponding method for checking whether interrupts are enabled has also been added.
 Since the button should not be controllable, we ensure that the method `write()` is private;
-we cannot remove inherited methods, but we can change their visibility.
+we cannot remove inherited methods, but we can change their visibility with a using-declaration
+(`using Gpio::write;`) in the private section.
 
 ```cpp
 namespace driver
@@ -112,12 +113,12 @@ public:
     Button& operator=(Button&&)      = delete;
 
 private:
-    void write(bool enable) noexcept;
+    using Gpio::write;
 };
 } // namespace driver
 ```
 
-Through this class, we can then easily read the LED output signal, enable interrupts, and so on:
+Through this class, we can then easily read the button input signal, enable interrupts, and so on:
 
 ```cpp
 // Create a button connected to pin 13.

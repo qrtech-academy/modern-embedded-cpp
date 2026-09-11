@@ -13,7 +13,7 @@ namespace
  *
  * @tparam T The register type. Must be integral.
  *
- * @param[out] reg Register to modify.
+ * @param[in, out] reg Register to modify.
  * @param[in] bit Bit to clear.
  */
 template<typename T>
@@ -30,7 +30,7 @@ constexpr void clear(T& reg, std::uint8_t bit) noexcept
  * @tparam T The register type. Must be integral.
  * @tparam Bits Parameter pack of bits.
  *
- * @param[out] reg Register to modify.
+ * @param[in, out] reg Register to modify.
  * @param[in] bits Bits to toggle.
  */
 template<typename T, typename... Bits>

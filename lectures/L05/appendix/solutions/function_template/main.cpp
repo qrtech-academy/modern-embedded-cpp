@@ -13,13 +13,13 @@ namespace
  *
  * @tparam T Register type. Must be integral.
  *
- * @param[out] reg Destination register.
+ * @param[in, out] reg Destination register.
  * @param[in] bit Bit to clear.
  */
 template<typename T>
 constexpr void clear(T& reg, const std::uint8_t bit) noexcept
 {
-    static_assert(std::is_arithmetic<T>::value,
+    static_assert(std::is_integral<T>::value,
                   "Cannot perform bit operation with non-integral type!");
     reg &= ~(static_cast<T>(1) << bit);
 }
@@ -30,13 +30,13 @@ constexpr void clear(T& reg, const std::uint8_t bit) noexcept
  * @tparam T Register type. Must be integral.
  * @tparam Bits Parameter pack of bits.
  *
- * @param[out] reg Destination register.
+ * @param[in, out] reg Destination register.
  * @param[in] bits Bits to toggle.
  */
 template<typename T, typename... Bits>
 constexpr void toggle(T& reg, const Bits... bits) noexcept
 {
-    static_assert(std::is_arithmetic<T>::value,
+    static_assert(std::is_integral<T>::value,
                   "Cannot perform bit operation with non-integral type!");
 
     for (const auto bit : {bits...})

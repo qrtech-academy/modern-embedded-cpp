@@ -34,7 +34,7 @@ A thread is an independent execution flow managed by the OS. Each thread has its
 * **Stack**: Holds local variables and return addresses for that thread's call chain.
 * **Register state**: The CPU registers saved and restored on every context switch.
 
-What threads share is everything else in the process; global variables, the heap, file handles, and any other objects explicitly passed between them. This is what makes shared-data bugs possible.
+What threads share is everything else in the process: global variables, the heap, file handles, and any other objects explicitly passed between them. This is what makes shared-data bugs possible.
 
 In C++, a thread is created using:
 
@@ -106,7 +106,7 @@ void task() noexcept
 Below is an example that demonstrates how you can set the priority and policy of a given thread `t1` in a Linux system:
 * `native_handle()` returns a `pthread_t` on Linux, enabling access to the full POSIX thread API.
 * `SCHED_FIFO` is a real-time scheduling policy; it requires elevated privileges on Linux (run with `sudo`).
-* `t1` is assigned `SCHED_FIFO` with priority `100`, which is the highest valid POSIX real-time priority.
+* `t1` is assigned `SCHED_FIFO` with priority `99`, which is the highest `SCHED_FIFO` priority on Linux (the valid range is `1`-`99`; `sched_get_priority_max(SCHED_FIFO)` returns the maximum on any POSIX system).
 
 ```cpp
 int main()
@@ -118,7 +118,7 @@ int main()
     auto handle = t1.native_handle();
 
     // Set thread policy and priority via the handle.
-    constexpr int maxPrio{100};
+    constexpr int maxPrio{99};
     sched_param sched{maxPrio};
     pthread_setschedparam(handle, SCHED_FIFO, &sched);
 
@@ -293,7 +293,9 @@ The example below demonstrates a typical embedded scenario:
 ```cpp
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <thread>
@@ -427,10 +429,10 @@ If no policy is specified, the implementation is free to choose either, which ca
 
 ```cpp
 // Always run in a new thread.
-auto future = std::async(std::launch::async, computeChecksum, frame, headerLen);
+auto asyncFuture = std::async(std::launch::async, computeChecksum, frame, headerLen);
 
-// Run on the calling thread when future.get() is called.
-auto future = std::async(std::launch::deferred, computeChecksum, frame, headerLen);
+// Run on the calling thread when deferredFuture.get() is called.
+auto deferredFuture = std::async(std::launch::deferred, computeChecksum, frame, headerLen);
 ```
 
 Below is an example of a checksum computation of a frame being performed while printing the frame content:
@@ -499,7 +501,7 @@ int main()
 #### 8. `std::condition_variable`: Signalling Between Threads
 A condition variable lets a thread sleep until another signals it; no busy-waiting or polling required: 
 * Condition variables are appropriate when one thread produces data and another consumes it.
-* In C++, a conditional variable is implemented as shown below:
+* In C++, a condition variable is implemented as shown below:
 
 ```cpp
 #include <condition_variable>
@@ -518,9 +520,10 @@ The example below demonstrates a typical embedded scenario:
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <mutex>
-#include <thread>
 #include <queue>
+#include <thread>
 
 namespace
 {
@@ -555,8 +558,11 @@ void stopThread(Shared& shared, const std::uint16_t duration_ms) noexcept
     // Wait for the given duration to pass before setting the stop flag.
     std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
 
-    // Set stop flag and wake up all threads for clean termination.
-    shared.stop.store(true);
+    // Set stop flag while holding the mutex, then wake up all threads for clean termination.
+    {
+        std::lock_guard<std::mutex> lock{shared.mutex};
+        shared.stop.store(true);
+    }
     shared.condition.notify_all();
 }
 
@@ -635,6 +641,7 @@ int main()
 * `std::unique_lock` is used here instead of `std::lock_guard` because `condition.wait()` needs to temporarily release the mutex while the thread is sleeping.
 * A lambda is used to wrap `isDataAvailable` together with the `shared` state it depends on, since `condition.wait()` requires a predicate callable with no arguments. The lambda captures `shared` by reference (`[&shared]`), so it can pass it into `isDataAvailable(shared)` each time `wait()` re-checks the condition, without copying the `Shared` struct (which wouldn't even compile, since it contains a non-copyable `std::atomic`).
 * If `stopThread` only set `stop = true` without calling `notify_all()`, the RX thread could get stuck indefinitely inside `condition.wait()`: once `stop` is set, TX exits its loop and stops pushing values to the queue and calling `notify_one()`, so nothing would wake the RX thread up. Calling `notify_all()` ensures any thread sleeping in `wait()` is woken up. The `|| shared.stop.load()` clause in `isDataAvailable` then makes the predicate return `true`, allowing `wait()` to return so the thread can detect the stop flag and exit cleanly.
+* `stopThread` sets the stop flag while holding the mutex, even though `stop` is atomic. `wait()` checks the predicate and goes to sleep while holding the mutex, so a change made under the same mutex cannot land in between. Without the lock, `stop` could be set, and `notify_all()` called, just after RX found the predicate `false` but before it went to sleep; the notification would then be lost, and RX would sleep forever. Any variable a predicate depends on must be modified while holding the mutex, atomic or not.
 
 You can also invoke non-static member functions as thread entry points, rather than passing the shared struct by reference into free functions, as shown below:
 
@@ -644,9 +651,10 @@ You can also invoke non-static member functions as thread entry points, rather t
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <mutex>
-#include <thread>
 #include <queue>
+#include <thread>
 
 namespace
 {
@@ -673,8 +681,11 @@ struct Shared
         // Wait for the given duration to pass before setting the stop flag.
         std::this_thread::sleep_for(std::chrono::milliseconds(duration_ms));
 
-        // Set stop flag and wake up all threads for clean termination.
-        stop.store(true);
+        // Set stop flag while holding the mutex, then wake up all threads for clean termination.
+        {
+            std::lock_guard<std::mutex> lock{mutex};
+            stop.store(true);
+        }
         condition.notify_all();
     }
 
@@ -761,7 +772,7 @@ int main()
 
 **Notes:**
 * Since `isDataAvailable` and the thread functions now live inside `Shared`, they have implicit access to all of `Shared`'s members through `this`. The lambda therefore captures `[this]` instead of `[&shared]`, giving it access to the whole enclosing object rather than one external reference. This also means that it can reach `isDataAvailable()` even though it's `private`.
-* The same stuck-wait concern applies here as in the free-function version above: `notify_all()` in `stopThread` is essential. Without it, the RX thread could remain blocked in `condition.wait()` indefinitely once TX stops pushing new values.
+* The same stuck-wait concern applies here as in the free-function version above: `notify_all()` in `stopThread` is essential, and so is setting `stop` while holding the mutex. Without either, the RX thread could remain blocked in `condition.wait()` indefinitely once TX stops pushing new values.
 
 ---
 
@@ -773,6 +784,7 @@ Priority inversion is a scheduling bug that can occur when threads of different 
 4. The medium-priority thread runs to completion, preventing the low-priority thread from finishing and releasing the mutex.
 5. The high-priority thread remains blocked, not because of its own work, but because the medium-priority thread delayed the lock release.
 
+Only once the medium-priority thread has finished can the low-priority thread run again, complete its operation, and release the mutex; only then can the high-priority thread lock it and run.
 The high-priority task ends up waiting on the medium-priority one; an inversion of the intended scheduling order.
 
 Note that the preemption in step 3 is a normal scheduler decision:
@@ -780,7 +792,7 @@ Note that the preemption in step 3 is a normal scheduler decision:
 * The problem is that `std::mutex` has no way to prevent the inversion once it starts; it does not support **priority inheritance**, a feature where the mutex temporarily boosts the low-priority thread's priority (to match the blocked high-priority thread) so it can finish and release the lock before any medium-priority thread cuts in. On an RTOS, this can be addressed with a priority-inheritance mutex (see note below).
 
 Priority inversion can be illustrated as shown below:
-![](./images/priority_inversion.png)
+![Priority inversion timeline](./images/priority_inversion.png)
 
 The following code shows a conceptual example of the same scenario:
 

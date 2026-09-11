@@ -12,10 +12,10 @@ using namespace driver;
 namespace
 {
 // -----------------------------------------------------------------------------
-void printState(const gpio::Led& led) noexcept
+void printState(const char* label, const gpio::Led& led) noexcept
 {
-    const char* state{led.isOn() ? "on" : "off"};
-    std::printf("Led state: %s!\n", state);
+    const char* state{led.isOn() ? "On" : "Off"};
+    std::printf("%s: %s\n", label, state);
 }
 
 // -----------------------------------------------------------------------------
@@ -39,13 +39,13 @@ int main()
 
     // ------------------------------ Exercise 1.1 ---------------------------------
     gpio::Led led{ledPin};
-    printState(led);
+    printState("Initial state", led);
 
     led.on();
-    printState(led);
+    printState("After on()", led);
 
     led.toggle();
-    printState(led);
+    printState("After toggle()", led);
 
     // ------------------------------ Exercise 1.2 ---------------------------------
     driver::gpio::Button button{buttonPin};

@@ -107,21 +107,21 @@ touch Makefile
 ## Simple Makefile
 In this makefile, add the following content:
 
-``` bash
+```makefile
 # Build and run the application as default.
 default: build run
 
 # Build the application.
 build:
-    @g++ main.cpp -o main -Wall -Werror -std=c++17
+	@g++ main.cpp -o main -Wall -Werror -std=c++17
 
 # Run the application.
 run:
-    @./main
+	@./main
 
 # Clean the application.
 clean:
-    @rm -f main
+	@rm -f main
 ```
 
 **Note:** 
@@ -138,7 +138,7 @@ clean:
 ## Simple Makefile with Parameters
 It is also possible to use parameters to make the makefile easier to maintain, especially when the number of source files increases:
 
-``` bash
+```makefile
 # Target application.
 TARGET := main
 
@@ -156,15 +156,15 @@ default: build run
 
 # Build the application.
 build:
-    @$(CXX_COMPILER) $(SRC_FILES) -o $(TARGET) $(CXX_FLAGS)
+	@$(CXX_COMPILER) $(SRC_FILES) -o $(TARGET) $(CXX_FLAGS)
 
 # Run the application.
 run:
-    @./$(TARGET)
+	@./$(TARGET)
 
 # Clean the application.
 clean:
-    @rm -f $(TARGET)
+	@rm -f $(TARGET)
 ```
 
 ---
@@ -193,7 +193,7 @@ The Makefile can then be extended to support these directories:
 * The `include` directory is included via the compiler flags.
 * The source files are listed one per line using line continuation (`\`).
 
-```bash
+```makefile
 # Target application.
 TARGET := main
 
@@ -212,15 +212,15 @@ default: build run
 
 # Build the application.
 build:
-    @$(CXX_COMPILER) $(SRC_FILES) -o $(TARGET) $(CXX_FLAGS)
+	@$(CXX_COMPILER) $(SRC_FILES) -o $(TARGET) $(CXX_FLAGS)
 
 # Run the application.
 run:
-    @./$(TARGET)
+	@./$(TARGET)
 
 # Clean the application.
 clean:
-    @rm -f $(TARGET)
+	@rm -f $(TARGET)
 ```
 
 ---

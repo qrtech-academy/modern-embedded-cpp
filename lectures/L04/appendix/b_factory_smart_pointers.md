@@ -130,7 +130,7 @@ the "factory function returning an owning resource" case mentioned back in L01.
 
 ---
 
-### Step 2: Real factory (for ESP32-S3)
+#### Step 2: Real factory (for ESP32-S3)
 
 ```cpp
 #pragma once
@@ -207,6 +207,7 @@ public:
 #include <memory>
 
 #include "driver/factory/interface.hpp"
+#include "driver/gpio/interface.hpp"
 
 namespace system::logic
 {

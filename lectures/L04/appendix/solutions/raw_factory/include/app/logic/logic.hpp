@@ -25,7 +25,7 @@ public:
      * @brief Constructor.
      *
      * @param[in] factory Driver factory.
-     * @param[in] txPin Transfer pin.
+     * @param[in] txPin Transmit pin.
      * @param[in] rxPin Receive pin.
      */
     explicit Logic(driver::factory::Interface& factory, const std::uint8_t txPin,

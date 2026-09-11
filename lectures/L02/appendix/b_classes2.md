@@ -49,7 +49,7 @@ The output appears as shown below:
 The LED is on!
 ```
 
-We can also create a `Led` instance through copy initialization, as shown below. Note that in this case we have not created a `Led` instance — instead, a pin number is passed (by mistake). These arguments are implicitly converted into a `Led` instance:
+We can also create a `Led` instance through copy initialization, as shown below. Note that in this case we have not created a `Led` instance — instead, a pin number is passed (by mistake). This argument is implicitly converted into a `Led` instance:
 
 ```cpp
 void ledPrint(const Led led) noexcept
@@ -195,8 +195,9 @@ Gpio::~Gpio() noexcept
 }
 ```
 
-**Note**: This is more than a bookkeeping exercise. Recall from the Recommendation below that a
-`Gpio` object represents a unique physical pin — `ourInstanceCount` combined with `MaxInstances`
+**Note**: This is more than a bookkeeping exercise. Recall from
+[Appendix A](./a_classes1.md#6-copy-and-move-operations) that a `Gpio` object represents a unique
+physical pin — `ourInstanceCount` combined with `MaxInstances`
 gives the constructor a way to actually enforce that limit, refusing to create more `Gpio`
 instances than the MCU has physical pins for.
 
@@ -302,7 +303,7 @@ Gpio(Gpio&& other) noexcept
 * `other` is an **rvalue reference**, written as `Gpio&&`. This allows the object's resources to be moved instead of copied.
 * We cannot modify `other.myPin` or `other.myDirection`, because these member variables are declared as `const`.
 * For this class, moving is in practice identical to copying, since no resources are owned dynamically.
-* If `other` had contained other resources, such as dynamically allocated memory, these would have been released after the move.
+* If `other` had contained other resources, such as dynamically allocated memory, ownership of these would have been transferred to the new object, and `other` would have been left without them (for example with its pointer set to `nullptr`).
 
 ---
 
@@ -369,7 +370,7 @@ A simplified implementation could look like this:
 /**
  * @brief Move assignment operator.
  *
- * @param[in] other GPIO instance to move from.
+ * @param[in, out] other GPIO instance to move from.
  *
  * @return Reference to this instance.
  */

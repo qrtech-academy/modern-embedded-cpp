@@ -35,7 +35,7 @@ A few things to note:
     * This ensures that the correct destructor is called when an instance of a subclass is deleted through a pointer or reference to the interface.
     * This is crucial for avoiding memory leaks and for correctly cleaning up resources in both the derived class and the base class.
 * The destructor is defined as `= default`:
-    * This results in an empty, automatic implementation:
+    * This results in an empty, automatic implementation.
     * It is good practice to declare the destructor as virtual in an interface. Otherwise, objects of subclasses that are deleted through a pointer or reference to the interface may exhibit undefined behavior.
     * Since the interface has nothing to clean up, a default implementation is sufficient here.
 * All methods that are meant to be overridden in subclasses are marked with `virtual` and end with `= 0`:
@@ -52,7 +52,7 @@ A few things to note:
 ---
 
 ### Structure of a concrete subclass
-Below is an example of a concrete subclass `driver::timer::Atmega328p`, which represents a concrete implementation for timer circuits for the ATmega328p microcontroller:
+Below is an example of a concrete subclass `driver::timer::Atmega328p`, which represents a concrete implementation for timer circuits for the ATmega328P microcontroller:
 
 ```cpp
 namespace driver::timer
@@ -93,7 +93,7 @@ Some things we saw earlier in the section on inheritance also appear here:
 
 Some new things to note:
 * The overridden methods are marked with `override` precisely to indicate that these are concrete implementations of overridden virtual methods.
-* The destructor is also marked with `override` to clearly show that it replaces the virtual destructor in the interface. This ensures that the correct destructor is called during polymorphic destruction and helps the compiler detect possible mistakes in the signature.
+* The destructor is also marked with `override` to clearly show that it replaces the virtual destructor in the interface. It is the `virtual` destructor in the interface that ensures the correct destructor is called during polymorphic destruction; `override` makes the compiler check that this is the case, since it is an error if the base class destructor is not virtual.
 * The constructor has nothing to do with the interface and is therefore neither marked `virtual` nor `override`.
 
 ### Example of using interfaces
@@ -226,7 +226,7 @@ By using pointers or references to `driver::led::Interface`, you can write code 
 /**
  * @brief Blink the given LED.
  * 
- * @param[in] led The LED to blink.
+ * @param[in, out] led The LED to blink.
  * @param[in] blinkTimeMs The blink time in milliseconds.
  */
 void blinkLed(driver::led::Interface& led, const std::uint16_t blinkTimeMs) noexcept
@@ -338,7 +338,7 @@ Assume that we have implemented an LED connected to pin 20 on an ESP32-S3 proces
 driver::led::Esp32s3 led2{20U, true};
 ```
 
-We can also blink this LED by calling the function `blinkLed()`, since the class `driver::led::Esp32s3` is a subclass of `driver::led::Interface`. For example, to blink this LED every 500 milliseconds, the following call can be made:
+We can also blink this LED by calling the function `blinkLed()`, since the class `driver::led::Esp32s3` is a subclass of `driver::led::Interface`. For example, to blink this LED with a blink time of 500 milliseconds, the following call can be made:
 
 ```cpp
 blinkLed(led2, 500U);

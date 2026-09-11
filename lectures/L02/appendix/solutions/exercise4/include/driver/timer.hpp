@@ -18,7 +18,7 @@ public:
     /**
      * @brief Constructor.
      *
-     * @param[in] timeout_ms Timeout in milliseconds. Must ge greater than 0.
+     * @param[in] timeout_ms Timeout in milliseconds. Must be greater than 0.
      */
     explicit Timer(std::uint32_t timeout_ms) noexcept;
 
@@ -88,7 +88,7 @@ private:
     /** Internal millisecond counter. */
     std::uint32_t myCounter_ms;
 
-    /** Timer if the timer is running, false otherwise. */
+    /** True if the timer is running, false otherwise. */
     bool myRunning;
 
     /** True if the timer is initialized, false otherwise. */

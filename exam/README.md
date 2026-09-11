@@ -57,11 +57,12 @@ roughly half are for reading or writing C++ on paper.
 The two papers differ in which half they lean on:
 
 * **Paper A leans towards code that is put in front of you.** Seven of its questions hand you a
-  snippet that compiles, passes a smoke test, and is wrong: a driver missing `explicit`, a class
-  whose copy constructor shares a heap block, an interface without a virtual destructor, a factory
-  whose product is leaked, a bit-clearing template that wipes the upper half of a 64-bit register,
-  and a producer/consumer that holds a mutex and still races. Naming the defect is half the marks;
-  saying what it does to the running program is the other half.
+  snippet that compiles, passes a smoke test, and is wrong: a software timer with four defects
+  against the course's rules, a driver missing `explicit`, a class whose copy constructor shares a
+  heap block, an interface without a virtual destructor, a factory whose product is leaked, a
+  bit-clearing template that wipes the upper half of a 64-bit register, and a producer/consumer
+  that holds a mutex and still races. Naming the defect is half the marks; saying what it does to
+  the running program is the other half.
 * **Paper B leans towards code you write and design decisions you justify.** It asks for a C driver
   rewritten as a C++ class, an enumeration class and its validity check, a move constructor, a
   serial interface with every convention the appendix imposes on one, a stub factory returning

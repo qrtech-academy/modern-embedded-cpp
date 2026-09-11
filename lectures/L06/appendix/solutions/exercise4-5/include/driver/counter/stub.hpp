@@ -73,14 +73,14 @@ public:
     /**
      * @brief Set initialization state.
      *
-     * @return True to mark the counter as initialized, false otherwise.
+     * @param[in] initialized True to mark the counter as initialized, false otherwise.
      */
     void setInitialized(const bool initialized) noexcept { myInitialized.store(initialized); }
 
     Stub(const Stub&)            = delete; // No copy constructor.
     Stub(Stub&&)                 = delete; // No move constructor.
-    Stub& operator=(const Stub&) = delete; // No copy constructor.
-    Stub& operator=(Stub&&)      = delete; // No move constructor.
+    Stub& operator=(const Stub&) = delete; // No copy assignment.
+    Stub& operator=(Stub&&)      = delete; // No move assignment.
 
 private:
     /** Mutex to protect the counter value. */

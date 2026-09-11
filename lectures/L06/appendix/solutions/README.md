@@ -38,7 +38,7 @@ Reference implementations for the exercises in [Appendix B](../b_exercises.md).
 ---
 
 ## Exercise Set 2 – Shared counter with data race
-`incrementCounter()` takes a counter and an iteration count. Two threads increment the same counter concurrently. The solution progresses through three versions:
+`incrementCounter()` takes a counter and an iteration count. Two threads increment the same counter concurrently. The exercises progress through three versions, and the solution is the last of them:
 * A plain `std::uint32_t` that demonstrates the data race.
 * A mutex-protected version that fixes it.
 * An `std::atomic<std::uint32_t>` that achieves the same result without a mutex.
@@ -63,7 +63,7 @@ Reference implementations for the exercises in [Appendix B](../b_exercises.md).
 ---
 
 ## Exercise Set 6 – Condition variable
-Built on Exercise Set 3. `rxThread()` no longer polls with a sleep; instead it acquires a `std::unique_lock` and calls `cv.wait()` with `hasNewData()` as the predicate. `txThread()` calls `cv.notify_one()` after releasing the lock. `main()` calls `cv.notify_all()` after setting the stop flag so the receiver wakes up and exits cleanly.
+Built on Exercise Set 3. `rxThread()` no longer polls with a sleep; instead it acquires a `std::unique_lock` and calls `cv.wait()` with `hasNewData()` as the predicate. `txThread()` calls `cv.notify_one()` after releasing the lock. `main()` sets the stop flag while holding the mutex, so that it cannot change between the receiver checking the predicate and going to sleep, and then calls `cv.notify_all()` so the receiver wakes up and exits cleanly.
 
 ---
 
@@ -215,7 +215,8 @@ Built on Exercise Set 3. `rxThread()` no longer polls with a sleep; instead it a
 
 **What could happen if `setInitialized(false)` is called between the initialization check and the mutex lock in `increment()`? How would you fix this?**
 * `increment()` would pass the initialization check, then the driver would be marked uninitialized by another thread, and `increment()` would proceed to modify `myValue` — violating the intended guard.
-* The fix is to check `myInitialized` inside the mutex lock so that the flag check and the counter update are protected together as an atomic unit.
+* The fix is to make the check and the update one critical section: check `myInitialized` after taking the lock in `increment()` (and likewise in `value()` and `reset()`), **and** have `setInitialized()` take the same mutex when it changes the flag.
+* Moving the check inside the lock is not enough on its own: `setInitialized()` does not lock the mutex, so it could still change the flag after `increment()` has checked it. With both sides under the mutex, `setInitialized(false)` either completes before `increment()` checks the flag, or waits until the increment is done.
 
 ---
 

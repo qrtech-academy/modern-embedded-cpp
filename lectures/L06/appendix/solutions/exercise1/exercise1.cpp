@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <thread>
 
 namespace
@@ -29,7 +30,7 @@ void workerThread(const std::uint16_t printSpeed_ms, const std::atomic<bool>& st
 {
     while (!stop.load())
     {
-        std::printf("Worked thread running!\n");
+        std::printf("Worker thread running!\n");
         sleep_ms(printSpeed_ms);
     }
 }

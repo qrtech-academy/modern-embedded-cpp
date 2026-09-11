@@ -19,7 +19,7 @@ void controlLed(const gpio::Button& button, gpio::Led& led) noexcept
 
     const char* buttonState{button.isPressed() ? "pressed" : "released"};
     const char* ledState{led.isOn() ? "On" : "Off"};
-    std::printf("Button %s -> LED: %s\n", buttonState, ledState);
+    std::printf("Button %-8s -> LED: %s\n", buttonState, ledState);
 }
 
 // -----------------------------------------------------------------------------
@@ -57,7 +57,9 @@ int main()
     controlLed(button, led);
 
     // ------------------------------ Exercise 2.2 ---------------------------------
+    // Start from the off state, so that the first toggle turns the LED on.
     constexpr std::size_t iterationCount{6U};
+    led.off();
     blinkLed(led, iterationCount);
     return 0;
 }

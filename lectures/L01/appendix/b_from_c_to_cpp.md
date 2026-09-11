@@ -53,9 +53,9 @@ convention:
   namespaces, or references, and therefore requires a C++ compiler.
 
 This is especially useful in a course like this one, where paired C and C++ implementations of the
-same driver are sometimes shown side by side (see e.g. the `c_interface` vs `cpp_interface`
-examples in Lecture 3). Using `.hpp` for the C++ version removes any doubt about which language a
-given header belongs to.
+same driver are sometimes shown side by side (see e.g. the `cpp_interface` example in Lecture 3,
+and the C interface demo from the embedded C course that Lecture 3 links to). Using `.hpp` for the
+C++ version removes any doubt about which language a given header belongs to.
 
 **Note:** In this course, header files use the `.hpp` extension.
 
@@ -87,9 +87,10 @@ void gpioWrite(std::uint8_t pin, bool state);
 }
 ```
 
-**Important:** `extern "C"` only affects linkage/name mangling. It does not make C++-only syntax
-valid — a declaration wrapped in `extern "C"` must still be something that is valid in C (plain
-functions and data, no classes, templates, overloading, or references).
+**Important:** `extern "C"` only affects linkage/name mangling. It does not make C++-only
+features usable from C: a function with C linkage cannot be overloaded or be a template, and a
+declaration that a C compiler is also going to read must be valid C (plain functions and data, no
+classes, templates, overloading, or references).
 
 #### `#ifdef __cplusplus`
 `extern "C"` is C++-only syntax; a C compiler does not understand it and will fail to compile a
@@ -103,7 +104,7 @@ extern "C" {
 #endif
 
 void gpioInit();
-void gpioWrite(std::uint8_t pin, bool state);
+void gpioWrite(uint8_t pin, bool state);
 
 #ifdef __cplusplus
 }
@@ -480,7 +481,7 @@ struct Gpio
      *
      * @return True if the GPIO is enabled, false otherwise.
      *
-     * @note The 'const' keyword is used after the method  name to set the GPIO instance to
+     * @note The 'const' keyword is used after the method name to set the GPIO instance to
      *       read-only in the scope of this method.
      */
     bool read() const noexcept { return state; }
@@ -527,7 +528,7 @@ In traditional C, similar functionality would typically be implemented using a s
 typedef struct
 {
     /** Pin the GPIO is connected to. */
-    const std::uint8_t pin;
+    const uint8_t pin;
 
     /** GPIO state. */
     bool state;
@@ -560,7 +561,7 @@ bool gpio_read(const gpio_t* self)
 
 Instances of the struct can then be created and used as shown below:
 
-``` cpp
+``` c
 // Initialize LED connected to pin 9, state set to false.
 gpio_t led = {9U, false};
 
@@ -900,15 +901,15 @@ void toggle(bool* state)
 }
 ```
 
-### Comparison
+#### Comparison
 
-#### C-style approach (with pointer)
+##### C-style approach (with pointer)
 
 ``` c
 toggle(&state);
 ```
 
-#### C++ approach (with reference)
+##### C++ approach (with reference)
 
 ``` cpp
 toggle(state);
@@ -931,7 +932,7 @@ For example:
 
 ``` cpp
 auto number  = 5;   // Deduced as int.
-auto counter = 10U; // Deduced as unsigned int
+auto counter = 10U; // Deduced as unsigned int.
 auto voltage = 3.3; // Deduced as double.
 ```
 
@@ -956,7 +957,7 @@ The `auto` keyword will mainly be used in situations where the type would otherw
 
 ```cpp
 // Enable all LEDs in a list.
-for (const auto& led : leds)
+for (auto& led : leds)
 {
     led.on();
 }
@@ -991,7 +992,7 @@ Consider the following example to set a bit `bit` in a given register `reg`:
  *
  * @tparam T The register type. Must be integral.
  *
- * @param[out] reg Register to write to.
+ * @param[in, out] reg Register to write to.
  * @param[in] bit The bit to set.
  */
 template<typename T>
@@ -1004,7 +1005,7 @@ constexpr void set(T& reg, const std::uint8_t bit) noexcept
 ```
 
 The function can be used to set bits in registers of arbitrary integral type.   
-In the example below, bits 1-2 in an 8-bit register are set by instantiating the `set()` function twice:
+In the example below, bits 1-2 in an 8-bit register are set by calling the `set()` function twice:
 
 ```cpp
 std::uint8_t reg{};
@@ -1061,7 +1062,7 @@ constexpr void set(T& reg, const Bits... bits) noexcept
 }
 ```
 
-In the example below, bits 1-5 in an 8-bit register are set by instantiating the `set()` function once:
+In the example below, bits 1-5 in an 8-bit register are set by calling the `set()` function once:
 
 ```cpp
 // Set bit 1-5 in a register.
@@ -1172,7 +1173,7 @@ struct isUnsigned
 **Note**: 
 * The type trait is nothing more than a struct template containing a boolean constant `value`.
 * By default, this boolean value is `false` for all types `T`.
-* We can specialize the template for specific types `T` so that `value` becomes `true`, as shown below, where the types `std::uint8_t`, `std::uint16_t`, `std::uint32_t`, `std::uint64_t`, and `std::size_t` 
+* We can specialize the template for specific types `T` so that `value` becomes `true`, as shown below, where the types `std::uint8_t`, `std::uint16_t`, `std::uint32_t`, and `std::uint64_t`
 are treated as unsigned types:
 
 ```cpp
@@ -1199,13 +1200,12 @@ struct isUnsigned<std::uint64_t>
 {
     static constexpr bool value{true};
 };
-
-template<>
-struct isUnsigned<std::size_t>
-{
-    static constexpr bool value{true};
-};
 ```
+
+**Note:** There is no separate specialization for `std::size_t`. It is not a type of its own but an
+alias of one of the unsigned types above (`std::uint64_t` on a 64-bit Linux machine, typically
+`std::uint32_t` on a 32-bit microcontroller), so it is already covered, and specializing it as well
+would be a redefinition that fails to compile.
 
 We can use our own type trait `isUnsigned<T>` to check if a type `T` is unsigned as shown below:
 

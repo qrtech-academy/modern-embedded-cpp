@@ -62,7 +62,7 @@ Three advantages, any three of:
 * **Debuggability and diagnostics.** The value exists in the symbol table as a named entity of known
   type. A macro has been erased before the compiler proper ever sees it.
 
-*(2 marks for any two, 3 for three)*
+*(1 mark for any two, 2 for all three)*
 
 **What a runtime `const` cannot do.** A `constexpr` value may be used anywhere a *constant
 expression* is required: an array bound, a non-type template argument, a `static_assert` condition,
@@ -100,7 +100,8 @@ L01's rule is about a function whose failure the caller could reasonably handle:
 fail by throwing and that failure is recoverable, taking away the caller's ability to catch it is
 wrong. L04 takes the opposite view of the same fact deliberately. `std::make_unique` can throw
 `std::bad_alloc`; on a device where the heap is exhausted, there is nothing useful to recover to.
-The surrounding code is compiled without exception support and has no handler anywhere.
+On such a target the surrounding code is typically compiled without exception support and has no
+handler anywhere.
 *(1 mark)*
 
 **The behavior selected** is therefore: on allocation failure, `std::terminate()` at the point of
@@ -159,7 +160,8 @@ explicit Timer(const std::uint16_t timeout_ms) noexcept
 Members are initialized in the order they are **declared**, never in the order written in the list.
 The declaration order is `myTimeout_ms`, `myCounter_ms`, `myRunning`; the list says
 `myCounter_ms`, `myTimeout_ms`, `myRunning`. Nothing goes wrong at runtime here because no
-initializer reads another member, but the compiler warns (`-Wreorder`) and the list is now actively
+initializer reads another member, but the compiler warns (`-Wreorder`, which `-Wall` enables, so
+under the course's `-Werror` the snippet would not even build) and the list is now actively
 misleading: the day somebody writes `myCounter_ms{myTimeout_ms}` it will read a member that has not
 been initialized yet, and the code will look correct.
 
@@ -230,14 +232,15 @@ polymorphism, or custom copy and move semantics.
 ### (b) 3 marks
 
 **What the compiler does.** `playAlarm` wants a `Buzzer` and is handed a `std::uint16_t`. The
-single-argument constructor is a viable implicit conversion, so the compiler calls it, builds a
-temporary `Buzzer{4000U}`, copies it into the by-value parameter and runs the function. The program
-prints `Alarm at 4000 Hz` and looks entirely correct.
+single-argument constructor is a viable implicit conversion, so the compiler calls it to build a
+`Buzzer{4000U}` directly in the by-value parameter (in C++17 no copy is made) and runs the function.
+The program prints `Alarm at 4000 Hz` and looks entirely correct.
 *(1 mark)*
 
 **Why it is a hazard.** The call site says "play the alarm on this buzzer" and the program does
-something else: it manufactures a buzzer out of a number, uses it once and throws it away. No
-hardware was ever configured, because no real `Buzzer` was involved. Worse, the conversion accepts
+something else: it manufactures a buzzer out of a number, uses it once and throws it away. Whatever
+buzzer the caller meant was never involved; any hardware setup in the constructor, and any teardown
+in the destructor, ran for a throwaway object. Worse, the conversion accepts
 anything convertible to `std::uint16_t` — a pin number, a duration in milliseconds, a loop counter —
 so an entire class of type errors passes review and compiles clean.
 *(1 mark)*
@@ -338,7 +341,7 @@ hardware buffer, to `= delete` the copy constructor and stop the question from a
 
 **The move assignment operator leaks, then dangles.** *(3 marks)*
 
-`c = std::move(a);` does three wrong things:
+The operator has three defects, and `c = std::move(a);` shows the first two:
 
 1. **It leaks.** `c` already owned a 32-byte block. `myData` is overwritten without `delete[]`
    first, so those 32 bytes are unreachable for the rest of the program's life.
@@ -427,8 +430,9 @@ unrelated.
 
 *Also creditable: `operator delete` is handed the wrong type and, in a sized-deallocation build, the
 wrong size. Under AddressSanitizer this is exactly what the program reports —
-`new-delete-type-mismatch` — and with leak detection on, `32 byte(s) leaked in 1 allocation(s)`, one
-`std::uint16_t[16]` per sensor.*
+`new-delete-type-mismatch` — and, if it is allowed to continue past that report
+(`ASAN_OPTIONS=halt_on_error=0`), `32 byte(s) leaked in 1 allocation(s)`, one `std::uint16_t[16]` per
+sensor.*
 
 *A note for the marker: GCC and Clang do warn here, `-Wdelete-non-virtual-dtor`, which `-Wall`
 enables. Two things blunt it. The warning fires at the line with the `delete`, not at the interface
@@ -541,9 +545,11 @@ it. This is exactly the case the factory interface marks `gpio()` `[[nodiscard]]
 that the build would have caught this. Even where a diagnostic is produced it is a warning and not
 an error, and whether one appears at all depends on the compiler and on where the call is resolved.
 The attribute is not inherited by an override — which is why the course repeats it on every
-overriding method — and GCC 13 does not diagnose a discarded return value on a virtual call at all,
-not even one made through the interface. `[[nodiscard]]` documents an intention; holding the pointer
-is what enforces it.*
+overriding method — and GCC 13 diagnoses only a call it can resolve statically. This very line is
+flagged, because `Esp32s3` is `final` and its override repeats the attribute (and under the course's
+`-Werror` it stops the build), but the same call made through a `driver::factory::Interface&`
+produces nothing at all. `[[nodiscard]]` documents an intention; holding the pointer is what
+enforces it.*
 
 **Defect 2: `Logic` is copyable and owns raw pointers.** *(2.5 marks)*
 
@@ -553,10 +559,11 @@ system::logic::Logic backup{logic};
 
 `Logic` declares a destructor that deletes both drivers, but declares neither a copy constructor nor
 a deleted one, so the compiler generates one that copies the two pointer **values**. `backup` and
-`logic` now hold the same two driver objects — both drive the same physical pins — and at the end of
-`main` both destructors run and each deletes both objects. Two deletes per object: undefined
-behavior, and the failure lands during shutdown, which is the worst possible place to find it.
-Under AddressSanitizer the program reports a heap-use-after-free inside `Logic::~Logic()`.
+`logic` now hold the same two driver objects — both drive the same physical pins — and when the two
+are destroyed, at the end of `main` if `run()` ever returns, both destructors run and each deletes
+both objects. Two deletes per object: undefined behavior, and the failure lands during shutdown,
+which is the worst possible place to find it. Under AddressSanitizer, with a `run()` that returns,
+the program reports a heap-use-after-free inside `Logic::~Logic()`.
 
 Nothing warns about this by default. The implicit copy constructor of a class with a user-declared
 destructor is *deprecated*, but the diagnostic for it is `-Wdeprecated-copy-dtor`, which neither
@@ -610,7 +617,7 @@ driver you asked for does not exist.*
 
 **Why.** A template is not code; it is a pattern from which code is generated. The compiler produces
 an actual function only when it sees a use with concrete template arguments, and it can only do that
-where the **definition** is visible. `bitutil.cpp` is compiled on its own, contains no use of the
+where the **definition** is visible. `bit_util.cpp` is compiled on its own, contains no use of the
 template, and therefore generates nothing at all. The translation unit that calls
 `clear<std::uint8_t>` sees only the declaration, assumes the function exists somewhere and emits a
 call to a symbol nobody ever defined. The failure is at link time, not compile time, which is why
@@ -655,7 +662,8 @@ fewer, the mask is at least as wide as the register and no bits are lost.
 
 **The second failure.** For `bit >= 32`, `1U << bit` shifts an `unsigned int` by at least its own
 width, which is **undefined behavior** — not merely a wrong answer. In practice many targets take
-the shift count modulo 32, so `clear(reg, 32U)` clears bit 0 of a 64-bit register.
+the shift count modulo 32, so `clear(reg, 32U)` clears bit 0 of a 64-bit register, on top of the
+upper half it already loses.
 *(1 mark)*
 
 **The corrected body:**
@@ -763,7 +771,7 @@ void rxThread() noexcept
         condition.wait(lock, [] { return shared.newData || stop.load(); });
 
         // Terminate if the wait was ended by the stop flag rather than by data.
-        if (stop.load()) { break; }
+        if (!shared.newData) { break; }
 
         std::printf("RX: %u\n", shared.data);
         shared.newData = false;
@@ -783,11 +791,23 @@ destructor and offers nothing in between. `std::unique_lock` exposes the unlock 
 operations that `wait()` needs.
 *(1 mark)*
 
-**What the writer of the stop flag must do.** After `stop.store(true)` it must call
-`condition.notify_all()`. Once TX has finished, nothing else will ever notify; a receiver already
-asleep inside `wait()` would stay there forever, holding a predicate that would now return true if
-only something woke it up to evaluate it. `notify_all()` wakes every waiter so each can re-check
-and exit.
+**What the writer of the stop flag must do.** Set the flag while holding the mutex, and then call
+`condition.notify_all()`:
+
+```cpp
+{
+    std::lock_guard<std::mutex> lock{mutex};
+    stop.store(true);
+}
+condition.notify_all();
+```
+
+Once TX has finished, nothing else will ever notify; a receiver already asleep inside `wait()`
+would stay there forever, holding a predicate that would now return true if only something woke it
+up to evaluate it. `notify_all()` wakes every waiter so each can re-check and exit. The lock matters
+even though `stop` is atomic: without it the store and the notification can both land after the
+receiver has evaluated the predicate as false but before it has gone to sleep, the notification is
+lost, and the receiver sleeps forever anyway.
 *(1 mark)*
 
 *Two things worth saying to a candidate who got the rest right. The predicate overload of `wait()`

@@ -23,7 +23,7 @@ Atmega328p::~Atmega328p() noexcept
 {
     // Insert code to release allocated resources here.
     std::cout << "Deleting LED connected to pin " << static_cast<int>(myPin)
-              << " on processor ATmega328p!\n";
+              << " on processor ATmega328P!\n";
 }
 
 // -----------------------------------------------------------------------------

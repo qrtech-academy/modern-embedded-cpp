@@ -204,11 +204,11 @@ This constructor is called the default constructor because it has no input argum
 driver::gpio::Gpio gpio{};
 ```
 
-Normally, deleted operators, such as the default constructor above, are placed at the bottom of the public section.
+Normally, deleted functions, such as the default constructor above, are placed at the bottom of the public section.
 
 We can also add a destructor, which can be seen as a function that is automatically called just before an instance of the given class is destroyed.
 
-The destructor looks like the default constructor, with the difference that the negation symbol `~` is placed before the name of the class. If we do not need to do anything special before the object is destroyed, we can omit the destructor; the compiler will then create a default destructor for us. If we still want to create a destructor for clarity, we can explicitly set the destructor to default using the keyword `default`.
+The destructor looks like the default constructor, with the difference that the tilde `~` is placed before the name of the class. If we do not need to do anything special before the object is destroyed, we can omit the destructor; the compiler will then create a default destructor for us. If we still want to create a destructor for clarity, we can explicitly set the destructor to default using the keyword `default`.
 
 ```cpp
 /**
@@ -488,7 +488,7 @@ private:
 ```
 
 ---
-### 8. Splitting a class into header and source files
+#### 8. Splitting a class into header and source files
 Objects of many different classes are often used in a program. These classes are also often larger than the class we have seen here. It is therefore impractical to implement all classes in a single file.
 
 Typically, a header file dedicated to a specific class is created, including public enumeration classes. For example:

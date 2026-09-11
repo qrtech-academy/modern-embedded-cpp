@@ -5,7 +5,7 @@ TARGET := exercise4-5
 CXX_COMPILER := g++
 
 # C++ compiler flags.
-CXX_FLAGS := -Wall -Werror -std=c++17 -Iinclude
+CXX_FLAGS := -Wall -Werror -std=c++17 -pthread -Iinclude
 
 # Source files.
 SRC_FILES := source/main.cpp \

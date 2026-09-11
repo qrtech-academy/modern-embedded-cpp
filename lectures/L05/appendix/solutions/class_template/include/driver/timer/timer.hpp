@@ -140,10 +140,10 @@ public:
 
 private:
     /** Timeout in milliseconds. */
-    const std::uint32_t myTimeout_ms;
+    const std::uint16_t myTimeout_ms;
 
     /** Internal tick counter. */
-    std::uint32_t myCounter_ms;
+    std::uint16_t myCounter_ms;
 
     /** True if the timer is running, false if stopped. */
     bool myRunning;
@@ -273,10 +273,10 @@ public:
 
 private:
     /** Timeout in milliseconds. */
-    const std::uint32_t myTimeout_ms;
+    const std::uint16_t myTimeout_ms;
 
     /** Internal tick counter. */
-    std::uint32_t myCounter_ms;
+    std::uint16_t myCounter_ms;
 
     /** True if the timer is running, false if stopped. */
     bool myRunning;

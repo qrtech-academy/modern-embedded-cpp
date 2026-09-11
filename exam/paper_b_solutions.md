@@ -87,10 +87,9 @@ not what the question asked for.)*
 
 *A note for the marker. The operand of a comma fold must be a cast-expression, so the assignment
 needs its own pair of parentheses; written as `(reg |= (static_cast<T>(1U) << bits), ...)` — one
-pair short, and the form printed in the L01 appendix — GCC rejects it with "binary expression in
-operand of fold-expression". **Award full marks either way.** The paper marks semantics, the
-candidate reproduced what the appendix taught, and the missing parentheses are exactly the class of
-slip the rubric says costs nothing.*
+pair short, the form the L01 appendix warns against — GCC rejects it with "binary expression in
+operand of fold-expression". **Award full marks either way.** The paper marks semantics, and the
+missing parentheses are exactly the class of slip the rubric says costs nothing.*
 
 **What the compiler generates.** The pack is expanded and the operation performed once per element,
 folded together with the comma operator:
@@ -254,8 +253,9 @@ it, and it must be last.)*
   An `enum class` requires an explicit `static_cast`, which is why the validity check above has two
   of them, and why it is obvious when a conversion is happening.
 * **The enumerators do not leak into the enclosing scope**, so the namespace stays clean.
-* **The underlying type can be fixed**, which a plain `enum` allows only from C++11 and which almost
-  nobody does.
+* **The underlying type is always fixed** — `int` unless you name another — so the size is known
+  and the enumeration can be forward-declared. A plain `enum` gets that only if you write the type
+  out, which C++11 allows and almost nobody does.
 
 **What fixing the underlying type buys.** The size is known, minimal and the same on every compiler
 — one byte instead of whatever `int` happens to be — which matters when the value is a member of a
@@ -266,7 +266,8 @@ above.
 
 ### (b) 4 marks
 
-*(0.5 marks each, plus 0.5 for a coherent statement of the principle.)*
+*(0.5 marks for each of the seven, counting `= default` and `= delete` separately, plus 0.5 for a
+coherent statement of the principle.)*
 
 | Construct                | Where                | Why                                                        |
 | ------------------------ | -------------------- | ---------------------------------------------------------- |
@@ -274,8 +275,8 @@ above.
 | Default argument         | Header only          | May be specified once per scope; repeating it in the definition is an error. |
 | `[[nodiscard]]`          | Header only          | It is the declaration callers see. Repeating it is legal but redundant; the course's rule is declaration only. |
 | Trailing `const`         | **Both**             | It is part of the function's type. Omit it in the source file and you are defining a *different* function, which does not match anything declared. |
-| `noexcept`               | **Both**             | Since C++17 it is part of the function type, exactly as above. |
-| `= default` / `= delete` | Header only          | These functions have no body to place anywhere else; they are declarations only. |
+| `noexcept`               | **Both**             | Every declaration must carry the same exception specification; omit it in the source file and the definition is rejected for having a different one. Since C++17 it is also part of the function type. |
+| `= default` / `= delete` | Header only          | Written in the class, they are complete definitions with no body to place anywhere else; `= delete` must be on the first declaration. |
 
 **The principle:** anything that is part of the function's **type** must appear in both places, or
 the definition does not define the function that was declared. Anything that describes how the
@@ -292,7 +293,7 @@ is not part of the type.*
 
 1. **A local object.** Constructed where control reaches its declaration; destroyed at the closing
    brace of its scope, in reverse order of construction.
-2. **An object at namespace scope.** Constructed during static initialization, **before `main` is
+2. **An object at namespace scope.** Constructed during program start-up, **before `main` is
    entered**; destroyed **after `main` returns**, in reverse order of construction.
 3. **An object created with `new`.** Constructed as part of the `new` expression; destroyed only
    when `delete` is called on the pointer. If `delete` never happens, the destructor never runs —
@@ -322,15 +323,17 @@ modified.
 already exists and whose `myPin` was fixed when it was constructed. The operator would have to
 write `myPin = other.myPin;`, which is ill-formed — a `const` object is never assignable. There is
 no ordering of statements that gets round this: the member simply cannot be made to hold a different
-value for the rest of its life.
+value for the rest of its life. The simplified operator in the appendix compiles precisely because
+it copies only `myState`: the target keeps its own pin, so the result is not a copy.
 *(1.5 marks)*
 
 **What the compiler does.** It still implicitly *declares* a copy assignment operator, but because
 the class has a `const` non-static data member, that operator is **defined as deleted**. `led2 =
-led1;` is therefore a compile error naming a deleted function — not an error about `const`, which is
-why the message can be puzzling if you have not met the rule. The same applies to the move
-assignment operator. The class in the appendix deletes all four explicitly anyway, which states the
-intent and produces a clearer diagnostic.
+led1;` is therefore a compile error about a *deleted function* rather than an assignment to a
+`const`: GCC reports `use of deleted function 'Gpio& Gpio::operator=(const Gpio&)'`, and only its
+follow-up note names the `const` member, which is why the message can be puzzling if you have not
+met the rule. The same applies to the move assignment operator. The class in the appendix deletes
+all four explicitly anyway, which states the intent and produces a clearer diagnostic.
 *(1 mark)*
 
 ### (b) 4 marks
@@ -433,7 +436,7 @@ public:
 *(2 marks for the interface; the trailing `const` on the query and `= 0` on all three are the parts
 worth checking.)*
 
-**The four conventions**, 0.75 marks each:
+**Four conventions**, 0.75 marks each (the appendix lists five; the fifth is below):
 
 1. **The destructor is `virtual`.** Concrete drivers are deleted through an `Interface*`. Without
    `virtual` that is undefined behavior, and in practice the derived destructor never runs, so
@@ -449,9 +452,10 @@ worth checking.)*
    embedded target that is exactly the constraint you want to impose from the abstraction downwards.
 
 *A fifth, worth crediting in place of any of the above: `[[nodiscard]]` on the query, so that a
-caller who asks whether the port is initialized and then ignores the answer is warned. Note that the
-attribute is **not** inherited — it belongs to the declaration it is written on — so every
-overriding implementation must repeat it, which is what the course does.*
+caller who asks whether the port is initialized and then ignores the answer is warned, where the
+compiler supports it (the appendix notes that GCC does not warn for a call made through the
+interface itself). Note that the attribute is **not** inherited — it belongs to the declaration it
+is written on — so every overriding implementation must repeat it, which is what the course does.*
 
 ### (b) 4 marks
 
@@ -512,29 +516,29 @@ query methods — here, `isInitialized()` alone.
 
 ### (a) 3 marks
 
+An arrow reads "depends on", that is, includes the header of:
+
 ```text
-system::logic::Logic
-        |
-        v
-driver::factory::Interface  <-- and driver::gpio::Interface
-        |
-        +--------------------------+
-        |                          |
-        v                          v
-driver::factory::Esp32s3    driver::factory::Stub
-        |                          |
-        v                          v
-driver::gpio::Esp32s3       driver::gpio::Stub
+system::logic::Logic       --> driver::factory::Interface, driver::gpio::Interface
+driver::factory::Interface --> driver::gpio::Interface     (returned by gpio())
+driver::factory::Esp32s3   --> driver::factory::Interface  (implements)
+                           --> driver::gpio::Esp32s3       (creates)
+driver::factory::Stub      --> driver::factory::Interface  (implements)
+                           --> driver::gpio::Stub          (creates)
+driver::gpio::Esp32s3      --> driver::gpio::Interface     (implements)
+driver::gpio::Stub         --> driver::gpio::Interface     (implements)
 ```
 
-*(1.5 marks for the four layers and the direction of the arrows.)*
+*(1.5 marks for the four layers and the direction of the arrows. The architecture overview in the
+appendix draws the same four layers as a stack, top to bottom; a candidate who reproduces it has the
+layers but has drawn who sits above whom, not what depends on what.)*
 
 **The dependency that makes it testable** is the one from `Logic` to the **interfaces** rather than
 to any concrete type. Because `Logic` names only `driver::factory::Interface` and
 `driver::gpio::Interface`, the entire lower half of the graph can be replaced without `Logic`
-changing, or even recompiling for a different reason. Every arrow points *toward* an abstraction;
-nothing points from an abstraction down to an implementation. That is the property, and swapping in
-stubs is one consequence of it.
+changing, or even recompiling for a different reason. Logic points only at abstractions, and nothing
+points from an abstraction down to an implementation. That is the property, and swapping in stubs is
+one consequence of it.
 *(1.5 marks)*
 
 ### (b) 4 marks
@@ -712,9 +716,9 @@ common base, and a function taking `Array<std::uint8_t, 8U>&` will not accept `b
 *(1 mark)*
 
 **For the binary:** every member function that is actually used is generated once per instantiation,
-so `push` exists three times over. Code size scales with the number of instantiations, and a
-non-type parameter makes those very easy to multiply — one set per buffer size anybody in the
-project happens to pick.
+so `push`, once it is called on all three, exists three times over. Code size scales with the
+number of instantiations, and a non-type parameter makes those very easy to multiply — one set per
+buffer size anybody in the project happens to pick.
 *(1 mark)*
 
 ### (c) 2 marks
@@ -769,16 +773,20 @@ fields have to change together, and nothing makes the pair of writes indivisible
 **An interleaving:**
 *(1 mark)*
 
+TX writes `data` and then `newData`, exactly as it did under the mutex:
+
 ```text
-TX: newData.store(true)      <- the announcement lands first
-RX: newData.load() == true   <- RX believes there is a message
-RX: data.load()              <- reads the PREVIOUS value
-TX: data.store(42)           <- too late
+TX: data.store(1); newData.store(true)   <- message 1
+RX: newData.load() == true               <- RX sees message 1
+RX: data.load() == 1                     <- and consumes it
+TX: data.store(2); newData.store(true)   <- message 2 is announced
+RX: newData.store(false)                 <- RX clears the flag: message 2 is lost
 ```
 
-RX reports a well-formed, plausible, wrong message. The mirror-image order — `data` first, RX reads
-`newData` as `false`, and the message is skipped entirely — is the more benign of the two, and the
-one a test is more likely to reveal.
+RX's test of `newData` and its clearing of it are two separate atomic operations, and TX can run
+between them. Let TX write `data` for message 2 between RX's two loads instead, and announce it
+after RX has cleared the flag, and RX prints message 2 twice and message 1 never. Each individual
+access is atomic; the check-then-act sequence is not.
 
 **Two things a mutex provides that a pair of atomics does not:**
 *(1 mark)*

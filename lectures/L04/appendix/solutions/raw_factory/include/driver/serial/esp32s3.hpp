@@ -21,10 +21,10 @@ public:
     /**
      * @brief Constructor.
      *
-     * @param[in] txPin Transfer pin number.
+     * @param[in] txPin Transmit pin number.
      * @param[in] rxPin Receive pin number.
      */
-    Esp32s3(const std::uint8_t txPin, const std::uint8_t rxPin) noexcept
+    explicit Esp32s3(const std::uint8_t txPin, const std::uint8_t rxPin) noexcept
         : myTxPin{txPin}
         , myRxPin{rxPin}
     {}

@@ -47,7 +47,7 @@ void Esp32s3::init(const bool initialState) noexcept
 {
     // Insert code to initialize the hardware here.
     std::cout << "Initializing LED connected to pin " << static_cast<int>(myPin)
-              << " on processor STM32F103, starting value = " << initialState << "!\n";
+              << " on processor ESP32-S3, starting value = " << initialState << "!\n";
     setEnabled(initialState);
 }
 } // namespace driver::led

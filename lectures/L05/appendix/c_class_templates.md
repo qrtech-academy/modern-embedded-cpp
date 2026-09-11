@@ -226,7 +226,7 @@ public:
         return true;
     }
 
-    Vector(Vector&)                  = delete; // No copy constructor.
+    Vector(const Vector&)            = delete; // No copy constructor.
     Vector(Vector&&)                 = delete; // No move constructor.
     Vector& operator=(const Vector&) = delete; // No copy assignment.
     Vector& operator=(Vector&&)      = delete; // No move assignment.
@@ -277,7 +277,7 @@ template<typename T>
 class Vector { ... };
 
 template<typename T>
-void Vector<T>::push_back(const T& value)
+bool Vector<T>::pushBack(const T& element)
 {
     ...
 }
@@ -303,7 +303,7 @@ And at the end of `vector.hpp`:
 #include "container/impl/vector_impl.hpp"
 ```
 
-This gives the same effect as option 1, but provides better structure and readability.
+This gives the same effect as option a), but provides better structure and readability.
 
 ---
 
@@ -326,7 +326,7 @@ In embedded systems, we need to consider the following:
 * Fragmentation can occur.
 
 ### Binary size
-* Each instance of `Vector<T>` generates new code.
+* Each instantiation of `Vector<T>` generates new code.
 * `Vector<int>` ≠ `Vector<double>`
 
 ### Exception handling

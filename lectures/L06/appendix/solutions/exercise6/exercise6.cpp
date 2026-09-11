@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
+#include <functional>
 #include <mutex>
 #include <thread>
 
@@ -73,7 +74,7 @@ void txThread(SharedMem& shared, std::mutex& mutex, std::condition_variable& cv,
 }
 
 /**
- * @brief Receive and print new data from shared memory at a fixed interval.
+ * @brief Wait for new data in shared memory, then receive and print it.
  *
  * @param[in,out] shared Shared memory to read from.
  * @param[in,out] mutex  Mutex protecting shared memory access.
@@ -83,23 +84,18 @@ void txThread(SharedMem& shared, std::mutex& mutex, std::condition_variable& cv,
 void rxThread(SharedMem& shared, std::mutex& mutex, std::condition_variable& cv,
               const std::atomic<bool>& stop) noexcept
 {
-    constexpr std::uint16_t rxSpeed_ms{100U};
-
     while (!stop.load())
     {
-        {
-            auto predicate = [&shared, &stop] { return hasNewData(shared, stop); };
-            std::unique_lock<std::mutex> lock{mutex};
-            cv.wait(lock, predicate);
-            if (stop.load()) { break; }
+        auto predicate = [&shared, &stop] { return hasNewData(shared, stop); };
+        std::unique_lock<std::mutex> lock{mutex};
+        cv.wait(lock, predicate);
+        if (stop.load()) { break; }
 
-            if (shared.newData)
-            {
-                std::printf("RX thread received new data: %u!\n", shared.data);
-                shared.newData = false;
-            }
+        if (shared.newData)
+        {
+            std::printf("RX thread received new data: %u!\n", shared.data);
+            shared.newData = false;
         }
-        sleep_ms(rxSpeed_ms);
     }
 }
 } // namespace
@@ -121,7 +117,13 @@ int main()
     std::thread t2{rxThread, std::ref(shared), std::ref(mutex), std::ref(cv), std::cref(stop)};
 
     sleep_ms(timeout_ms);
-    stop.store(true);
+
+    // Set the stop flag while holding the mutex, so that it cannot change between the receiver
+    // checking the predicate and going to sleep, where the notification below would be lost.
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        stop.store(true);
+    }
     cv.notify_all();
     t1.join();
     t2.join();

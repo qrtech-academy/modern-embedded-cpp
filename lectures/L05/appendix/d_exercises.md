@@ -13,7 +13,7 @@ Create a function template to clear a bit in a register:
  *
  * @tparam T Register type. Must be integral.
  *
- * @param[out] reg Destination register.
+ * @param[in, out] reg Destination register.
  * @param[in] bit Bit to clear.
  */
 template<typename T>
@@ -49,7 +49,7 @@ int main()
 Expected output:
 
 ```text
-Register content: 0b11111011
+Register content after clearing bit 2: 0b11111011
 ```
 
 ---
@@ -64,14 +64,14 @@ Create the following function template to toggle one or several bits in a regist
  * @tparam T Register type. Must be integral.
  * @tparam Bits Parameter pack of bits.
  *
- * @param[out] reg Destination register.
+ * @param[in, out] reg Destination register.
  * @param[in] bits Bits to toggle.
  */
 template<typename T, typename... Bits>
 constexpr void toggle(T& reg, const Bits... bits) noexcept;
 ```
 
-Tasks:
+#### Tasks:
 **a)** Use a parameter pack.    
 **b)** Ensure that `T` is an integral type using `static_assert()`.  
 **c)** Iterate over the bits (for example using `{bits...}`).  
@@ -110,7 +110,7 @@ Register content after toggling bits 0-3: 0b11110100
 ## Exercise Set 2 – Function Template Concepts
 
 ### Exercise 2.1 – Template Constraints
-Tasks:
+#### Tasks:
 **a)** Explain why `static_assert()` is useful.  
 **b)** What happens if the constraint fails?  
 **c)** Why use compile-time checks instead of runtime?  
@@ -120,7 +120,7 @@ Tasks:
 ## Exercise Set 3 – Class Template Specialization
 
 ### Exercise 3.1 – Timer Driver Template
-In this exercise, you will create a timer driver that supports multiple implementations using template specialization in a file `driver/timer.hpp`.
+In this exercise, you will create a timer driver that supports multiple implementations using template specialization in a file `driver/timer/timer.hpp`.
 
 The goal is to select the timer implementation at compile time based on a template parameter.
 
@@ -151,10 +151,13 @@ namespace driver::timer
  * @tparam T Timer type.
  */
 template<Type T>
-class Timer final;
+class Timer;
 
 } // namespace driver::timer
 ```
+
+**Note:** `final` belongs on the definition of the class, not on this declaration. Written as
+`class Timer final;`, the compiler would read `final` as the name of a variable of type `Timer`.
 
 The primary template shall represent a stub timer implementation. A specialization shall later be created for `Type::Stm32`.
 
@@ -206,7 +209,7 @@ class Timer final
 * Initializes the timer as stopped.
 * Marks the timer as initialized if the timeout value is valid (`> 0`).
 * Is marked `explicit` and `noexcept`.
-* If the timeout is successful, prints:
+* If the timeout is valid, prints:
 
 ```text
 Created stub timer with timeout 1000 ms!

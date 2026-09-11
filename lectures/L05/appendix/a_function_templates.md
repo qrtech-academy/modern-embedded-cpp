@@ -52,7 +52,7 @@ The example below sets a bit in a register of arbitrary integral type:
  *
  * @tparam T The register type.
  *
- * @param[out] reg Register to write to.
+ * @param[in, out] reg Register to write to.
  * @param[in] bit The bit to set.
  */
 template<typename T>

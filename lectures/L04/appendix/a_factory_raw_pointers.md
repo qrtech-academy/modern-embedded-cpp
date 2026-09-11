@@ -237,7 +237,7 @@ driver::factory::Interface
 factory::Esp32s3   factory::Stub
         |            |
         v            v
-serial::Esp32s3    serial::Stub
+gpio::Esp32s3      gpio::Stub
 ```
 
 The system logic therefore does not know whether it is running on real hardware or on stubs.  
@@ -483,6 +483,7 @@ In this example, the system logic owns the driver objects. The pointers returned
 #include <cstdint>
 
 #include "driver/factory/interface.hpp"
+#include "driver/gpio/interface.hpp"
 
 namespace system::logic
 {

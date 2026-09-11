@@ -19,7 +19,7 @@ The function template solution implements two generic bit operations:
 * `clear(T& reg, std::uint8_t bit)`
 * `toggle(T& reg, const Bits... bits)`
 
-Both templates use `static_assert()` to verify that the register type is arithmetic.
+Both templates use `static_assert()` to verify that the register type is integral.
 
 The solution demonstrates how parameter packs and compile-time type constraints can make bit operations reusable for different integral register types.
 
@@ -55,7 +55,7 @@ The solution demo uses:
 * A stub timer with a `500 ms` timeout.
 * An STM32 timer with a `1500 ms` timeout.
 
-Both timers are run during `2000 ms`. A message is printed every time a timer times out.
+Both timers are run for `2000 ms`. A message is printed every time a timer times out.
 
 This shows how the same API can work for both stub and STM32 timer implementations without runtime polymorphism (i.e. interfaces).
 

@@ -158,8 +158,9 @@ For the second, name the hazard this creates in an embedded program. (3 marks)
 ## Question 4 - What the compiler writes for you (13 marks)
 
 **(a)** The `Gpio` class from L02 declares its pin as `const std::uint8_t myPin;`. A copy
-*constructor* can be written for this class; a copy *assignment operator* cannot. Explain why, and
-state what the compiler does about the copy assignment operator when you do not declare one.
+*constructor* that makes a complete copy can be written for this class; a copy *assignment
+operator* that does so cannot. Explain why, and state what the compiler does about the copy
+assignment operator when you do not declare one.
 (4 marks)
 
 **(b)** A class `Buffer` owns a heap block through two members:
@@ -187,7 +188,7 @@ changes about the rest of the class. (5 marks)
 initializing the port with a baud rate, writing a null-terminated string, and querying whether the
 port has been initialized.
 
-Then state, for each of the four conventions the appendix applies to an interface, what it is and
+Then state, for four of the conventions the appendix applies to an interface, what each is and
 why it is there. (5 marks)
 
 **(b)** State the difference between `private` and `protected` members. Name the three kinds of

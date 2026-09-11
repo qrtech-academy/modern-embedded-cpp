@@ -62,7 +62,9 @@ If the function is used incorrectly:
 add("Hello", "World");
 ```
 
-The compiler generates an error instead of allowing a run-time failure.
+The `static_assert()` fails and the compiler stops with the error message given above. Without it, the
+compiler would still reject the call, since two pointers cannot be added, but with a less readable error
+from inside the function body.
 
 ---
 
