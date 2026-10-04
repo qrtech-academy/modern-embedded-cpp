@@ -1,7 +1,7 @@
 # L01 test suite: one binary per exercise set, plus the always-on language tests. What each
 # variable means is in ci/suite.mk, which does the building; see README.md for what is tested.
 
-BINARIES := language exercise1 exercise2 exercise3 exercise4
+BINARIES := language exercise1 exercise2 exercise3 exercise4 exercise5
 
 # Always built: the facts about C++ that Appendix B states, checked.
 language_NEEDS :=
@@ -25,5 +25,11 @@ exercise4_NEEDS    := exercise4/main.cpp
 exercise4_INCLUDES := exercise4
 exercise4_PROGRAM  := exercise4/main.cpp
 exercise4_REJECTS  := exercise4_rejects_float.cpp
+
+# Exercise Set 5: the lowestSetBit template, in an anonymous namespace in main.cpp.
+exercise5_NEEDS    := exercise5/main.cpp
+exercise5_INCLUDES := exercise5
+exercise5_PROGRAM  := exercise5/main.cpp
+exercise5_REJECTS  := exercise5_rejects_float.cpp
 
 include ../../../../ci/suite.mk

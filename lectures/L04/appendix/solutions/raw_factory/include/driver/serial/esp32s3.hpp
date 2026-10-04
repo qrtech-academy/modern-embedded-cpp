@@ -54,15 +54,9 @@ public:
     /**
      * @brief Receive one byte of data.
      *
-     * @param[out] byte Received byte (if any).
-     *
-     * @return True if a byte was received, false otherwise.
+     * @return Received byte, or std::nullopt if no byte was available.
      */
-    bool read(std::uint8_t& byte) noexcept override
-    {
-        (void)(byte);
-        return false;
-    }
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override { return std::nullopt; }
 
     Esp32s3()                          = delete; // No default constructor.
     Esp32s3(const Esp32s3&)            = delete; // No copy constructor.

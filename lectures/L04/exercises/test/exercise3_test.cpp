@@ -10,6 +10,7 @@
  */
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -37,7 +38,7 @@ public:
     ~CountingSerial() noexcept override { ++destroyed; }
     [[nodiscard]] bool isInitialized() const noexcept override { return true; }
     void write(const std::uint8_t) noexcept override {}
-    bool read(std::uint8_t&) noexcept override { return false; }
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override { return std::nullopt; }
 };
 
 /**

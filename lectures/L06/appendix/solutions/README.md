@@ -56,9 +56,10 @@ Reference implementations for the exercises in [Appendix B](../b_exercises.md).
 `driver::counter::Stub` implements the interface:
 * `myMutex` (`mutable std::mutex`) protects `myValue`.
 * `myInitialized` (`std::atomic<bool>`) guards all counter operations — each method returns early if the driver is not initialized.
+* `value()` returns a `std::optional<std::uint32_t>`: the counter value, or `std::nullopt` if the driver is not initialized.
 * Copy and move are deleted.
 
-`main()` creates one `Stub`, starts two threads via `counterThread()` (100 and 200 increments respectively), joins them, and prints the final value — expected `300`.
+`main()` creates one `Stub`, starts two threads via `counterThread()` (100 and 200 increments respectively), joins them, and prints the final value if `value()` returned one — expected `300`.
 
 ---
 
@@ -197,6 +198,10 @@ Built on Exercise Set 3. `rxThread()` no longer polls with a sleep; instead it a
 ---
 
 ### Exercise 5.3
+**Why is `std::nullopt` a better answer from `value()` than `0U` when the driver is not initialized?**
+* `0U` is also a valid counter value, so the caller cannot tell an uninitialized driver from a counter that is at zero.
+* `std::nullopt` cannot be mistaken for a count, and the caller has to check for it before reading the value.
+
 **Why is `myInitialized` suitable as an atomic variable?**
 * It is a single boolean flag that is read and written independently.
 * No other variable needs to be updated in the same atomic step, so `std::atomic<bool>` is sufficient.

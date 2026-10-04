@@ -8,6 +8,7 @@
  */
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 #include "driver/serial/interface.hpp"
@@ -34,11 +35,7 @@ public:
 
     void write(const std::uint8_t byte) noexcept override { myLastByte = byte; }
 
-    bool read(std::uint8_t& byte) noexcept override
-    {
-        byte = myLastByte;
-        return true;
-    }
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override { return myLastByte; }
 
     /** The last byte written through the interface. */
     std::uint8_t myLastByte{};
@@ -101,21 +98,21 @@ TEST(Interface, WriteTransmitsOneByte)
 }
 
 /**
- * @brief Exercise 1.1 d): read() takes a reference to the byte it stores into, returns a bool,
- *        is noexcept, and its result may be discarded.
+ * @brief Exercise 1.1 d): read() takes no parameters, returns a std::optional<std::uint8_t>, is
+ *        noexcept, and is dispatched to the implementation.
  *
  *        Whether read() is [[nodiscard]], and isInitialized() is, cannot be tested here: as
  *        Appendix B notes, GCC does not warn when the result of a virtual call is discarded, so
  *        discarding it compiles either way.
  */
-TEST(Interface, ReadStoresIntoAReference)
+TEST(Interface, ReadReturnsAnOptionalByte)
 {
     Double serial{};
     Interface& interface{serial};
-    std::uint8_t byte{};
-    EXPECT_TRUE((std::is_same<decltype(interface.read(byte)), bool>::value));
-    EXPECT_TRUE(noexcept(interface.read(byte)));
+    EXPECT_TRUE((std::is_same<decltype(interface.read()), std::optional<std::uint8_t>>::value));
+    EXPECT_TRUE(noexcept(interface.read()));
     serial.myLastByte = 0x5AU;
-    interface.read(byte);
-    EXPECT_EQ(static_cast<unsigned>(byte), 0x5AU);
+    const std::optional<std::uint8_t> byte{interface.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<unsigned>(byte.value_or(0U)), 0x5AU);
 }

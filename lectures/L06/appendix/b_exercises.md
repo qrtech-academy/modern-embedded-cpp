@@ -272,7 +272,8 @@ Add a pure virtual method `isInitialized()` that:
 
 ### c) Reading the counter
 Add a pure virtual method `value()` that:
-* Returns the current counter value as `std::uint32_t`.
+* Returns a `std::optional<std::uint32_t>` from `<optional>`: the current counter value, or
+  `std::nullopt` if the driver has no value to give.
 * Does not modify the object.
 * Is marked `noexcept` and `[[nodiscard]]`.
 
@@ -367,7 +368,7 @@ In `main.cpp`:
 * Create one `driver::counter::Stub`.
 * Start two threads, both running `counterThread()` — the first with `100U` iterations, the second with `200U`.
 * Join both threads.
-* Print the final counter value using `value()`.
+* Print the final counter value using `value()`, after checking that a value was returned.
 
 ### Reflection
 * Why does `value()` need to lock the mutex even though it only reads the value?
@@ -409,12 +410,13 @@ Override `isInitialized()` from the interface so that it:
 ## Exercise 5.3 – Guarding counter operations
 Modify `increment()`, `value()`, and `reset()`:
 * `increment()` shall do nothing if the driver is not initialized.
-* `value()` shall return `0U` if the driver is not initialized.
+* `value()` shall return `std::nullopt` if the driver is not initialized.
 * `reset()` shall do nothing if the driver is not initialized.
 
 The counter value itself shall still be protected by the mutex.
 
 ### Reflection
+* Why is `std::nullopt` a better answer from `value()` than `0U` when the driver is not initialized?
 * Why is `myInitialized` suitable as an atomic variable?
 * Why is `myValue` still protected by a mutex?
 * Would it be safe to make both variables atomic if future requirements added more related state?

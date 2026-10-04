@@ -26,6 +26,7 @@ the file the set asks for exists:
 | `exercise2` | `exercise2/driver/timer.hpp` exists | `driver::Timer`, and the program once `main.cpp` exists too |
 | `exercise3` | `exercise3/main.cpp` exists | `swap`, and the program's output |
 | `exercise4` | `exercise4/main.cpp` exists | `clear` and `toggle`, and the program's output |
+| `exercise5` | `exercise5/main.cpp` exists | `lowestSetBit`, and the program's output |
 
 A set whose file does not exist yet is reported as `SKIP`, with the path the suite is waiting for,
 so a file written under the wrong name is visible rather than silently untested.
@@ -34,14 +35,15 @@ so a file written under the wrong name is visible rather than silently untested.
 has no tests to run, so a suite whose every test waited for your files would be red on a fresh
 clone, and look broken when it was merely empty. Something has to run from the first day, and it
 may as well be worth knowing: that a `constexpr` function can size an array, that `auto x{10}` is
-an `int` in C++17, that a template is instantiated once per type, and that `std::size_t` is another
-name for a fixed-width type, which is why Appendix B's `isUnsigned` must not specialize both.
+an `int` in C++17, that a template is instantiated once per type, that `std::size_t` is another
+name for a fixed-width type, which is why Appendix B's `isUnsigned` must not specialize both, and
+that a `std::optional` holding `0` is not an empty one.
 
 ---
 
 ## How the tests reach code in your `main.cpp`
 
-Exercise Sets 1, 3 and 4 put their functions in `main.cpp`, some in an anonymous namespace, which
+Exercise Sets 1, 3, 4 and 5 put their functions in `main.cpp`, some in an anonymous namespace, which
 nothing outside that file can see. So the tests include your file:
 
 ```cpp
@@ -83,6 +85,12 @@ register.
 register. `exercise4_rejects_float.cpp` calls `clear()` on a `float`, and the suite checks that it
 fails to compile *because of a static assertion*, rather than compiling, or failing for some other
 reason such as `&=` on a `float`, which would also stop the build but tell the reader nothing.
+`exercise5_rejects_float.cpp` does the same for `lowestSetBit()`.
+
+**Nothing, and zero, apart.** `lowestSetBit()` is tested on a register whose lowest set bit is bit
+`0`, where the result must be an optional that holds `0`, and on an empty register, where it must
+be `std::nullopt`. An implementation that returns `0` for both is exactly what the exercise is
+about.
 
 ---
 

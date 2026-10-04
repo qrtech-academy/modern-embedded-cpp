@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <thread>
 
 #include "driver/factory/interface.hpp"
@@ -40,14 +41,15 @@ public:
     void run() noexcept
     {
         constexpr std::uint8_t sleep_ms{100U};
-        std::uint8_t txByte{}, rxByte{};
+        std::uint8_t txByte{};
 
         while (true)
         {
             mySerial->write(txByte++);
+            const auto rxByte = mySerial->read();
 
             // Print byte if received.
-            if (mySerial->read(rxByte)) { std::printf("RX byte: 0x%02X!\n", rxByte); }
+            if (std::nullopt != rxByte) { std::printf("RX byte: 0x%02X!\n", *rxByte); }
             std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
         }
     }

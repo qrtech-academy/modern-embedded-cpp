@@ -11,6 +11,7 @@ lectures/L01/exercises/
     exercise2/main.cpp                            and the program that uses it
     exercise3/main.cpp            Exercise Set 3: swap
     exercise4/main.cpp            Exercise Set 4: the clear and toggle templates
+    exercise5/main.cpp            Exercise Set 5: lowestSetBit, returning a std::optional
     test/                         The test suite. You do not edit this.
 ```
 

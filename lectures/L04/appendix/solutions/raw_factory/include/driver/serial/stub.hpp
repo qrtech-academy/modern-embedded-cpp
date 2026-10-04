@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "driver/serial/interface.hpp"
 
@@ -21,9 +22,8 @@ public:
      * @brief Constructor.
      */
     Stub() noexcept
-        : myLastByte{}
+        : myLastByte{std::nullopt}
         , myInitialized{true}
-        , myHasData{false}
     {}
 
     /**
@@ -47,22 +47,30 @@ public:
     {
         if (!myInitialized) { return; }
         myLastByte = byte;
-        myHasData  = true;
     }
 
     /**
      * @brief Receive one byte of data.
      *
-     * @param[out] byte Received byte (if any).
-     *
-     * @return True if a byte was received, false otherwise.
+     * @return Received byte, or std::nullopt if no byte was available.
      */
-    bool read(std::uint8_t& byte) noexcept override
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override
     {
-        if (!myInitialized || !myHasData) { return false; }
-        byte      = myLastByte;
-        myHasData = false;
-        return true;
+        if (!myInitialized) { return std::nullopt; }
+        const auto byte = myLastByte;
+        myLastByte      = std::nullopt;
+        return byte;
+    }
+
+    /**
+     * @brief Set the simulated initialization state.
+     *
+     * @param[in] initialized True if the driver shall be considered initialized, false otherwise.
+     */
+    void setInitialized(const bool initialized) noexcept
+    {
+        myInitialized = initialized;
+        myLastByte    = std::nullopt;
     }
 
     Stub(const Stub&)            = delete; // No copy constructor.
@@ -71,13 +79,10 @@ public:
     Stub& operator=(Stub&&)      = delete; // No move assignment.
 
 private:
-    /** Most recently transmitted byte. */
-    std::uint8_t myLastByte;
+    /** Most recently transmitted byte,. */
+    std::optional<std::uint8_t> myLastByte;
 
     /** True if initialized, false if not. */
     bool myInitialized;
-
-    /** True if data is available, false otherwise. */
-    bool myHasData;
 };
 } // namespace driver::serial

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <optional>
 #include <thread>
 
 #include "driver/counter/stub.hpp"
@@ -41,6 +42,7 @@ int main()
     t1.join();
     t2.join();
 
-    std::printf("Counter value: %u!\n", counter.value());
+    const auto value = counter.value();
+    if (std::nullopt != value) { std::printf("Counter value: %u!\n", *value); }
     return 0;
 }

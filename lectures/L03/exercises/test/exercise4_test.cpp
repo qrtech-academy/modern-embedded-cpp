@@ -7,6 +7,7 @@
  *       not collide with the test runner's; that also makes your program runnable here.
  */
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "driver/serial/interface.hpp"
@@ -44,7 +45,7 @@ public:
         ++myWrites;
     }
 
-    bool read(std::uint8_t&) noexcept override { return false; }
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override { return std::nullopt; }
 
     /** Every byte written, in order. */
     std::string myBytes{};
@@ -72,10 +73,10 @@ TEST(SendMessage, TransmitsTheMessageOneByteAtATime)
 TEST(SendMessage, LeavesTheLastByteInTheStub)
 {
     driver::serial::Stub stub{};
-    std::uint8_t byte{};
     sendMessage(stub);
-    EXPECT_TRUE(stub.read(byte));
-    EXPECT_EQ(static_cast<char>(byte), '!');
+    const std::optional<std::uint8_t> byte{stub.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<char>(byte.value_or(0U)), '!');
 }
 
 #ifdef PROGRAM

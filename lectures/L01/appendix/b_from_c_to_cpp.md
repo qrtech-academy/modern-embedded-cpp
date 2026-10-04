@@ -346,6 +346,9 @@ In such systems, errors are typically handled using C-style mechanisms such as:
 * Status flags.
 * Error callbacks.
 
+For a function that either returns a value or has nothing to return, modern C++ offers a safer
+alternative to a return code combined with an out-parameter; see [`std::optional`](#14-stdoptional).
+
 Because of this, it is common practice in embedded C++ to mark functions that are not expected to fail with the `noexcept` keyword.
 
 Doing so has several benefits:
@@ -1150,8 +1153,131 @@ const bool state{led.read()};
 * Factory functions that return an owning resource, such as `std::unique_ptr` (introduced later in
   the course), where discarding the result would immediately release the resource.
 
+* Functions returning a `std::optional` (see the next section), where the result is the only way to
+  learn whether there was a value at all.
+
 **Note:** `[[nodiscard]]` should not be added indiscriminately. Functions that are called mainly
 for their side effects, where the return value is genuinely optional, do not need it.
+
+---
+
+### 14. `std::optional`
+Some functions do not always have a value to return. Reading a byte from a serial port is a typical
+example: if nothing has been received, there is no byte to hand back.
+
+C has no direct way to express "a value, or nothing", so one of two workarounds is normally used:
+* **A sentinel value:** one value of the return type is reserved to mean "nothing", such as `-1` or
+  `0xFF`. This only works when the type has a value to spare. A received byte can be anything from
+  `0x00` to `0xFF`, so no value is left over, and the return type has to be widened to make room.
+* **A status return and an out-parameter:** the function returns `true` or `false`, and writes the
+  value through a pointer.
+
+The second workaround is the more common one in embedded C:
+
+```c
+#include <stdbool.h>
+#include <stdint.h>
+
+// Assume RX bytes are received via another function.
+static bool rx_available = false;
+static uint8_t last_rx   = 0U;
+
+bool read_byte(uint8_t* byte)
+{
+    if (!rx_available) { return false; }
+    *byte        = last_rx;
+    rx_available = false;
+    return true;
+}
+```
+
+This works, but it has several weaknesses:
+* The caller must declare a variable before the call, so the variable cannot be `const`, and it
+  exists even when nothing was received.
+* Nothing stops the caller from ignoring the return value and using the variable anyway, in which
+  case it holds whatever it held before the call.
+* A null pointer passed by mistake is dereferenced, unless the function adds a check for it.
+* The signature does not say which parameters are inputs and which are outputs.
+
+#### A value, or nothing
+Since C++17, the standard library provides `std::optional<T>` in the header `<optional>`. An
+`std::optional<T>` either holds a value of type `T`, or it is empty. The empty state is written
+`std::nullopt`.
+
+With it, the function can return the byte itself, or nothing:
+
+```cpp
+#include <cstdint>
+#include <optional>
+
+namespace
+{
+// Once again, assume RX bytes are received via another function.
+bool rxAvailable{false};
+std::uint8_t lastRx{};
+} // namespace
+
+[[nodiscard]] std::optional<std::uint8_t> readByte() noexcept
+{
+    if (!rxAvailable) { return std::nullopt; }
+    rxAvailable = false;
+    return lastRx;
+}
+```
+
+Note that:
+* The out-parameter is gone. The function takes only its inputs and returns only its output.
+* A `T` converts implicitly to an `std::optional<T>`, so the byte is returned as it is.
+* `std::nullopt` is returned when there is nothing to return.
+* The function is marked `[[nodiscard]]`: an optional that is never looked at has told the caller
+  nothing.
+
+#### Using the result
+An `std::optional` can be compared with `std::nullopt` to find out whether it holds a value. Once
+we know that a value is present, we reach it with the dereference operator `*`, just as with a
+pointer:
+
+```cpp
+const auto byte = readByte();
+if (std::nullopt != byte) { std::printf("Received byte %u!\n", *byte); }
+else { std::printf("No bytes available!\n"); }
+```
+
+The check can be written in two other ways that mean the same thing:
+* The method `has_value()` returns `true` when a value is present.
+* The optional itself converts to `true` in a condition when it holds a value, so `if (byte)` works
+  as well.
+
+With `std::optional`, the value and the knowledge of whether it exists travel together in one
+object. The value cannot be reached without going through that object, which makes the check hard
+to forget.
+
+#### `std::optional` as a member variable
+`std::optional` is not limited to return types. A value paired with a flag that says whether the
+value is valid is a common pattern in drivers, and the pair can be replaced by a single optional.
+The variables `rxAvailable` and `lastRx` in the example above are such a pair: declared as one
+`std::optional<std::uint8_t>`, a byte is stored by assigning to it, it is emptied by assigning
+`std::nullopt` to it, and it is checked and read in the same way as a returned optional.
+
+The two can then no longer disagree: there is no flag that says "valid" while the value is stale,
+since there is no separate flag.
+
+#### What it costs, and what to avoid
+* **No dynamic allocation.** The value is stored inside the optional itself, not on the heap, which
+  makes `std::optional` safe to use in systems that forbid dynamic memory.
+* **A little more memory.** An optional is the size of a `T` plus a flag, rounded up to the
+  alignment of `T`. An `std::optional<std::uint8_t>` is two bytes, and an
+  `std::optional<std::uint32_t>` is eight.
+* **Check before dereferencing.** Using `*` on an empty optional is undefined behavior, exactly as
+  with a null pointer.
+* **Avoid `value()` when exceptions are disabled.** The method `value()` also returns the value,
+  but throws `std::bad_optional_access` if the optional is empty. In a system without exceptions,
+  check first and use `*`.
+* **The condition tests presence, not the value.** An `std::optional<std::uint8_t>` holding `0` is
+  `true` in a condition, because it holds a value. For the same reason, `std::optional<bool>` is
+  easy to misread and best avoided.
+* **It says that there is nothing, not why.** When the caller needs to know the reason for a
+  failure, a status code is still the right tool.
 
 ---
 
@@ -1245,6 +1371,7 @@ This appendix introduced the following modern C++ features commonly used in embe
 * The `auto` keyword.
 * Function templates.
 * `[[nodiscard]]` for catching ignored return values.
+* `std::optional` for functions that may have no value to return.
 
 These features allow developers to write safer, clearer, and more maintainable embedded software while still maintaining full control over hardware and performance.
 

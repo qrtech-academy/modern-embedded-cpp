@@ -8,6 +8,7 @@
  *       compiling.
  */
 #include <cstdint>
+#include <optional>
 #include <type_traits>
 
 #include "driver/serial/esp32s3.hpp"
@@ -81,15 +82,15 @@ TEST(Interface, WriteSignature)
 }
 
 /**
- * @brief Exercise 1.1 d): bool read(std::uint8_t&) noexcept.
+ * @brief Exercise 1.1 d): std::optional<std::uint8_t> read() noexcept.
  *
- *        That read() is not [[nodiscard]] cannot be tested here: GCC does not warn about a
- *        discarded result of a virtual call made through the interface, attribute or not.
+ *        That read() is [[nodiscard]] cannot be tested here: GCC does not warn about a discarded
+ *        result of a virtual call made through the interface, attribute or not.
  */
 TEST(Interface, ReadSignature)
 {
     EXPECT_TRUE((std::is_same<decltype(&Interface::read),
-                              bool (Interface::*)(std::uint8_t&) noexcept>::value));
+                              std::optional<std::uint8_t> (Interface::*)() noexcept>::value));
 }
 
 /**
@@ -119,9 +120,8 @@ TEST(Stub, CannotBeCopiedOrMoved)
 TEST(Stub, StartsInitializedAndEmpty)
 {
     driver::serial::Stub stub{};
-    std::uint8_t byte{};
     EXPECT_TRUE(stub.isInitialized());
-    EXPECT_FALSE(stub.read(byte));
+    EXPECT_FALSE(stub.read().has_value());
 }
 
 /**
@@ -131,18 +131,30 @@ TEST(Stub, ReadsBackTheLastByteWrittenOnce)
 {
     driver::serial::Stub stub{};
     Interface& serial{stub};
-    std::uint8_t byte{};
 
     serial.write(0x42U);
-    EXPECT_TRUE(serial.read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0x42U);
-    EXPECT_FALSE(serial.read(byte));
+    const std::optional<std::uint8_t> byte{serial.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<unsigned>(byte.value_or(0U)), 0x42U);
+    EXPECT_FALSE(serial.read().has_value());
 
     serial.write(0x01U);
     serial.write(0xFFU);
-    EXPECT_TRUE(serial.read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0xFFU);
-    EXPECT_FALSE(serial.read(byte));
+    EXPECT_EQ(static_cast<unsigned>(serial.read().value_or(0U)), 0xFFU);
+    EXPECT_FALSE(serial.read().has_value());
+}
+
+/**
+ * @brief Exercise 1.2 d): a zero byte is a byte. An optional holding 0 is not an empty optional.
+ */
+TEST(Stub, ReadsBackAZeroByte)
+{
+    driver::serial::Stub stub{};
+    stub.write(0x00U);
+    const std::optional<std::uint8_t> byte{stub.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<unsigned>(byte.value_or(0xFFU)), 0x00U);
+    EXPECT_FALSE(stub.read().has_value());
 }
 
 /**
@@ -205,7 +217,6 @@ TEST(Esp32s3, WritePrintsTheByteAndTheTransmitPin)
 TEST(Esp32s3, PlaceholderStatusAndRead)
 {
     driver::serial::Esp32s3 serial{17U, 18U};
-    std::uint8_t byte{};
     EXPECT_TRUE(serial.isInitialized());
-    EXPECT_FALSE(serial.read(byte));
+    EXPECT_FALSE(serial.read().has_value());
 }

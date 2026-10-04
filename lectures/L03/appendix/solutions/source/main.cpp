@@ -3,6 +3,7 @@
  */
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 
 #include "driver/serial/console.hpp"
 #include "driver/serial/stub.hpp"
@@ -20,7 +21,7 @@ void sendMessage(serial::Interface& serial) noexcept
     // Transmit the message byte by byte.
     for (const char* c{msg}; *c != null; ++c)
     {
-        const std::uint8_t byte{static_cast<std::uint8_t>(*c)};
+        const auto byte = static_cast<std::uint8_t>(*c);
         serial.write(byte);
     }
 }
@@ -43,12 +44,12 @@ int main()
     {
         serial::Stub serial{};
         sendMessage(serial);
-        std::uint8_t byte{};
+        const auto byte = serial.read();
 
-        if (serial.read(byte))
+        if (std::nullopt != byte)
         {
-            const auto lastChar = static_cast<int>(byte);
-            std::printf("\nLast received character from stub driver: %c\n", lastChar);
+            const auto lastChar = static_cast<int>(*byte);
+            std::printf("\nLast received character from stub driver: '%c'\n", lastChar);
         }
     }
     return 0;

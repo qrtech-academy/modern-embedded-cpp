@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 
 #include "driver/counter/interface.hpp"
 
@@ -41,11 +42,11 @@ public:
     /**
      * @brief Get the current counter value.
      *
-     * @return The current counter value.
+     * @return The current counter value, or std::nullopt if not initialized.
      */
-    [[nodiscard]] std::uint32_t value() const noexcept override
+    [[nodiscard]] std::optional<std::uint32_t> value() const noexcept override
     {
-        if (!isInitialized()) { return 0U; }
+        if (!isInitialized()) { return std::nullopt; }
         std::lock_guard<std::mutex> lock{myMutex};
         return myValue;
     }

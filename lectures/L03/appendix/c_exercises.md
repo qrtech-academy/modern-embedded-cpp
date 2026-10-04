@@ -75,10 +75,12 @@ Add a pure virtual method `write()` that:
 ### d) Receiving data
 Add a pure virtual method `read()` that:
 * Attempts to read one byte from the serial driver.
-* Takes a reference to a variable where the byte will be stored.
-* Returns `true` if a byte was received, otherwise `false`.
+* Takes no parameters.
+* Returns a `std::optional<std::uint8_t>` from `<optional>`: the received byte, or `std::nullopt`
+  if no byte was received.
 * Cannot throw exceptions.
-* Lets the user discard the return value if desired (`[[nodiscard]]` omitted).
+* Generates a warning if the return value is discarded (`[[nodiscard]]`): a byte that is read and
+  then discarded is lost.
 
 ---
 
@@ -98,24 +100,21 @@ Method definitions shall be placed in `driver/serial/stub.cpp`.
 ---
 
 ### a) Member variables
-Add three private member variables:
+Add two private member variables:
 * The first member variable shall:
-    * Store the most recently transmitted byte.
-    * Have the type `std::uint8_t`.
+    * Store the most recently transmitted byte, until it is read.
+    * Have the type `std::optional<std::uint8_t>`.
     * Be named `myLastByte`.
+    * Be empty when no byte is available to read.
 * The second member variable shall:
     * Indicate whether the driver is initialized.
     * Have the type `bool`.
     * Be named `myInitialized`.
-* The third member variable shall:
-    * Indicate whether a byte is available to read.
-    * Have the type `bool`.
-    * Be named `myHasData`.
 
 ### b) Constructor
 Add a default constructor that:
 * Sets the driver as initialized.
-* Indicates that no data is available to read.
+* Leaves `myLastByte` empty, since no data is available to read.
 
 ### c) Disable copy and move semantics
 Delete the following functions (in the public section of the class):
@@ -130,15 +129,10 @@ Implement all methods required by the interface:
     * Return the value stored in `myInitialized`.
 * The method `write()` shall:
     * Do nothing if `myInitialized` is `false`.
-    * Otherwise:
-        * Store the transmitted byte in `myLastByte`.
-        * Set `myHasData` to `true`.
+    * Otherwise store the transmitted byte in `myLastByte`.
 * The method `read()` shall:
-    * Return `false` if `myInitialized` is `false` or `myHasData` is `false`.
-    * Otherwise:
-        * Copy the stored byte (`myLastByte`) into the output argument.
-        * Set `myHasData` to `false`.
-        * Return `true`.
+    * Return the content of `myLastByte`, which is `std::nullopt` if no byte is available.
+    * Leave `myLastByte` empty, so that a byte can only be read once.
 
 ### e) Initialization method
 Add an additional public method `setInitialized()` that is not part of the interface.
@@ -146,6 +140,7 @@ Add an additional public method `setInitialized()` that is not part of the inter
 This method shall:
 * Be used to simulate the initialization state.
 * Take the initialization state as input.
+* Discard the stored byte, leaving `myLastByte` empty, when the driver is set to uninitialized.
 * Not return a value.
 
 ---
@@ -198,7 +193,7 @@ Implement all methods required by the interface:
 * The method `write()` shall:
     * Cast the given byte to a character and print it to the console using `std::printf()` from `<cstdio>`.
 * The method `read()` shall:
-    * Always return `false`, since the console does not support reading.
+    * Always return `std::nullopt`, since the console does not support reading.
 
 ---
 
@@ -223,6 +218,7 @@ Transmitting data with a serial driver!
 
 **c)** In function `main()`, test the stub driver:
 * Create an instance of the stub driver and pass it to the function `sendMessage()`.
-* Verify that the last transmitted byte `!` can later be read using the `read()` method.
+* Verify that the last transmitted byte `!` is returned by the `read()` method, and that a second
+  call to `read()` returns `std::nullopt`.
 
 ---

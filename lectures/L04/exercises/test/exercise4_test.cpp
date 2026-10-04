@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <memory>
 #include <new>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -121,11 +122,9 @@ TEST(StubFactory, CreatesANewStubDriverEachTime)
     EXPECT_TRUE(nullptr != dynamic_cast<driver::serial::Stub*>(second.get()));
     EXPECT_TRUE(first.get() != second.get());
 
-    std::uint8_t byte{};
     first->write(0x7EU);
-    EXPECT_TRUE(first->read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0x7EU);
-    EXPECT_FALSE(second->read(byte));
+    EXPECT_EQ(static_cast<unsigned>(first->read().value_or(0U)), 0x7EU);
+    EXPECT_FALSE(second->read().has_value());
 }
 
 #endif
@@ -150,7 +149,7 @@ public:
     ~CountingSerial() noexcept override { ++destroyed; }
     [[nodiscard]] bool isInitialized() const noexcept override { return true; }
     void write(const std::uint8_t) noexcept override {}
-    bool read(std::uint8_t&) noexcept override { return false; }
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override { return std::nullopt; }
 };
 
 /**

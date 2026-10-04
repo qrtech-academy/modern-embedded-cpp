@@ -9,6 +9,7 @@
 * Modern C++ structs (member functions, constructor/destructor, and encapsulation).
 * References.
 * Function templates and parameter packs.
+* `[[nodiscard]]` and `std::optional`.
 
 ---
 
@@ -21,6 +22,7 @@ After this lecture, participants should:
 * Understand how references simplify function interfaces compared to pointers.
 * Understand how templates enable generic utilities such as bit manipulation helpers.
 * Gain intuition about compile-time programming (`constexpr` and templates).
+* Understand how `std::optional` expresses a return value that may be absent.
 
 ---
 
@@ -57,6 +59,8 @@ Participants should be able to explain:
 * What advantages do references have compared to pointers?
 * Why can templates increase binary size in embedded systems?
 * What are parameter packs used for?
+* What problem does `std::optional` solve compared to a `bool` return value and an out-parameter?
+* Why should `value()` be avoided on an `std::optional` when exceptions are disabled?
 
 ---
 

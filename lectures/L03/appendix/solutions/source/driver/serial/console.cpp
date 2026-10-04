@@ -3,6 +3,7 @@
  */
 #include <cstdint>
 #include <cstdio>
+#include <optional>
 
 #include "driver/serial/console.hpp"
 
@@ -33,10 +34,9 @@ void Console::write(const std::uint8_t byte) noexcept
 }
 
 // -----------------------------------------------------------------------------
-bool Console::read(std::uint8_t& byte) noexcept
+std::optional<std::uint8_t> Console::read() noexcept
 {
     // Reading is not supported in this implementation.
-    (void)(byte);
-    return false;
+    return std::nullopt;
 }
 } // namespace driver::serial

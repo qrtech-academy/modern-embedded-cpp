@@ -73,11 +73,10 @@ TEST(Console, InstanceIsTheOneConsole)
 TEST(Console, IsAlwaysInitializedAndWriteOnly)
 {
     Interface& console{Console::instance()};
-    std::uint8_t byte{};
     EXPECT_TRUE(console.isInitialized());
-    EXPECT_FALSE(console.read(byte));
+    EXPECT_FALSE(console.read().has_value());
     captureOutput([&] { console.write('A'); });
-    EXPECT_FALSE(console.read(byte));
+    EXPECT_FALSE(console.read().has_value());
 }
 
 /**

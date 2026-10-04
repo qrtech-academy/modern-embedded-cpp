@@ -9,6 +9,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -26,6 +27,21 @@ using driver::counter::Interface;
 using driver::counter::Stub;
 namespace
 {
+/** What valueOf() gives for a counter that returned no value. No test counts this far. */
+constexpr std::uint32_t noValue{0xFFFFFFFFU};
+
+/**
+ * @brief Read a counter that is expected to have a value.
+ *
+ * @param[in] counter The counter to read.
+ *
+ * @return The counter value, or noValue if value() returned std::nullopt.
+ */
+std::uint32_t valueOf(const Interface& counter) noexcept
+{
+    return counter.value().value_or(noValue);
+}
+
 /** True if T has a setInitialized(bool) method, which Exercise 5.2 adds. */
 template<typename T, typename = void>
 struct HasSetInitialized : std::false_type
@@ -86,14 +102,14 @@ void checkInitializationGuards()
 
         stub.setInitialized(false);
         EXPECT_FALSE(stub.isInitialized());
-        EXPECT_EQ(stub.value(), 0U);
+        EXPECT_FALSE(stub.value().has_value());
         stub.increment();
         stub.reset();
-        EXPECT_EQ(stub.value(), 0U);
+        EXPECT_FALSE(stub.value().has_value());
 
         stub.setInitialized(true);
         EXPECT_TRUE(stub.isInitialized());
-        EXPECT_EQ(stub.value(), 3U);
+        EXPECT_EQ(valueOf(stub), 3U);
         EXPECT_TRUE(noexcept(stub.setInitialized(true)));
     }
     else
@@ -117,7 +133,8 @@ TEST(Interface, IsAnAbstractInterface)
     const Interface* constCounter{nullptr};
     Interface* counter{nullptr};
     EXPECT_TRUE((std::is_same<decltype(constCounter->isInitialized()), bool>::value));
-    EXPECT_TRUE((std::is_same<decltype(constCounter->value()), std::uint32_t>::value));
+    EXPECT_TRUE(
+        (std::is_same<decltype(constCounter->value()), std::optional<std::uint32_t>>::value));
     EXPECT_TRUE(noexcept(constCounter->isInitialized()));
     EXPECT_TRUE(noexcept(constCounter->value()));
     EXPECT_TRUE(noexcept(counter->increment()));
@@ -147,12 +164,12 @@ TEST(Stub, CountsAndResets)
     Stub stub{};
     Interface& counter{stub};
     EXPECT_TRUE(counter.isInitialized());
-    EXPECT_EQ(counter.value(), 0U);
+    EXPECT_EQ(valueOf(counter), 0U);
     counter.increment();
     counter.increment();
-    EXPECT_EQ(counter.value(), 2U);
+    EXPECT_EQ(valueOf(counter), 2U);
     counter.reset();
-    EXPECT_EQ(counter.value(), 0U);
+    EXPECT_EQ(valueOf(counter), 0U);
 }
 
 /**
@@ -162,7 +179,7 @@ TEST(Stub, CountsExactlyFromManyThreads)
 {
     Stub stub{};
     incrementConcurrently(stub, 8U, 20000U);
-    EXPECT_EQ(stub.value(), 160000U);
+    EXPECT_EQ(valueOf(stub), 160000U);
 }
 
 /**
@@ -182,7 +199,7 @@ TEST(Stub, ValueIsConsistentWhileOthersIncrement)
                            std::uint32_t previous{};
                            while (!done.load())
                            {
-                               const std::uint32_t current{stub.value()};
+                               const std::uint32_t current{valueOf(stub)};
                                if (current < previous) { valueNeverWentDown = false; }
                                if (current > total) { valueNeverExceededTheTotal = false; }
                                previous = current;
@@ -194,7 +211,7 @@ TEST(Stub, ValueIsConsistentWhileOthersIncrement)
 
     EXPECT_TRUE(valueNeverWentDown);
     EXPECT_TRUE(valueNeverExceededTheTotal);
-    EXPECT_EQ(stub.value(), total);
+    EXPECT_EQ(valueOf(stub), total);
 }
 
 /**
@@ -213,10 +230,10 @@ TEST(Stub, ResetsWhileOthersIncrement)
                          }};
     incrementConcurrently(stub, 4U, 10000U);
     resetter.join();
-    const bool noMoreThanWasIncremented{stub.value() <= 40000U};
+    const bool noMoreThanWasIncremented{valueOf(stub) <= 40000U};
     EXPECT_TRUE(noMoreThanWasIncremented);
     stub.reset();
-    EXPECT_EQ(stub.value(), 0U);
+    EXPECT_EQ(valueOf(stub), 0U);
 }
 
 /**
@@ -242,7 +259,7 @@ TEST(CounterThread, IncrementsOncePerIteration)
 {
     Stub stub{};
     counterThread(stub, 250U);
-    EXPECT_EQ(stub.value(), 250U);
+    EXPECT_EQ(valueOf(stub), 250U);
     EXPECT_TRUE(noexcept(counterThread(stub, 1U)));
 }
 

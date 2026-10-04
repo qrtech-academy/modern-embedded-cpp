@@ -6,6 +6,7 @@
  *       deletes what it was given, through the interface, exactly as the logic class will.
  */
 #include <cstdint>
+#include <optional>
 #include <type_traits>
 
 #include "driver/factory/esp32s3.hpp"
@@ -127,11 +128,9 @@ TEST(StubFactory, CreatesANewStubDriverEachTime)
     EXPECT_TRUE(nullptr != dynamic_cast<driver::serial::Stub*>(second));
     EXPECT_TRUE(first != second);
 
-    std::uint8_t byte{};
     first->write(0x7EU);
-    EXPECT_TRUE(first->read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0x7EU);
-    EXPECT_FALSE(second->read(byte));
+    EXPECT_EQ(static_cast<unsigned>(first->read().value_or(0U)), 0x7EU);
+    EXPECT_FALSE(second->read().has_value());
     delete first;
     delete second;
 }

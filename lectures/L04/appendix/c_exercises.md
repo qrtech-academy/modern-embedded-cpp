@@ -80,10 +80,12 @@ Add a pure virtual method `write()` that:
 ### d) Receiving data  
 Add a pure virtual method `read()` that:
 * Attempts to read one byte from the serial driver.
-* Takes a reference to a variable where the byte will be stored.
-* Returns `true` if a byte was received, otherwise `false`.
+* Takes no parameters.
+* Returns a `std::optional<std::uint8_t>` from `<optional>`: the received byte, or `std::nullopt`
+  if no byte was received.
 * Cannot throw exceptions.
-* Lets the caller discard the return value; the caller does not need to check whether a byte was received.
+* Generates a warning if the return value is discarded (`[[nodiscard]]`): a byte that is read and
+  then discarded is lost.
 
 ---
 
@@ -97,24 +99,21 @@ The class shall:
 * Be marked `final`.
 
 ### a) Member variables  
-Add three private member variables:
+Add two private member variables:
 * The first member variable shall:
-    * Store the most recently transmitted byte.
-    * Have the type `std::uint8_t`.
+    * Store the most recently transmitted byte, until it is read.
+    * Have the type `std::optional<std::uint8_t>`.
     * Be named `myLastByte`.
+    * Be empty when no byte is available to read.
 * The second member variable shall:
     * Indicate whether the driver is initialized.
     * Have the type `bool`.
     * Be named `myInitialized`.
-* The third member variable shall:
-    * Indicate whether a byte is available to read.
-    * Have the type `bool`.
-    * Be named `myHasData`.
 
 ### b) Constructor  
 Add a default constructor that:
 * Sets the driver as initialized.
-* Indicates that no data is available to read.
+* Leaves `myLastByte` empty, since no data is available to read.
 * Is marked `noexcept`.
 
 ### c) Destructor  
@@ -129,15 +128,12 @@ Implement all methods required by the interface:
     * Return the value stored in `myInitialized`.
 * The method `write()` shall:
     * Do nothing if `myInitialized` is `false`.
-    * Otherwise:
-        * Store the transmitted byte in `myLastByte`.
-        * Set `myHasData` to `true`.
+    * Otherwise store the transmitted byte in `myLastByte`.
 * The method `read()` shall:
-    * Return `false` if `myInitialized` is `false` or `myHasData` is `false`.
+    * Return `std::nullopt` if `myInitialized` is `false`, leaving `myLastByte` as it is.
     * Otherwise:
-        * Copy the stored byte (`myLastByte`) into the output argument.
-        * Set `myHasData` to `false`.
-        * Return `true`.
+        * Return the content of `myLastByte`, which is `std::nullopt` if no byte is available.
+        * Leave `myLastByte` empty, so that a byte can only be read once.
 
 ### e) Disable copy and move semantics
 Delete the following functions (in the public section of the class):
@@ -183,7 +179,7 @@ Declare and implement the required interface methods.
 For this exercise, it is sufficient to use placeholder implementations:
 * `isInitialized()` may always return `true`.
 * `write()` shall print the transmitted byte in hexadecimal format. For example, transmitting byte `0xFF` on TX pin `17` shall print `Transmitting byte 0xFF via TX pin 17!`.
-* `read()` may always return `false`.
+* `read()` may always return `std::nullopt`.
 
 ### e) Disable copy and move semantics
 Delete the following functions (in the public section of the class):
@@ -322,7 +318,7 @@ Add a method `run()` that:
 * Is marked `noexcept`.
 * Runs continuously.
 * Sends an incrementing byte value (`0–255`). After reaching `255`, the value wraps around to `0`.
-* Attempts to read one byte into a local variable and prints it if received.
+* Attempts to read one byte and prints it if one was received.
 * Repeats forever.
 * Delays execution by `100 ms` at the end of each loop iteration:
 
@@ -335,11 +331,14 @@ constexpr std::uint8_t sleep_ms{100U};
 std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
 ```
 
-Use local variables of type `std::uint8_t` to store the transmitted and received bytes:
+Use a local variable of type `std::uint8_t` to store the transmitted byte:
 
 ```cpp
-std::uint8_t txByte{}, rxByte{};
+std::uint8_t txByte{};
 ```
+
+The received byte needs no variable declared in advance: it is returned by `read()` as a
+`std::optional<std::uint8_t>`.
 
 ### e) Disable copy and move semantics
 Delete the following functions (in the public section of the class):

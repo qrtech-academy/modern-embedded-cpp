@@ -10,6 +10,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <type_traits>
 
 #include "qacademy/test/test.hpp"
@@ -42,6 +43,13 @@ constexpr void set(T& reg, const Bits... bits) noexcept
 {
     static_assert(std::is_integral<T>::value, "T must be of integral type!");
     ((reg |= (static_cast<T>(1U) << bits)), ...);
+}
+
+/** A function that may have no value to return (Appendix B.14). */
+constexpr std::optional<std::uint8_t> half(const std::uint8_t value) noexcept
+{
+    if (0U != (value % 2U)) { return std::nullopt; }
+    return static_cast<std::uint8_t>(value / 2U);
 }
 } // namespace
 
@@ -142,4 +150,52 @@ TEST(Language, SizeTIsAnAliasOfAFixedWidthType)
     constexpr bool isAlias{std::is_same<std::size_t, std::uint64_t>::value ||
                            std::is_same<std::size_t, std::uint32_t>::value};
     EXPECT_TRUE(isAlias);
+}
+
+/**
+ * @brief A std::optional is empty until it is given a value, and std::nullopt is the empty state.
+ */
+TEST(Language, OptionalHoldsAValueOrNothing)
+{
+    const std::optional<std::uint8_t> empty{};
+    EXPECT_FALSE(empty.has_value());
+    EXPECT_FALSE(half(7U).has_value());
+
+    const std::optional<std::uint8_t> four{half(8U)};
+    EXPECT_TRUE(four.has_value());
+    EXPECT_EQ(static_cast<unsigned>(*four), 4U);
+}
+
+/**
+ * @brief In a condition, an optional says whether it holds a value, not what the value is: one
+ *        holding 0 is true.
+ */
+TEST(Language, OptionalHoldingZeroIsNotEmpty)
+{
+    const std::optional<std::uint8_t> zero{half(0U)};
+    EXPECT_TRUE(static_cast<bool>(zero));
+    EXPECT_EQ(static_cast<unsigned>(*zero), 0U);
+}
+
+/**
+ * @brief An optional stores its value inside itself: it is the size of the value plus a flag,
+ *        rounded up to the value's alignment, and allocates nothing.
+ */
+TEST(Language, OptionalIsTheValuePlusAFlag)
+{
+    EXPECT_EQ(sizeof(std::optional<std::uint8_t>), static_cast<std::size_t>(2U));
+    EXPECT_EQ(sizeof(std::optional<std::uint32_t>), static_cast<std::size_t>(8U));
+}
+
+/**
+ * @brief Assigning std::nullopt empties an optional, and assigning a value fills it again.
+ */
+TEST(Language, OptionalCanBeEmptiedAndRefilled)
+{
+    std::optional<std::uint8_t> byte{0x41U};
+    byte = std::nullopt;
+    EXPECT_FALSE(byte.has_value());
+    byte = 0x42U;
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<unsigned>(*byte), 0x42U);
 }

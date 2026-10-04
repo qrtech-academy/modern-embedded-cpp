@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 namespace driver::serial
 {
@@ -35,10 +36,8 @@ public:
     /**
      * @brief Receive one byte of data.
      *
-     * @param[out] byte Received byte (if any).
-     *
-     * @return True if a byte was received, false otherwise.
+     * @return Received byte, or std::nullopt if no byte was available.
      */
-    virtual bool read(std::uint8_t& byte) noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::uint8_t> read() noexcept = 0;
 };
 } // namespace driver::serial

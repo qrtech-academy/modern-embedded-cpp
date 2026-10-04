@@ -68,8 +68,7 @@ five writes rather than thousands (the 100 ms delay), and one printed line per r
 none otherwise. What `run()` prints is not compared, because the exercise does not say what it
 should look like.
 
-**What is not tested.** That `isInitialized()` and `serial()` are `[[nodiscard]]`, and that `read()`
-is not: GCC does not warn about a discarded result of a virtual call made through an interface,
+**What is not tested.** That `isInitialized()`, `read()` and `serial()` are `[[nodiscard]]`: GCC does not warn about a discarded result of a virtual call made through an interface,
 with the attribute or without it, so no test can tell them apart. `main.cpp` is compiled against
 your headers but never run, because it never stops; run it yourself.
 

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 namespace driver::counter
 {
@@ -33,9 +34,9 @@ public:
     /**
      * @brief Get the current counter value.
      *
-     * @return The current counter value.
+     * @return The current counter value, or std::nullopt if not initialized.
      */
-    [[nodiscard]] virtual std::uint32_t value() const noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::uint32_t> value() const noexcept = 0;
 
     /**
      * @brief Reset the counter to zero.

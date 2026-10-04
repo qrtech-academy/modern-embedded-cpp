@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "driver/serial/interface.hpp"
 
@@ -46,9 +47,9 @@ public:
      *
      * @param[out] byte Received byte (if any).
      *
-     * @return True if a byte was received, false otherwise.
+     * @return Received byte, or std::nullopt if no byte was available.
      */
-    bool read(std::uint8_t& byte) noexcept override;
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override;
 
     /**
      * @brief Set the simulated initialization state.
@@ -64,12 +65,9 @@ public:
 
 private:
     /** Last transmitted byte. */
-    std::uint8_t myLastByte;
+    std::optional<std::uint8_t> myLastByte;
 
     /** Initialization status (true = initialized). */
     bool myInitialized;
-
-    /** Data availability flag (true = available). */
-    bool myHasData;
 };
 } // namespace driver::serial

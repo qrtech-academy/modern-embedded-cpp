@@ -284,3 +284,45 @@ Register content: 10101110
 ```
 
 ---
+
+## Exercise Set 5 – `std::optional`
+
+### Exercise 5.1 – Lowest Set Bit
+Create a function template that finds the lowest set bit in a register:
+
+```cpp
+template<typename T>
+[[nodiscard]] constexpr std::optional<std::uint8_t> lowestSetBit(const T reg) noexcept;
+```
+
+Implement this function template inside an anonymous namespace.
+
+Tasks:
+1. Ensure that `T` is an integral type, with the same `static_assert` and error message as in Exercise 4.1.
+2. Return the number of the lowest bit that is set in the register, where bit `0` is the least significant bit.
+3. Return `std::nullopt` if no bit is set.
+4. In `main()`, call the function for a `std::uint8_t` register with the value `0x28U`, and for one with the value `0x00U`.
+5. For each register, print the register value in hexadecimal together with the bit number if a bit was found, and otherwise that no bit is set:
+    * Check that the optional holds a value before using it, and read the value with `*`. Do not use `value()`.
+    * Output stream `std::cout` from `<iostream>` for printing.
+    * The manipulator `std::hex` to print the register value in hexadecimal.
+
+**Note:** `std::cout` prints a `std::uint8_t` as a character rather than as a number. Cast the
+register value and the bit number to `int` with a `static_cast` before printing them.
+
+Expected output:
+
+```text
+Lowest set bit in value 0x28: 3
+No set bit in value 0x0!
+```
+
+---
+
+### Exercise 5.2 – Reflection
+1. Why is `0` not a suitable return value for a register with no bit set?
+2. The function could instead return `0xFFU` when no bit is set. What would the caller have to know, and what happens if the caller forgets?
+3. Why is the value read with `*` after a check, rather than with `value()`?
+4. Why is `lowestSetBit()` marked `[[nodiscard]]`?
+
+---

@@ -21,6 +21,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -63,11 +64,11 @@ public:
         [[maybe_unused]] const auto written{::write(myFd, report, sizeof(report))};
     }
 
-    bool read(std::uint8_t& byte) noexcept override
+    [[nodiscard]] std::optional<std::uint8_t> read() noexcept override
     {
         [[maybe_unused]] const auto written{::write(myFd, "R", 1U)};
-        if (myReceives) { byte = 0x5AU; }
-        return myReceives;
+        if (myReceives) { return std::uint8_t{0x5AU}; }
+        return std::nullopt;
     }
 
 private:

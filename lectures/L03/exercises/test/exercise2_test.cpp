@@ -6,6 +6,7 @@
  *       point of a stub is to stand in for real hardware wherever code expects the interface.
  */
 #include <cstdint>
+#include <optional>
 #include <type_traits>
 
 #include "driver/serial/stub.hpp"
@@ -45,9 +46,17 @@ TEST(Stub, CannotBeCopiedOrMoved)
 TEST(Stub, StartsInitializedAndEmpty)
 {
     Stub stub{};
-    std::uint8_t byte{};
     EXPECT_TRUE(stub.isInitialized());
-    EXPECT_FALSE(stub.read(byte));
+    EXPECT_FALSE(stub.read().has_value());
+}
+
+/**
+ * @brief Exercise 2.1 d): read() returns a std::optional<std::uint8_t>, and takes no parameters.
+ */
+TEST(Stub, ReadReturnsAnOptionalByte)
+{
+    Stub stub{};
+    EXPECT_TRUE((std::is_same<decltype(stub.read()), std::optional<std::uint8_t>>::value));
 }
 
 /**
@@ -57,11 +66,11 @@ TEST(Stub, StartsInitializedAndEmpty)
 TEST(Stub, ReadsBackTheByteWrittenOnce)
 {
     Stub stub{};
-    std::uint8_t byte{};
     stub.write(0x41U);
-    EXPECT_TRUE(stub.read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0x41U);
-    EXPECT_FALSE(stub.read(byte));
+    const std::optional<std::uint8_t> byte{stub.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<unsigned>(byte.value_or(0U)), 0x41U);
+    EXPECT_FALSE(stub.read().has_value());
 }
 
 /**
@@ -70,23 +79,24 @@ TEST(Stub, ReadsBackTheByteWrittenOnce)
 TEST(Stub, KeepsTheLastByte)
 {
     Stub stub{};
-    std::uint8_t byte{};
     stub.write(0x01U);
     stub.write(0x02U);
     stub.write(0xFFU);
-    EXPECT_TRUE(stub.read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0xFFU);
+    EXPECT_EQ(static_cast<unsigned>(stub.read().value_or(0U)), 0xFFU);
 }
 
 /**
- * @brief Exercise 2.1 d): read() copies into its argument only when it returns true.
+ * @brief Exercise 2.1 d): a zero byte is a byte. An optional holding 0 is not an empty optional,
+ *        which is the case a value and a flag kept apart tend to get wrong.
  */
-TEST(Stub, LeavesTheArgumentAloneWhenThereIsNothingToRead)
+TEST(Stub, ReadsBackAZeroByte)
 {
     Stub stub{};
-    std::uint8_t byte{0x7EU};
-    EXPECT_FALSE(stub.read(byte));
-    EXPECT_EQ(static_cast<unsigned>(byte), 0x7EU);
+    stub.write(0x00U);
+    const std::optional<std::uint8_t> byte{stub.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<unsigned>(byte.value_or(0xFFU)), 0x00U);
+    EXPECT_FALSE(stub.read().has_value());
 }
 
 /**
@@ -96,26 +106,27 @@ TEST(Stub, LeavesTheArgumentAloneWhenThereIsNothingToRead)
 TEST(Stub, UninitializedStubDoesNothing)
 {
     Stub stub{};
-    std::uint8_t byte{};
     stub.setInitialized(false);
     EXPECT_FALSE(stub.isInitialized());
     stub.write(0x41U);
-    EXPECT_FALSE(stub.read(byte));
+    EXPECT_FALSE(stub.read().has_value());
     stub.setInitialized(true);
     EXPECT_TRUE(stub.isInitialized());
-    EXPECT_FALSE(stub.read(byte));
+    EXPECT_FALSE(stub.read().has_value());
 }
 
 /**
- * @brief Exercise 2.1 d): an uninitialized stub refuses to read even a byte it already holds.
+ * @brief Exercise 2.1 e): setting the stub to uninitialized discards the byte it holds, so there
+ *        is nothing to read, and initializing it again does not bring the byte back.
  */
-TEST(Stub, UninitializedStubDoesNotRead)
+TEST(Stub, UninitializingDiscardsTheStoredByte)
 {
     Stub stub{};
-    std::uint8_t byte{};
     stub.write(0x41U);
     stub.setInitialized(false);
-    EXPECT_FALSE(stub.read(byte));
+    EXPECT_FALSE(stub.read().has_value());
+    stub.setInitialized(true);
+    EXPECT_FALSE(stub.read().has_value());
 }
 
 /**
@@ -126,12 +137,12 @@ TEST(Stub, WorksThroughTheInterface)
 {
     Stub stub{};
     Interface& serial{stub};
-    std::uint8_t byte{};
     EXPECT_TRUE(noexcept(serial.write(0U)));
-    EXPECT_TRUE(noexcept(serial.read(byte)));
+    EXPECT_TRUE(noexcept(serial.read()));
     EXPECT_TRUE(noexcept(stub.isInitialized()));
     serial.write('!');
     EXPECT_TRUE(serial.isInitialized());
-    EXPECT_TRUE(serial.read(byte));
-    EXPECT_EQ(static_cast<char>(byte), '!');
+    const std::optional<std::uint8_t> byte{serial.read()};
+    EXPECT_TRUE(byte.has_value());
+    EXPECT_EQ(static_cast<char>(byte.value_or(0U)), '!');
 }

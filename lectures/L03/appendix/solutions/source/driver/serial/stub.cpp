@@ -2,6 +2,7 @@
  * @file Serial driver stub implementation details.
  */
 #include <cstdint>
+#include <optional>
 
 #include "driver/serial/stub.hpp"
 
@@ -9,9 +10,8 @@ namespace driver::serial
 {
 // -----------------------------------------------------------------------------
 Stub::Stub() noexcept
-    : myLastByte{}
+    : myLastByte{std::nullopt}
     , myInitialized{true}
-    , myHasData{false}
 {}
 
 // -----------------------------------------------------------------------------
@@ -20,26 +20,21 @@ bool Stub::isInitialized() const noexcept { return myInitialized; }
 // -----------------------------------------------------------------------------
 void Stub::write(const std::uint8_t byte) noexcept
 {
-    if (myInitialized)
-    {
-        myLastByte = byte;
-        myHasData  = true;
-    }
+    if (myInitialized) { myLastByte = byte; }
 }
 
 // -----------------------------------------------------------------------------
-bool Stub::read(std::uint8_t& byte) noexcept
+std::optional<std::uint8_t> Stub::read() noexcept
 {
-    // Retrieve last byte if present.
-    if (myInitialized && myHasData)
-    {
-        byte      = myLastByte;
-        myHasData = false;
-        return true;
-    }
-    return false;
+    const auto byte = myLastByte;
+    myLastByte      = std::nullopt;
+    return byte;
 }
 
 // -----------------------------------------------------------------------------
-void Stub::setInitialized(const bool initialized) noexcept { myInitialized = initialized; }
+void Stub::setInitialized(const bool initialized) noexcept
+{
+    myInitialized = initialized;
+    if (!myInitialized) { myLastByte = std::nullopt; }
+}
 } // namespace driver::serial
