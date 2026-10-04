@@ -16,6 +16,7 @@ After this chapter, you should:
   \item Understand how references simplify function interfaces compared to pointers.
   \item Understand how templates enable generic utilities such as bit manipulation helpers.
   \item Have an intuition for compile-time programming (\code{constexpr} and templates).
+  \item Understand how \code{std::optional} expresses a return value that may be absent.
 \end{itemize}
 
 \needspace{6\baselineskip}
@@ -30,6 +31,10 @@ You should be able to explain:
   \item What advantages do references have compared to pointers?
   \item Why can templates increase binary size in embedded systems?
   \item What are parameter packs used for?
+  \item What problem does \code{std::optional} solve compared to a \code{bool} return value and
+    an out-parameter?
+  \item Why should \code{value()} be avoided on an \code{std::optional} when exceptions are
+    disabled?
 \end{enumerate}
 
 \needspace{6\baselineskip}

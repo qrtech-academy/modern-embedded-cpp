@@ -10,7 +10,7 @@ self-assessment papers as appendices. The solutions to the exercises stay in the
 sudo apt -y install make texlive-luatex texlive-latex-extra fonts-texgyre fonts-texgyre-math \
                     fonts-dejavu-core poppler-utils
 make -C book                   # Writes book/modern-embedded-cpp.pdf, dated today.
-make -C book VERSION=book-v2   # The same, with the version on the title page.
+make -C book VERSION=v1.2.3    # The same, with the version on the title page.
 make -C book png               # Redraws the lecture's priority-inversion PNG from the figure.
 make -C book clean             # Removes book/build/ and the PDF.
 ```
@@ -25,17 +25,22 @@ ones.
 ## Releasing a new edition
 The PDF is committed, as `book/modern-embedded-cpp.pdf`, so the repository always holds a readable
 copy; rebuild it with `make -C book` and commit it along with any change to the book. Each edition
-is also published as a GitHub release, with its version on the title page. Push a tag named
-`book-v*`:
+is also published as a GitHub release, with its version on the title page. The book shares the
+repository's version namespace, so push a `vx.y.z` tag:
 
 ```bash
-git tag book-v2
-git push origin book-v2
+git tag v1.2.3
+git push origin v1.2.3
 ```
 
 The [Book workflow](../.github/workflows/book.yml) then builds the PDF with the tag on its title
-page and attaches it to a release of the same name. The README's download link always points at
-the newest release, so it never needs updating.
+page and attaches it to a release of the same name. Because the namespace is shared, every version
+tag publishes an edition of the book, whether or not the book itself changed.
+
+The README's download link points at the committed PDF in `main`, not at a release, so it always
+serves the newest build and never needs updating. Courses that link the book from elsewhere can
+point either at that file, for the tip of `main`, or at `releases/latest`, for the newest tagged
+edition.
 
 ---
 

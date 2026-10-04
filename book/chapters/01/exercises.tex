@@ -349,3 +349,57 @@ std::cout << "Register content: " << std::bitset<8U>(reg) << "\n";
 \begin{console}
 Register content: 10101110
 \end{console}
+
+% ------------------------------------------------------------------------------------------
+\exerciseset{\code{std::optional}}
+\label{c1:set:5}
+
+\exercise{Lowest set bit}{Code}
+\label{c1:ex:5.1}
+Create a function template that finds the lowest set bit in a register:
+
+\begin{cppcode}
+template<typename T>
+[[nodiscard]] constexpr std::optional<std::uint8_t> lowestSetBit(const T reg) noexcept;
+\end{cppcode}
+
+\noindent Implement this function template inside an anonymous namespace.
+
+\task{Tasks}
+\begin{enumerate}
+  \item Ensure that \code{T} is an integral type, with the same \code{static_assert} and error
+    message as in Exercise~\ref{c1:ex:4.1}.
+  \item Return the number of the lowest bit that is set in the register, where bit \code{0} is the
+    least significant bit.
+  \item Return \code{std::nullopt} if no bit is set.
+  \item In \code{main()}, call the function for a \code{std::uint8_t} register with the value
+    \code{0x28U}, and for one with the value \code{0x00U}.
+  \item For each register, print the register value in hexadecimal together with the bit number
+    if a bit was found, and otherwise that no bit is set:
+  \begin{itemize}
+    \item Check that the optional holds a value before using it, and read the value with
+      \code{*}. Do not use \code{value()}.
+    \item Output stream \code{std::cout} from \code{<iostream>} for printing.
+    \item The manipulator \code{std::hex} to print the register value in hexadecimal.
+  \end{itemize}
+\end{enumerate}
+\note \code{std::cout} prints a \code{std::uint8_t} as a character rather than as a number. Cast
+the register value and the bit number to \code{int} with a \code{static_cast} before printing
+them.
+
+Expected output:
+
+\begin{console}
+Lowest set bit in value 0x28: 3
+No set bit in value 0x0!
+\end{console}
+
+\exercise[fillaccent2]{Reflection}{Reflection}
+\label{c1:ex:5.2}
+\begin{parts}
+  \item Why is \code{0} not a suitable return value for a register with no bit set?
+  \item The function could instead return \code{0xFFU} when no bit is set. What would the caller
+    have to know, and what happens if the caller forgets?
+  \item Why is the value read with \code{*} after a check, rather than with \code{value()}?
+  \item Why is \code{lowestSetBit()} marked \code{[[nodiscard]]}?
+\end{parts}

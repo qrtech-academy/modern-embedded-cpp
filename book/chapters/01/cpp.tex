@@ -390,6 +390,9 @@ In such systems, errors are typically handled using C-style mechanisms such as:
   \item Status flags.
   \item Error callbacks.
 \end{itemize}
+For a function that either returns a value or has nothing to return, modern C++ offers a safer
+alternative to a return code combined with an out-parameter; see \secref{c1:sec:optional}.
+
 Because of this, it is common practice in embedded C++ to mark functions that are not expected to
 fail with the \code{noexcept} keyword.
 
@@ -1282,9 +1285,143 @@ const bool state{led.read()};
   \item Factory functions that return an owning resource, such as \code{std::unique_ptr}
     (introduced in Chapter~\ref{c4:ch:factory}), where discarding the result would immediately
     release the resource.
+  \item Functions returning a \code{std::optional} (see \secref{c1:sec:optional}), where the result
+    is the only way to learn whether there was a value at all.
 \end{itemize}
 \note \code{[[nodiscard]]} should not be added indiscriminately. Functions that are called mainly
 for their side effects, where the return value is genuinely optional, do not need it.
+
+\subsection{\code{std::optional}}
+\label{c1:sec:optional}
+Some functions do not always have a value to return. Reading a byte from a serial port is a typical
+example: if nothing has been received, there is no byte to hand back.
+
+C has no direct way to express ``a value, or nothing'', so one of two workarounds is normally used:
+\begin{itemize}
+  \item \textbf{A sentinel value:} one value of the return type is reserved to mean ``nothing'',
+    such as \code{-1} or \code{0xFF}. This only works when the type has a value to spare. A
+    received byte can be anything from \code{0x00} to \code{0xFF}, so no value is left over, and
+    the return type has to be widened to make room.
+  \item \textbf{A status return and an out-parameter:} the function returns \code{true} or
+    \code{false}, and writes the value through a pointer.
+\end{itemize}
+The second workaround is the more common one in embedded C:
+
+\begin{ccode}
+#include <stdbool.h>
+#include <stdint.h>
+
+// Assume RX bytes are received via another function.
+static bool rx_available = false;
+static uint8_t last_rx   = 0U;
+
+bool read_byte(uint8_t* byte)
+{
+    if (!rx_available) { return false; }
+    *byte        = last_rx;
+    rx_available = false;
+    return true;
+}
+\end{ccode}
+
+\noindent This works, but it has several weaknesses:
+\begin{itemize}
+  \item The caller must declare a variable before the call, so the variable cannot be
+    \code{const}, and it exists even when nothing was received.
+  \item Nothing stops the caller from ignoring the return value and using the variable anyway, in
+    which case it holds whatever it held before the call.
+  \item A null pointer passed by mistake is dereferenced, unless the function adds a check for
+    it.
+  \item The signature does not say which parameters are inputs and which are outputs.
+\end{itemize}
+
+\subsubsection{A value, or nothing}
+Since C++17, the standard library provides \code{std::optional<T>} in the header
+\code{<optional>}. An \code{std::optional<T>} either holds a value of type \code{T}, or it is
+empty. The empty state is written \code{std::nullopt}.
+
+With it, the function can return the byte itself, or nothing:
+
+\begin{cppcode}
+#include <cstdint>
+#include <optional>
+
+namespace
+{
+// Once again, assume RX bytes are received via another function.
+bool rxAvailable{false};
+std::uint8_t lastRx{};
+} // namespace
+
+[[nodiscard]] std::optional<std::uint8_t> readByte() noexcept
+{
+    if (!rxAvailable) { return std::nullopt; }
+    rxAvailable = false;
+    return lastRx;
+}
+\end{cppcode}
+
+\noindent Note that:
+\begin{itemize}
+  \item The out-parameter is gone. The function takes only its inputs and returns only its output.
+  \item A \code{T} converts implicitly to an \code{std::optional<T>}, so the byte is returned as it
+    is.
+  \item \code{std::nullopt} is returned when there is nothing to return.
+  \item The function is marked \code{[[nodiscard]]}: an optional that is never looked at has told
+    the caller nothing.
+\end{itemize}
+
+\subsubsection{Using the result}
+An \code{std::optional} can be compared with \code{std::nullopt} to find out whether it holds a
+value. Once we know that a value is present, we reach it with the dereference operator \code{*},
+just as with a pointer:
+
+\begin{cppcode}
+const auto byte = readByte();
+if (std::nullopt != byte) { std::printf("Received byte %u!\n", *byte); }
+else { std::printf("No bytes available!\n"); }
+\end{cppcode}
+
+\noindent The check can be written in two other ways that mean the same thing:
+\begin{itemize}
+  \item The method \code{has_value()} returns \code{true} when a value is present.
+  \item The optional itself converts to \code{true} in a condition when it holds a value, so
+    \code{if (byte)} works as well.
+\end{itemize}
+With \code{std::optional}, the value and the knowledge of whether it exists travel together in one
+object. The value cannot be reached without going through that object, which makes the check hard
+to forget.
+
+\subsubsection{\code{std::optional} as a member variable}
+\code{std::optional} is not limited to return types. A value paired with a flag that says whether
+the value is valid is a common pattern in drivers, and the pair can be replaced by a single
+optional. The variables \code{rxAvailable} and \code{lastRx} in the example above are such a pair:
+declared as one \code{std::optional<std::uint8_t>}, a byte is stored by assigning to it, it is
+emptied by assigning \code{std::nullopt} to it, and it is checked and read in the same way as a
+returned optional.
+
+The two can then no longer disagree: there is no flag that says ``valid'' while the value is
+stale, since there is no separate flag.
+
+\subsubsection{What it costs, and what to avoid}
+\begin{itemize}
+  \item \textbf{No dynamic allocation.} The value is stored inside the optional itself, not on the
+    heap, which makes \code{std::optional} safe to use in systems that forbid dynamic memory.
+  \item \textbf{A little more memory.} An optional is the size of a \code{T} plus a flag, rounded
+    up to the alignment of \code{T}. An \code{std::optional<std::uint8_t>} is two bytes, and an
+    \code{std::optional<std::uint32_t>} is eight.
+  \item \textbf{Check before dereferencing.} Using \code{*} on an empty optional is undefined
+    behavior, exactly as with a null pointer.
+  \item \textbf{Avoid \code{value()} when exceptions are disabled.} The method \code{value()} also
+    returns the value, but throws \code{std::bad_optional_access} if the optional is empty. In a
+    system without exceptions, check first and use \code{*}.
+  \item \textbf{The condition tests presence, not the value.} An
+    \code{std::optional<std::uint8_t>} holding \code{0} is \code{true} in a condition, because it
+    holds a value. For the same reason, \code{std::optional<bool>} is easy to misread and best
+    avoided.
+  \item \textbf{It says that there is nothing, not why.} When the caller needs to know the reason
+    for a failure, a status code is still the right tool.
+\end{itemize}
 
 \subsection{Additional information about type traits}
 \label{c1:sec:typetraits}
@@ -1387,6 +1524,7 @@ This section introduced the following modern C++ features commonly used in embed
   \item The \code{auto} keyword.
   \item Function templates.
   \item \code{[[nodiscard]]} for catching ignored return values.
+  \item \code{std::optional} for functions that may have no value to return.
 \end{itemize}
 These features allow developers to write safer, clearer, and more maintainable embedded software
 while still maintaining full control over hardware and performance.

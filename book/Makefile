@@ -1,7 +1,7 @@
 # Build the book: two LuaLaTeX passes, the second for the contents and the references.
 #
 #   make                   build modern-embedded-cpp.pdf, dated today
-#   make VERSION=book-v2   the same, with the release's version on the title page
+#   make VERSION=v1.2.3    the same, with the release's version on the title page
 #   make png               redraw the lecture's copy of the priority-inversion figure from figures/
 #   make clean             remove everything the build writes
 #

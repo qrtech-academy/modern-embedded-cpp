@@ -313,7 +313,8 @@ Add a pure virtual method \code{isInitialized()} that:
 \task{c) Reading the counter}
 Add a pure virtual method \code{value()} that:
 \begin{itemize}
-  \item Returns the current counter value as \code{std::uint32_t}.
+  \item Returns a \code{std::optional<std::uint32_t>} from \code{<optional>}: the current
+    counter value, or \code{std::nullopt} if the driver has no value to give.
   \item Does not modify the object.
   \item Is marked \code{noexcept} and \code{[[nodiscard]]}.
 \end{itemize}
@@ -425,7 +426,8 @@ In \file{main.cpp}:
   \item Start two threads, both running \code{counterThread()} --- the first with \code{100U}
     iterations, the second with \code{200U}.
   \item Join both threads.
-  \item Print the final counter value using \code{value()}.
+  \item Print the final counter value using \code{value()}, after checking that a value was
+    returned.
 \end{itemize}
 
 \task{Reflection}
@@ -473,13 +475,15 @@ Override \code{isInitialized()} from the interface so that it:
 Modify \code{increment()}, \code{value()}, and \code{reset()}:
 \begin{itemize}
   \item \code{increment()} shall do nothing if the driver is not initialized.
-  \item \code{value()} shall return \code{0U} if the driver is not initialized.
+  \item \code{value()} shall return \code{std::nullopt} if the driver is not initialized.
   \item \code{reset()} shall do nothing if the driver is not initialized.
 \end{itemize}
 The counter value itself shall still be protected by the mutex.
 
 \task{Reflection}
 \begin{itemize}
+  \item Why is \code{std::nullopt} a better answer from \code{value()} than \code{0U} when the
+    driver is not initialized?
   \item Why is \code{myInitialized} suitable as an atomic variable?
   \item Why is \code{myValue} still protected by a mutex?
   \item Would it be safe to make both variables atomic if future requirements added more related
